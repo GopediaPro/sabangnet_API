@@ -24,7 +24,7 @@ class SabangNetMallAPI:
     def create_request_xml(self, send_date: str = None) -> str:
         if not send_date:
             send_date = datetime.now().strftime('%Y%m%d')
-        xml_content = f"""<?xml version=\"1.0\" encoding=\"EUC-KR\"?>\n<SABANG_MALL_LIST>\n    <HEADER>\n        <SEND_COMPAYNY_ID>{self.company_id}</SEND_COMPAYNY_ID>\n        <SEND_AUTH_KEY>{self.auth_key}</SEND_AUTH_KEY>\n        <SEND_DATE>{send_date}</SEND_DATE>\n    </HEADER>\n</SABANG_MALL_LIST>"""
+        xml_content = f"""<?xml version=\"1.0\" encoding=\"EUC-KR\"?>\n<SABANG_MALL_LIST>\n    <HEADER>\n        <SEND_COMPANY_ID>{self.company_id}</SEND_COMPANY_ID>\n        <SEND_AUTH_KEY>{self.auth_key}</SEND_AUTH_KEY>\n        <SEND_DATE>{send_date}</SEND_DATE>\n    </HEADER>\n</SABANG_MALL_LIST>"""
         return xml_content
 
     def parse_response_xml(self, xml_content: str) -> List[Dict[str, str]]:
@@ -55,6 +55,8 @@ class SabangNetMallAPI:
             params = {'xml_url': xml_url}
             logger.info(f"API 요청: {api_url}")
             logger.info(f"XML URL: {xml_url}")
+            print(f"API 요청: {api_url}")
+            print(f"XML URL: {xml_url}")
             response = requests.get(api_url, params=params, timeout=30)
             response.raise_for_status()
             return self.parse_response_xml(response.text)
