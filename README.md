@@ -31,6 +31,9 @@ source venv/bin/activate
 # 가상환경 활성화 (Windows)
 venv\Scripts\activate
 ```
+# ssl 오류 해결용 명령어
+export OPENSSL_CONF=./config/openssl.cnf
+
 #  실행
 python app.py
 
