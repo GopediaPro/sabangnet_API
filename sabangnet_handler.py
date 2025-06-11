@@ -52,12 +52,11 @@ class SabangNetMallAPI:
     def get_mall_list_via_url(self, xml_url: str) -> List[Dict[str, str]]:
         try:
             api_url = urljoin(self.admin_url, '/RTL_API/xml_mall_info.html')
-            params = {'xml_url': xml_url}
-            logger.info(f"API 요청: {api_url}")
-            logger.info(f"XML URL: {xml_url}")
-            print(f"API 요청: {api_url}")
-            print(f"XML URL: {xml_url}")
-            response = requests.get(api_url, params=params, timeout=30)
+            full_url = f"{api_url}?xml_url={xml_url}"
+            logger.info(f"최종 요청 URL: {full_url}")
+            print(f"최종 요청 URL: {full_url}")
+            response = requests.get(full_url, timeout=30)
+            print(f"API 요청 결과: {response.text}")
             response.raise_for_status()
             return self.parse_response_xml(response.text)
         except requests.RequestException as e:
