@@ -1,6 +1,7 @@
 import os
 from minio import Minio
 from minio.error import S3Error
+from urllib.parse import urlparse, urlunparse
 
 MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT')
 MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY')
@@ -56,13 +57,32 @@ def upload_file_to_minio(local_file_path, object_name=None):
     except S3Error as e:
         raise RuntimeError(f"MinIO upload failed: {e}")
 
+def remove_port_from_url(url):
+    parsed = urlparse(url)
+    # netloc에서 포트(:9000 등)만 제거
+    if ':' in parsed.netloc:
+        host = parsed.netloc.split(':')[0]
+    else:
+        host = parsed.netloc
+    # 다시 URL로 조립
+    new_url = urlunparse((
+        parsed.scheme,
+        host,
+        parsed.path,
+        parsed.params,
+        parsed.query,
+        parsed.fragment
+    ))
+    return new_url
+
 def get_minio_file_url(object_name):
     """
     Get a public URL for the uploaded object.
     """
     try:
         url = minio_client.presigned_get_object(MINIO_BUCKET_NAME, object_name)
-        print(f"MinIO에 업로드된 XML 파일 URL: {url}")
-        return url
+        return_url = remove_port_from_url(url)
+        print(f"get_minio_file_url MinIO에 업로드된 XML 파일 URL: {return_url}")
+        return return_url
     except S3Error as e:
         raise RuntimeError(f"MinIO get URL failed: {e}") 
