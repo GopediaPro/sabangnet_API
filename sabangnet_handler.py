@@ -24,12 +24,12 @@ class SabangNetMallAPI:
     def create_request_xml(self, send_date: str = None) -> str:
         if not send_date:
             send_date = datetime.now().strftime('%Y%m%d')
-        xml_content = f"""<?xml version=\"1.0\" encoding=\"EUC-KR\"?>\n<SABANG_MALL_LIST>\n    <HEADER>\n        <SEND_COMPANY_ID>{self.company_id}</SEND_COMPANY_ID>\n        <SEND_AUTH_KEY>{self.auth_key}</SEND_AUTH_KEY>\n        <SEND_DATE>{send_date}</SEND_DATE>\n    </HEADER>\n</SABANG_MALL_LIST>"""
+        xml_content = f"""<?xml version=\"1.0\" encoding=\"EUC-KR\"?>\n<SABANG_MALL_LIST>\n    <HEADER>\n        <SEND_COMPAYNY_ID>{self.company_id}</SEND_COMPAYNY_ID>\n        <SEND_AUTH_KEY>{self.auth_key}</SEND_AUTH_KEY>\n        <SEND_DATE>{send_date}</SEND_DATE>\n    </HEADER>\n</SABANG_MALL_LIST>"""
         return xml_content
 
     def parse_response_xml(self, xml_content: str) -> List[Dict[str, str]]:
         try:
-            root = ET.fromstring(xml_content.encode('euc-kr'))
+            root = ET.fromstring(xml_content)
             mall_list = []
             for data_node in root.findall('DATA'):
                 mall_id_node = data_node.find('MALL_ID')
@@ -58,7 +58,8 @@ class SabangNetMallAPI:
             response = requests.get(full_url, timeout=30)
             print(f"API 요청 결과: {response.text}")
             response.raise_for_status()
-            return self.parse_response_xml(response.text)
+            response_xml = self.parse_response_xml(response.text)
+            return response_xml
         except requests.RequestException as e:
             logger.error(f"API 요청 실패: {e}")
             raise
