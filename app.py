@@ -16,8 +16,8 @@ from typing import List, Dict, Optional
 from urllib.parse import urljoin
 import logging
 from dotenv import load_dotenv
-from sabangnet_handler import SabangNetMallAPI
-from file_server_handler import upload_to_file_server, get_file_server_url, upload_xml_content_to_file_server
+from controller import fetch_mall_list, fetch_order_list
+
 
 load_dotenv()  # .env 파일 로드
 
@@ -38,49 +38,15 @@ logger = logging.getLogger(__name__)
 
 def main():
     """메인 실행 함수"""
+    print(f"현재 openssl 설정파일: {os.environ.get('OPENSSL_CONF')}")
     try:
-        api = SabangNetMallAPI()
-        print(f"사방넷 쇼핑몰 목록 조회 (현재 openssl 설정파일: {os.environ.get('OPENSSL_CONF')})")
-        print("=" * 50)
-        print("1. 파일(XML) 업로드 후 URL로 호출 (권장)")
-        print("2. XML 내용을 직접 업로드 후 URL로 호출")
-        print("3. XML URL을 직접 입력하여 호출")
-        choice = input("\n선택하세요 (1, 2 또는 3): ").strip()
-        if choice == "1":
-            # 1. XML 생성 및 파일로 저장
-            xml_content = api.create_request_xml()
-            xml_file_path = 'mall_request.xml'
-            with open(xml_file_path, 'w', encoding='euc-kr') as f:
-                f.write(xml_content)
-            print(f"\n요청 XML이 {xml_file_path}에 저장되었습니다.")
-            # 파일 서버 업로드
-            object_name = upload_to_file_server(xml_file_path)
-            print(f"파일 서버에 업로드된 XML 파일 이름: {object_name}")
-            xml_url = get_file_server_url(object_name)
-            print(f"파일 서버에 업로드된 XML URL: {xml_url}")
-            mall_list = api.get_mall_list_via_url(xml_url)
-        elif choice == "2":
-            # 2. XML 내용을 직접 파일 서버에 업로드
-            xml_content = api.create_request_xml()
-            filename = input("업로드할 XML 파일명을 입력하세요 (예: mall_request.xml): ").strip()
-            if not filename:
-                filename = 'mall_request.xml'
-            object_name = upload_xml_content_to_file_server(xml_content, filename)
-            print(f"파일 서버에 업로드된 XML 파일 이름: {object_name}")
-            xml_url = get_file_server_url(object_name)
-            print(f"파일 서버에 업로드된 XML URL: {xml_url}")
-            mall_list = api.get_mall_list_via_url(xml_url)
-        elif choice == "3":
-            xml_url = input("\nXML 파일의 URL을 입력하세요 (예: http://www.abc.co.kr/aa.xml): ").strip()
-            if not xml_url:
-                print("유효한 XML URL을 입력해주세요.")
-                return
-            mall_list = api.get_mall_list_via_url(xml_url)
-            print(f"XML URL 요청 결과: {mall_list}")
+        input_controller = input("사용할 API를 선택하세요: (1. 쇼핑몰 목록 조회, 2. 주문 수집)") 
+        if input_controller == "1":
+            fetch_mall_list()
+        elif input_controller == "2":
+            fetch_order_list()
         else:
-            print("잘못된 선택입니다.")
-            return
-        api.display_mall_list(mall_list)
+            print("잘못된 입력입니다.")
     except ValueError as e:
         print(f"\n환경변수를 확인해주세요: {e}")
         print("- SABANG_COMPANY_ID: 사방넷 로그인 아이디")

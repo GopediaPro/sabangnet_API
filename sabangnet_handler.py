@@ -5,6 +5,8 @@ from datetime import datetime
 from typing import List, Dict
 from urllib.parse import urljoin
 import logging
+import json
+from pathlib import Path
 
 SABANG_COMPANY_ID = os.getenv('SABANG_COMPANY_ID')
 SABANG_AUTH_KEY = os.getenv('SABANG_AUTH_KEY')
@@ -41,6 +43,11 @@ class SabangNetMallAPI:
                     }
                     mall_list.append(mall_info)
             logger.info(f"총 {len(mall_list)}개의 쇼핑몰 정보를 파싱했습니다.")
+            json_dir = Path("./files/json")
+            json_dir.mkdir(exist_ok=True)
+            json_path = json_dir / "mall_list.json"
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(mall_list, f, ensure_ascii=False, indent=4)
             return mall_list
         except ET.ParseError as e:
             logger.error(f"XML 파싱 오류: {e}")

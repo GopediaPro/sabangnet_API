@@ -8,7 +8,7 @@ class LegacySSLHandler:
     프로세스 종속적인 레거시 SSL 설정파일 변경.
     """
     def __init__(self):
-        self.config_dir = Path("config")
+        self.config_dir = Path("./config")
         self.config_dir.mkdir(exist_ok=True)
         self.cnf_path = self.config_dir / "openssl.cnf"
         # 파일 내용 정의 및 저장
