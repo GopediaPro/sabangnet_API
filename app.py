@@ -4,6 +4,11 @@
 """
 
 import os
+# 레거시 SSL 수정
+from legacy_SSL_handler import LegacySSLHandler
+legacy_ssl_handler = LegacySSLHandler()
+legacy_ssl_handler.fix_legacy_ssl_config()
+# 레거시 SSL 수정 완료
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -35,7 +40,7 @@ def main():
     """메인 실행 함수"""
     try:
         api = SabangNetMallAPI()
-        print("사방넷 쇼핑몰 목록 조회")
+        print(f"사방넷 쇼핑몰 목록 조회 (현재 openssl 설정파일: {os.environ.get('OPENSSL_CONF')})")
         print("=" * 50)
         print("1. 파일(XML) 업로드 후 URL로 호출 (권장)")
         print("2. XML 내용을 직접 업로드 후 URL로 호출")
