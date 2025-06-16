@@ -11,7 +11,10 @@ cp .env.example .env
 # .env 파일에 실제 값 입력
 
 # 4. 실행
-python sabangnet_mall_api.py
+python app.py [command]
+python app.py --help          # Show help
+python app.py mall-list       # List malls
+python app.py order-list      # List orders
 
 # 사방넷 쇼핑몰 코드 조회 API
 
@@ -34,8 +37,26 @@ venv\Scripts\activate
 # ssl 오류 해결용 명령어
 export OPENSSL_CONF=./config/openssl.cnf
 
-#  실행
-python app.py
+## CLI 명령어
+
+이 프로그램은 Typer를 사용한 CLI 인터페이스를 제공합니다:
+
+```bash
+# 도움말 보기
+python app.py --help
+
+# 쇼핑몰 목록 조회
+python app.py mall-list
+
+# 주문 목록 조회
+python app.py order-list
+```
+
+각 명령어의 도움말을 보려면:
+```bash
+python app.py mall-list --help
+python app.py order-list --help
+```
 
 ### 2. 의존성 설치
 
@@ -59,39 +80,9 @@ SABANG_AUTH_KEY=실제_인증키
 SABANG_ADMIN_URL=https://sbadmin실제번호.sabangnet.co.kr
 ```
 
-## 사용 방법
-
-### 1. 기본 사용법
-
-```bash
-python app.py
-```
-
-프로그램 실행 후 XML 파일의 URL을 입력하면 쇼핑몰 목록을 조회할 수 있습니다.
-
-### 2. 프로그래밍 방식 사용
-
-```python
-from sabangnet_mall_api import SabangNetMallAPI
-
-# API 클라이언트 생성
-api = SabangNetMallAPI()
-
-# 요청 XML 생성
-xml_content = api.create_request_xml()
-
-# XML 파일로 저장
-api.save_xml_to_file(xml_content, 'your_xml_file.xml')
-
-# 쇼핑몰 목록 조회 (XML URL 필요)
-mall_list = api.get_mall_list_via_url('http://your-domain.com/your-xml-file.xml')
-
-# 결과 출력
-api.display_mall_list(mall_list)
-```
-
 ## 주요 기능
 
+- **CLI 인터페이스**: Typer를 활용한 직관적인 명령행 인터페이스
 - **환경변수 관리**: 민감한 정보(ID, 인증키)를 환경변수로 안전하게 관리
 - **XML 생성**: 사방넷 API 요청용 XML 자동 생성
 - **API 통신**: 사방넷과의 HTTP 통신 처리
@@ -102,11 +93,12 @@ api.display_mall_list(mall_list)
 
 ```
 .
-├── sabangnet_mall_api.py    # 메인 API 클라이언트
-├── requirements.txt         # Python 의존성
-├── .env.example            # 환경변수 예시
-├── .env                    # 실제 환경변수 (생성 필요)
-└── README.md              # 이 파일
+├── app.py                  # CLI 애플리케이션 메인 파일
+├── controller/            # 컨트롤러 모듈
+├── requirements.txt       # Python 의존성
+├── .env.example          # 환경변수 예시
+├── .env                  # 실제 환경변수 (생성 필요)
+└── README.md            # 이 파일
 ```
 
 ## 주의사항
