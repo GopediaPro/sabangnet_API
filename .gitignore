@@ -1,3 +1,5 @@
 .env
 mall_request.xml
 __pycache__/*
+files
+venv
