@@ -6,3 +6,4 @@ venv
 .DS_Store
 *.xlsx
 *.xml
+*/__pycache__/*

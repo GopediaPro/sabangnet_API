@@ -9,6 +9,8 @@ from typing import Optional
 import logging
 from dotenv import load_dotenv
 from controller import fetch_mall_list, fetch_order_list
+from core.db import get_db_pool
+import asyncio
 
 # 레거시 SSL 수정
 from legacy_SSL_handler import LegacySSLHandler
@@ -56,6 +58,22 @@ def order_list():
     except Exception as e:
         logger.error(f"주문 목록 조회 중 오류 발생: {e}")
         handle_error(e)
+
+@app.command(help="DB 연결을 테스트합니다")
+def test_db_connection():
+    """PostgreSQL DB 연결 테스트 명령어"""
+    async def _test():
+        try:
+            pool = await get_db_pool()
+            async with pool.acquire() as conn:
+                result = await conn.fetchval("SELECT 1")
+            if result == 1:
+                typer.echo("DB 연결 성공!")
+            else:
+                typer.echo("DB 연결은 되었으나, 쿼리 결과가 올바르지 않습니다.")
+        except Exception as e:
+            typer.echo(f"DB 연결 실패: {e}")
+    asyncio.run(_test())
 
 def handle_error(e: Exception):
     """에러 처리 헬퍼 함수"""
