@@ -3,3 +3,6 @@ mall_request.xml
 __pycache__/*
 files
 venv
+.DS_Store
+*.xlsx
+*.xml
