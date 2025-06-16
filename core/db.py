@@ -1,21 +1,19 @@
 import asyncpg
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional
 import os
+from typing import Optional
+from dotenv import load_dotenv
 
-class DBSettings(BaseSettings):
-    db_host: str
-    db_port: int
-    db_name: str
-    db_user: str
-    db_password: str
-    db_sslmode: Optional[str] = "disable"
+# .env 파일 로드
+load_dotenv()
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+DB_HOST = os.getenv('DB_HOST')
+DB_PORT = os.getenv('DB_PORT')
+DB_NAME = os.getenv('DB_NAME')
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+DB_SSLMODE = os.getenv('DB_SSLMODE', 'disable')
 
-settings = DBSettings()
-
-DB_DSN = f"postgresql://{settings.db_user}:{settings.db_password}@{settings.db_host}:{settings.db_port}/{settings.db_name}?sslmode={settings.db_sslmode}"
+DB_DSN = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode={DB_SSLMODE}"
 
 _pool: Optional[asyncpg.Pool] = None
 
