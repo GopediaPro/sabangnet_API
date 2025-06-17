@@ -8,35 +8,35 @@ import logging
 import json
 from pathlib import Path
 
-SABANG_COMPANY_ID = os.getenv('SABANG_COMPANY_ID')
-SABANG_AUTH_KEY = os.getenv('SABANG_AUTH_KEY')
-SABANG_ADMIN_URL = os.getenv('SABANG_ADMIN_URL')
-SABANG_SEND_DATE = os.getenv('SABANG_SEND_DATE', None)
-SABANG_ORD_ST_DATE = os.getenv('SABANG_ORD_ST_DATE', None)
-SABANG_ORD_ED_DATE = os.getenv('SABANG_ORD_ED_DATE', None)
-SABANG_ORDER_STATUS = os.getenv('SABANG_ORDER_STATUS', None)
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class SabangNetOrderListFetcher:
     def __init__(
             self,
-            ord_st_date: str = None,
-            ord_ed_date: str = None,
-            order_status: str = None,
-            send_date: str = None,
+            ord_st_date: str,
+            ord_ed_date: str,
+            order_status: str,
             company_id: str = None,
             auth_key: str = None,
-            admin_url: str = None
+            admin_url: str = None,
+            send_date: str = None,
             ):
-        self.ord_st_date = ord_st_date or SABANG_ORD_ST_DATE
-        self.ord_ed_date = ord_ed_date or SABANG_ORD_ED_DATE
-        self.order_status = order_status or SABANG_ORDER_STATUS
-        self.send_date = send_date or SABANG_SEND_DATE
+        SABANG_COMPANY_ID = os.getenv('SABANG_COMPANY_ID', None)
+        SABANG_AUTH_KEY = os.getenv('SABANG_AUTH_KEY', None)
+        SABANG_ADMIN_URL = os.getenv('SABANG_ADMIN_URL', None)
+        SABANG_SEND_DATE = os.getenv('SABANG_SEND_DATE', None)
+        print(f"SABANG_COMPANY_ID: {SABANG_COMPANY_ID}")
+        print(f"SABANG_AUTH_KEY: {SABANG_AUTH_KEY}")
+        print(f"SABANG_ADMIN_URL: {SABANG_ADMIN_URL}")
+        print(f"SABANG_SEND_DATE: {SABANG_SEND_DATE}")
+        self.ord_st_date = ord_st_date
+        self.ord_ed_date = ord_ed_date
+        self.order_status = order_status
         self.company_id = company_id or SABANG_COMPANY_ID
         self.auth_key = auth_key or SABANG_AUTH_KEY
         self.admin_url = admin_url or SABANG_ADMIN_URL
+        self.send_date = send_date or SABANG_SEND_DATE
         if not self.company_id or not self.auth_key:
             raise ValueError("SABANG_COMPANY_ID와 SABANG_AUTH_KEY는 필수입니다.")
 
