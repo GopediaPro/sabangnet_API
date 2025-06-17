@@ -4,6 +4,11 @@
 """
 
 import os
+# 레거시 SSL 수정
+from legacy_SSL_handler import LegacySSLHandler
+legacy_ssl_handler = LegacySSLHandler()
+legacy_ssl_handler.fix_legacy_ssl_config()
+# 레거시 SSL 수정 완료
 import typer
 from typing import Optional
 import logging
@@ -11,12 +16,6 @@ from dotenv import load_dotenv
 from controller import fetch_mall_list, fetch_order_list
 from core.db import get_db_pool
 import asyncio
-
-# 레거시 SSL 수정
-from legacy_SSL_handler import LegacySSLHandler
-legacy_ssl_handler = LegacySSLHandler()
-legacy_ssl_handler.fix_legacy_ssl_config()
-# 레거시 SSL 수정 완료
 
 # Create Typer app instance
 app = typer.Typer(help="사방넷 쇼핑몰 API CLI 도구")
