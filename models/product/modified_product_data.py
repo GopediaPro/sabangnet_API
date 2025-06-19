@@ -7,7 +7,7 @@ from sqlalchemy import (
     Integer, Numeric, SmallInteger, String, Text, ForeignKey
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
+from models.product.product_raw_data import ProductRawData
 from models.base_model import Base
 
 
@@ -175,7 +175,7 @@ class ModifiedProductData(Base):
     rev: Mapped[int | None] = mapped_column(SmallInteger)
 
     # 관계
-    raw: Mapped["ProductRawData"] = relationship(
+    raw: Mapped[ProductRawData] = relationship(
         back_populates="modified_list",
         lazy="joined",
     )
