@@ -38,19 +38,17 @@ DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT
 # 비동기 엔진 생성
 async_engine = create_async_engine(
     DATABASE_URL,
-    echo=True,  # SQL 쿼리 로그 출력
+    echo=True,  
     future=True,
-    pool_pre_ping=True,  # 연결 상태 확인
+    pool_pre_ping=True, 
 )
 
-# 비동기 세션 팩토리 생성
 AsyncSessionLocal = async_sessionmaker(
     bind=async_engine,
     class_=AsyncSession,
     expire_on_commit=False,
 )
 
-# 세션 의존성 함수
 async def get_async_session():
     async with AsyncSessionLocal() as session:
         try:
