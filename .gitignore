@@ -1,6 +1,6 @@
 .env
 mall_request.xml
-__pycache__/*
+__pycache__
 files
 venv
 .DS_Store
