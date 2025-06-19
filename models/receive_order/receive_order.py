@@ -13,7 +13,7 @@ from models.base_model import Base
 
 class ReceiveOrder(Base):
     """
-    매출·주문 수집 테이블(receive_orders)의 ORM 매핑 모델
+    주문 수집 테이블(receive_orders)의 ORM 매핑 모델
     """
     __tablename__ = "receive_orders"
 

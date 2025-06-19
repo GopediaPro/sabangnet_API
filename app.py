@@ -9,13 +9,16 @@ from legacy_SSL_handler import LegacySSLHandler
 legacy_ssl_handler = LegacySSLHandler()
 legacy_ssl_handler.fix_legacy_ssl_config()
 # 레거시 SSL 수정 완료
-import typer
-from typing import Optional
-import logging
-from dotenv import load_dotenv
-from controller import fetch_mall_list, fetch_order_list
-from core.db import get_db_pool
+from core.db import AsyncSessionLocal
+from models.receive_order.receive_order import ReceiveOrder
+from sqlalchemy import select
 import asyncio
+from core.db import get_db_pool
+from controller import fetch_mall_list, fetch_order_list
+from dotenv import load_dotenv
+import logging
+from typing import Optional
+import typer
 
 # Create Typer app instance
 app = typer.Typer(help="사방넷 쇼핑몰 API CLI 도구")
@@ -38,6 +41,7 @@ MINIO_PORT = os.getenv('MINIO_PORT')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 @app.command(help="쇼핑몰 목록을 조회합니다")
 def mall_list():
     """쇼핑몰 목록 조회 명령어"""
@@ -48,6 +52,7 @@ def mall_list():
         logger.error(f"쇼핑몰 목록 조회 중 오류 발생: {e}")
         handle_error(e)
 
+
 @app.command(help="주문 목록을 조회합니다")
 def order_list():
     """주문 목록 조회 명령어"""
@@ -57,6 +62,7 @@ def order_list():
     except Exception as e:
         logger.error(f"주문 목록 조회 중 오류 발생: {e}")
         handle_error(e)
+
 
 @app.command(help="DB 연결을 테스트합니다")
 def test_db_connection():
@@ -74,6 +80,33 @@ def test_db_connection():
             typer.echo(f"DB 연결 실패: {e}")
     asyncio.run(_test())
 
+
+# 방법 1: CLI 명령어용 (typer 사용하는 경우)
+
+
+@app.command(help="ReceiveOrder 모델 기본 조회 테스트")
+def test_receive_order():
+    """ReceiveOrder 모델 기본 조회 테스트 - 동기 함수로 변경"""
+    async def _test_receive_order():
+        async with AsyncSessionLocal() as session:
+            try:
+                print("=== ReceiveOrder 모델 테스트 ===")
+                stmt = select(ReceiveOrder).limit(1)
+                result = await session.execute(stmt)
+                order = result.scalar_one_or_none()
+                if order:
+                    print("조회 성공!")
+                else:
+                    print("조회된 데이터가 없습니다.")
+            except Exception as e:
+                print(f"에러 발생: {e}")
+                import traceback
+                traceback.print_exc()
+
+    # 비동기 함수 실행
+    asyncio.run(_test_receive_order())
+
+
 def handle_error(e: Exception):
     """에러 처리 헬퍼 함수"""
     if isinstance(e, ValueError):
@@ -89,6 +122,7 @@ def handle_error(e: Exception):
         typer.echo("2. 인증키가 유효한지 확인")
         typer.echo("3. 네트워크 연결 상태 확인")
         typer.echo("4. XML URL 방식으로 다시 시도")
+
 
 if __name__ == "__main__":
     app()

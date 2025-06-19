@@ -1,6 +1,6 @@
 import asyncpg
 import os
-from typing import Optional
+from typing import Optional, AsyncGenerator
 from dotenv import load_dotenv
 
 # .env 파일 로드
@@ -28,3 +28,30 @@ async def close_db_pool():
     if _pool is not None:
         await _pool.close()
         _pool = None
+
+
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from contextlib import asynccontextmanager
+
+DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+# 비동기 엔진 생성
+async_engine = create_async_engine(
+    DATABASE_URL,
+    echo=True,  
+    future=True,
+    pool_pre_ping=True, 
+)
+
+AsyncSessionLocal = async_sessionmaker(
+    bind=async_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+async def get_async_session():
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
