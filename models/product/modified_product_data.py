@@ -173,3 +173,8 @@ class ModifiedProductData(Base):
 
     # 수정버전
     rev: Mapped[int | None] = mapped_column(SmallInteger)
+
+    raw = relationship("ProductRawData",
+                       back_populates="modified_entries",
+                       lazy="joined",
+                       )

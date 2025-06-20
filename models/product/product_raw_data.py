@@ -6,7 +6,7 @@ from typing import Optional
 from sqlalchemy import (
     BigInteger, SmallInteger, Integer, String, Text, Numeric, CHAR
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base_model import Base
 
@@ -18,7 +18,8 @@ class ProductRawData(Base):
     __tablename__ = "product_raw_data"
 
     # 기본 정보
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True, autoincrement=True)
 
     # 기본 상품 정보
     goods_nm: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -60,8 +61,10 @@ class ProductRawData(Base):
     # 반품·가격
     banpum_area: Mapped[int | None] = mapped_column(SmallInteger)
     goods_cost: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
-    goods_price: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
-    goods_consumer_price: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
+    goods_price: Mapped[Decimal] = mapped_column(
+        Numeric(12, 0), nullable=False)
+    goods_consumer_price: Mapped[Decimal] = mapped_column(
+        Numeric(12, 0), nullable=False)
     goods_cost2: Mapped[Decimal | None] = mapped_column(Numeric(12, 0))
 
     # 옵션
@@ -112,7 +115,8 @@ class ProductRawData(Base):
     stock_use_yn: Mapped[str | None] = mapped_column(CHAR(1))
 
     # 옵션·속성 제어
-    opt_type: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=2)
+    opt_type: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, default=2)
     prop_edit_yn: Mapped[str | None] = mapped_column(CHAR(1))
     prop1_cd: Mapped[str | None] = mapped_column(CHAR(3))
 
@@ -162,4 +166,9 @@ class ProductRawData(Base):
     origin2: Mapped[str | None] = mapped_column(String(100))
     expire_dm: Mapped[str | None] = mapped_column(CHAR(8))
     supply_save_yn: Mapped[str | None] = mapped_column(CHAR(1))
-    descrition: Mapped[str | None] = mapped_column(Text)  # 오타 그대로 유지 (description -> descrition)
+    descrition: Mapped[str | None] = mapped_column(
+        Text)  # 오타 그대로 유지 (description -> descrition)
+
+    # 1:N 관계 설정
+    modified_entries = relationship("ModifiedProductData",
+                                    back_populates="raw", cascade="all, delete-orphan")
