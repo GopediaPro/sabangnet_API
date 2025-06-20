@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
 from decimal import Decimal
+from datetime import datetime
 
 from sqlalchemy import (
     TIMESTAMP, Date, Integer, Numeric, String, Text, text

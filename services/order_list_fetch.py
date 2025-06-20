@@ -7,11 +7,18 @@ from urllib.parse import urljoin
 import logging
 import json
 from pathlib import Path
+import re
+import hashlib
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class SabangNetOrderListFetcher:
+SABANG_COMPANY_ID = os.getenv('SABANG_COMPANY_ID', None)
+SABANG_AUTH_KEY = os.getenv('SABANG_AUTH_KEY', None)
+SABANG_ADMIN_URL = os.getenv('SABANG_ADMIN_URL', None)
+SABANG_SEND_DATE = os.getenv('SABANG_SEND_DATE', None)
+
+class OrderListFetchService:
     def __init__(
             self,
             ord_st_date: str,
@@ -22,14 +29,6 @@ class SabangNetOrderListFetcher:
             admin_url: str = None,
             send_date: str = None,
             ):
-        SABANG_COMPANY_ID = os.getenv('SABANG_COMPANY_ID', None)
-        SABANG_AUTH_KEY = os.getenv('SABANG_AUTH_KEY', None)
-        SABANG_ADMIN_URL = os.getenv('SABANG_ADMIN_URL', None)
-        SABANG_SEND_DATE = os.getenv('SABANG_SEND_DATE', None)
-        print(f"SABANG_COMPANY_ID: {SABANG_COMPANY_ID}")
-        print(f"SABANG_AUTH_KEY: {SABANG_AUTH_KEY}")
-        print(f"SABANG_ADMIN_URL: {SABANG_ADMIN_URL}")
-        print(f"SABANG_SEND_DATE: {SABANG_SEND_DATE}")
         self.ord_st_date = ord_st_date
         self.ord_ed_date = ord_ed_date
         self.order_status = order_status
@@ -60,22 +59,45 @@ class SabangNetOrderListFetcher:
 </SABANG_ORDER_LIST>"""
         return xml_content
 
-    def parse_response_xml(self, xml_content: str) -> List[Dict[str, str]]:
+    def parse_response_xml(self, xml_content: str, safe_mode: bool = True) -> List[Dict[str, str]]:
+
+        """
+        특정 XML tag에 대해 민감정보 타입을 정의해놓은 상수.
+        (tag : type 구조)
+        - USER_NAME 은 name 타입의 민감정보.
+        - RECEIVE_TEL 은 phone 타입의 민감정보.
+        """
+
+        MASKING_RULES = {
+            'USER_NAME': 'name',
+            'RECEIVE_NAME': 'name',
+            'USER_ID': 'user_id',
+            'RECEIVE_TEL': 'phone',
+            'RECEIVE_CEL': 'phone',
+            'USER_CEL': 'phone',
+            'RECEIVE_ADDR': 'address',
+            'RECEIVE_ZIPCODE': 'zipcode',
+            'ORDER_ID': 'id',
+            'MALL_ORDER_ID': 'id',
+            'MALL_USER_ID': 'user_id'
+        }
+
         try:
             root = ET.fromstring(xml_content)
             order_list = []
             for data_node in root.findall('DATA'):
-                order_dict = {}
                 order_detail = {}
-                mall_id_node = data_node.find('MALL_ID')
                 for elem in data_node.findall('*'):
                     elem_tag = elem.tag.strip() if elem.tag else ''
                     elem_text = elem.text.strip() if elem.text else ''
                     if elem.tag is not None and elem.text is not None:
                         # 개별 주문 정보 추출
+                        if safe_mode and (elem_tag in MASKING_RULES):
+                            mask_type = MASKING_RULES[elem_tag]
+                            elem_text = self.__mask_personal_info(elem_text, mask_type)
                         order_detail[elem_tag] = elem_text
-                order_dict[mall_id_node.text.strip()] = order_detail
-                order_list.append(order_dict)
+                order_detail["RECEIVE_DT"] = datetime.now().strftime('%Y%m%d%H%M%S')
+                order_list.append(order_detail)
             logger.info(f"총 {len(order_list)}개의 주문을 수집했습니다.")
             json_dir = Path("./files/json")
             json_dir.mkdir(exist_ok=True)
@@ -107,3 +129,52 @@ class SabangNetOrderListFetcher:
         except Exception as e:
             logger.error(f"예상치 못한 오류: {e}")
             raise
+
+    def __mask_personal_info(self, value: str, mask_type: str) -> str:
+        """
+        민감타입에 해당하는 개인정보를 마스킹 처리하는 함수.
+        """
+        if not value or value.strip() == '':
+            return value
+        
+        if mask_type == 'name':
+            # 이름: 첫 글자만 보이고 나머지는 *
+            if len(value) <= 1:
+                return '*'
+            return value[0] + '*' * (len(value) - 1)
+        
+        elif mask_type == 'phone':
+            # 전화번호: 중간 4자리를 ****로 마스킹
+            phone_digits = re.sub(r'[^0-9]', '', value)
+            if len(phone_digits) >= 8:
+                if len(phone_digits) == 11:  # 휴대폰
+                    return phone_digits[:3] + '****' + phone_digits[7:]
+                elif len(phone_digits) == 10:  # 일반전화
+                    return phone_digits[:3] + '****' + phone_digits[6:]
+            return '****'
+        
+        elif mask_type == 'address':
+            # 주소: 상세주소 부분을 마스킹
+            parts = value.split()
+            if len(parts) > 2:
+                # 시/도, 시/군/구는 유지하고 상세주소는 마스킹
+                return ' '.join(parts[:2]) + ' ****'
+            return '****'
+        
+        elif mask_type == 'zipcode':
+            # 우편번호: 앞 3자리만 유지
+            if len(value) >= 3:
+                return value[:3] + '*' * (len(value) - 3)
+            return '*' * len(value)
+        
+        elif mask_type == 'id':
+            # ID: 해시값으로 대체 (일관성 유지를 위해)
+            return hashlib.md5(value.encode()).hexdigest()[:8]
+        
+        elif mask_type == 'user_id':
+            # 사용자 ID: 앞 2자리만 유지
+            if len(value) > 2:
+                return value[:2] + '*' * (len(value) - 2)
+            return '*' * len(value)
+        
+        return value
