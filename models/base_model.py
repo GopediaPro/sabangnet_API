@@ -8,12 +8,14 @@ class Base(DeclarativeBase):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=False),
         server_default=text("CURRENT_TIMESTAMP"),
-        nullable=False
+        nullable=False,
+        default=datetime.now()
     )
 
     updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=False),
         server_default=text("CURRENT_TIMESTAMP"),
         onupdate=func.now(),
-        nullable=False
+        nullable=False,
+        default=datetime.now()
     )

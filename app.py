@@ -3,8 +3,8 @@
 사방넷 쇼핑몰 코드 조회 API 클라이언트
 """
 
-import os
 # 레거시 SSL 수정
+import os
 from legacy_SSL_handler import LegacySSLHandler
 legacy_ssl_handler = LegacySSLHandler()
 legacy_ssl_handler.fix_legacy_ssl_config()
@@ -14,11 +14,12 @@ from models.receive_order.receive_order import ReceiveOrder
 from sqlalchemy import select
 import asyncio
 from core.db import get_db_pool
-from controller import fetch_mall_list, fetch_order_list
+from controller import fetch_mall_list, fetch_order_list, create_product_request
 from dotenv import load_dotenv
 import logging
-from typing import Optional
 import typer
+from services.order_list_write import OrderListWriteService
+from core.initialization import initialize_program
 
 # Create Typer app instance
 app = typer.Typer(help="사방넷 쇼핑몰 API CLI 도구")
@@ -81,9 +82,6 @@ def test_db_connection():
     asyncio.run(_test())
 
 
-# 방법 1: CLI 명령어용 (typer 사용하는 경우)
-
-
 @app.command(help="ReceiveOrder 모델 기본 조회 테스트")
 def test_receive_order():
     """ReceiveOrder 모델 기본 조회 테스트 - 동기 함수로 변경"""
@@ -107,6 +105,24 @@ def test_receive_order():
     asyncio.run(_test_receive_order())
 
 
+@app.command(help="수집된 주문 DB에 담기")
+def create_order():
+    try:
+        order_create_service = OrderListWriteService()
+        asyncio.run(order_create_service.create_orders())
+    except Exception as e:
+        logger.error(f"쓰기 작업 중 오류 발생: {e}")
+        handle_error(e)
+        
+
+@app.command(help="상품 등록")
+def create_product():
+    try:
+        create_product_request()
+    except Exception as e:
+        logger.error(f"쓰기 작업 중 오류 발생: {e}")
+
+
 def handle_error(e: Exception):
     """에러 처리 헬퍼 함수"""
     if isinstance(e, ValueError):
@@ -125,4 +141,5 @@ def handle_error(e: Exception):
 
 
 if __name__ == "__main__":
+    initialize_program()
     app()

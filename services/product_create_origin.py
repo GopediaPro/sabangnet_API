@@ -1,45 +1,88 @@
-import os
+import logging
 import requests
 from datetime import datetime
 from urllib.parse import urljoin
-import logging
+from core.settings import SETTINGS
 
-SABANG_COMPANY_ID = os.getenv('SABANG_COMPANY_ID')
-SABANG_AUTH_KEY = os.getenv('SABANG_AUTH_KEY')
-SABANG_ADMIN_URL = os.getenv('SABANG_ADMIN_URL')
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class SabangNetProductAPI:
+
+class ProductCreateService:
+
     def __init__(self, company_id: str = None, auth_key: str = None, admin_url: str = None):
-        self.company_id = company_id or SABANG_COMPANY_ID
-        self.auth_key = auth_key or SABANG_AUTH_KEY
-        self.admin_url = admin_url or SABANG_ADMIN_URL
+        self.company_id = company_id or SETTINGS.SABANG_COMPANY_ID
+        self.auth_key = auth_key or SETTINGS.SABANG_AUTH_KEY
+        self.admin_url = admin_url or SETTINGS.SABANG_ADMIN_URL
         if not self.company_id or not self.auth_key:
             raise ValueError("SABANG_COMPANY_ID와 SABANG_AUTH_KEY는 필수입니다.")
-    
+
     # 필수 값 검증
     def validate_required_fields(self, product_data: dict) -> None:
-        required_fields = ['goods_nm', 'compayny_goods_cd', 'goods_gubun', 'class_cd1', 'class_cd2', 'class_cd3', 'goods_season', 'sex', 'status', 'tax_yn', 'delv_type', 'goods_cost', 'goods_price', 'goods_consumer_price', 'img_path', 'img_path1', 'img_path2', 'img_path3', 'img_path4', 'img_path5', 'img_path6', 'img_path7', 'img_path8', 'img_path9', 'img_path10', 'img_path11', 'img_path12', 'img_path13', 'img_path14', 'img_path15', 'img_path16', 'img_path17', 'img_path18', 'img_path19', 'img_path20', 'img_path21', 'img_path22', 'img_path23', 'img_path24']
+        required_fields = [
+            'goods_nm',
+            'compayny_goods_cd',
+            'goods_gubun',
+            'class_cd1',
+            'class_cd2',
+            'class_cd3',
+            'goods_season',
+            'sex',
+            'status',
+            'tax_yn',
+            'delv_type',
+            'goods_cost',
+            'goods_price',
+            'goods_consumer_price',
+            'img_path',
+            'img_path1',
+            'img_path2',
+            'img_path3',
+            'img_path4',
+            'img_path5',
+            'img_path6',
+            'img_path7',
+            'img_path8',
+            'img_path9',
+            'img_path10',
+            'img_path11',
+            'img_path12',
+            'img_path13',
+            'img_path14',
+            'img_path15',
+            'img_path16',
+            'img_path17',
+            'img_path18',
+            'img_path19',
+            'img_path20',
+            'img_path21',
+            'img_path22',
+            'img_path23',
+            'img_path24'
+        ]
         for key in required_fields:
             if not product_data.get(key):
                 raise Exception(f"{key}는 필수 입력 항목입니다.")
 
     # 상품 등록 요청 XML 생성
-    def create_request_xml(self, send_date: str = None, product_data: dict = {},
-                           send_goods_cd_rt: str = None, result_type: str = None
-                           ) -> str:
+    def create_request_xml(
+            self, send_date: str = None,
+            product_data: dict = {},
+            send_goods_cd_rt: str = None,
+            result_type: str = None
+    ) -> str:
         if not send_date:
             send_date = datetime.now().strftime('%Y%m%d')
         # 기본값 HTML 설정, XML 결과 타입 변경 가능.
-        if not result_type: 
+        if not result_type:
             result_type = 'HTML'
         # 필수 값 검증
         self.validate_required_fields(product_data)
-        
-        # 실제 테스트시 [사방넷]API 가이드&명세서 -> 상품등록&수정 -> Requst 사용. 
-        xml_content = f"""<?xml version="1.0" encoding="EUC-KR"?>
+
+        # 실제 테스트시 [사방넷]API 가이드&명세서 -> 상품등록&수정 -> Requst 사용.
+        xml_content = f"""\
+<?xml version="1.0" encoding="EUC-KR"?>
 <SABANG_GOODS_REGI>
     <HEADER>
         <SEND_COMPAYNY_ID>{self.company_id}</SEND_COMPAYNY_ID>
@@ -168,7 +211,7 @@ class SabangNetProductAPI:
     </DATA>
 </SABANG_GOODS_REGI>"""
         return xml_content
-    
+
     # 상품 등록 요청
     def create_product_via_url(self, xml_url: str) -> str:
         try:
