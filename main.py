@@ -10,6 +10,7 @@
 
 
 from fastapi import FastAPI, APIRouter
+from api.product_api import router as product_router
 
 
 app = FastAPI(
@@ -22,8 +23,11 @@ app = FastAPI(
 
 router = APIRouter()
 
+
 @router.get("/")
 async def root():
     return {"message": "Hello World"}
 
+# API router 연결
 app.include_router(router)
+app.include_router(product_router)
