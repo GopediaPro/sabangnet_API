@@ -51,6 +51,8 @@ class SabangNetFormatter:
         xlsx_file_path = self.xlsx_base_path / file_name
         if not file_name.endswith(".xlsx"):  # 확장자가 없으면...
             xlsx_file_path = self.xlsx_base_path / f"{file_name}.xlsx"
+        if not xlsx_file_path.exists():
+            raise FileNotFoundError(f"해당 파일을 찾을 수 없습니다. (파일명: {file_name}.xlsx)")
         df_xlsx: pd.DataFrame = pd.read_excel(xlsx_file_path).fillna("")
 
         # 2. 숫자로 시작하는 행 선택
@@ -196,5 +198,5 @@ if __name__ == "__main__":
     formatter = SabangNetFormatter()
     xml_content = formatter.xlsx_to_xml(target, "product_create_request")
     # 웹훅 방식
-    requests.post(f"{SETTINGS.N8N_WEBHOOK_BASE_URL}{"-test" if SETTINGS.N8N_TEST == "TRUE" else ""}/{SETTINGS.N8N_WEBHOOK_PATH}", json={"xml_content": xml_content})
+    requests.post(f"{SETTINGS.N8N_WEBHOOK_BASE_URL}{"-test" if SETTINGS.N8N_TEST == "TRUE" else ""}/{SETTINGS.N8N_WEBHOOK_PATH}", json={"xmlContent": xml_content})
     print(xml_content)
