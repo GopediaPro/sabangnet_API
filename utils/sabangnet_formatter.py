@@ -75,6 +75,11 @@ class SabangNetFormatter:
             data = ET.Element("DATA")
             for key, value in row.items():
                 mapped_key = field_mapping.get(key)
+                if isinstance(mapped_key, tuple): # 마이카테고리 처리
+                    for i in range(1, len(mapped_key) + 1):
+                        child: ET.Element = ET.SubElement(data, self.__sanitize_tag(f"{mapped_key[i - 1]}"))
+                        child.text = ET.CDATA(f"A{i}")
+                    continue
                 if mapped_key:
                     if key == "모델명" and already_exist_model_nm:
                         continue
