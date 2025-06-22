@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     DB_PASSWORD: str
     DB_SSLMODE: str
 
+    # N8N
+    N8N_TEST: str
+    N8N_WEBHOOK_BASE_URL: str
+    N8N_WEBHOOK_PATH: str
+
     class Config:
         env_file = ".env"
 
