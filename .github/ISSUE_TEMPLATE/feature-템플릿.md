@@ -2,8 +2,8 @@
 name: Feature 템플릿
 about: Suggest an idea for this project
 title: "[feat] Develop features"
-labels: feature, help wanted
-assignees: mhd329
+labels: feature
+assignees: ''
 
 ---
 
