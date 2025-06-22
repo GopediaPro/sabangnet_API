@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as ET
 from decimal import Decimal
-
+import requests
 
 class ProductXmlParser:
     """
@@ -12,7 +12,7 @@ class ProductXmlParser:
         'goods_nm', 'compayny_goods_cd', 'goods_gubun', 'class_cd1', 'class_cd2', 'class_cd3',
         'origin', 'goods_season', 'sex', 'status', 'tax_yn', 'delv_type',
         'goods_cost', 'goods_price', 'goods_consumer_price',
-        'img_path', 'img_path1', 'img_path3', 'opt_type',
+        'img_path', 'img_path1', 'img_path3', 'stock_use_yn','opt_type',
     }
 
     # 필수 항목 검증
@@ -21,9 +21,9 @@ class ProductXmlParser:
             raise ValueError(f"[{key}] 필수 항목이 비어 있습니다.")
 
     # xml 파일을 파싱하여 데이터 리스트로 반환
-    def xml_parse(self, xml_content: str) -> list[dict]:
+    def xml_parse(self, xml_url: str) -> list[dict]:
         """
-        xml_content : 파싱할 xml 파일 경로
+        xml_url : 파싱할 xml 파일 경로
         return : dict 형태의 데이터 리스트
         """
         # 문자열을 정수로 변환
@@ -45,9 +45,12 @@ class ProductXmlParser:
             "goods_consumer_price", "goods_cost2"
         }
 
+        # 요청하여 XML 데이터 가져오기
+        response = requests.get(xml_url)
+        response.raise_for_status()
+
         # xml 파일 읽기
-        with open(xml_content, "r", encoding="utf-8") as f:
-            xml_str = f.read()
+        xml_str = response.text
         root = ET.fromstring(xml_str)
 
         # <DATA> 태그 찾기
