@@ -119,6 +119,7 @@ class ModifiedProductData(Base):
     material: Mapped[str | None] = mapped_column(Text)
     stock_use_yn: Mapped[str | None] = mapped_column(CHAR(1))
 
+
     # 옵션·속성 제어
     opt_type: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=2)
     prop1_cd: Mapped[str | None] = mapped_column(CHAR(3))
