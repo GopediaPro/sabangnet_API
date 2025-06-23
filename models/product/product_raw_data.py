@@ -112,7 +112,7 @@ class ProductRawData(Base):
 
     # 식품·재고
     material: Mapped[str | None] = mapped_column(Text)
-    stock_use_yn: Mapped[str | None] = mapped_column(CHAR(1))
+    stock_use_yn: Mapped[str | None] = mapped_column(CHAR(1), nullable=False)
 
     # 옵션·속성 제어
     opt_type: Mapped[int] = mapped_column(
