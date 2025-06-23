@@ -14,6 +14,7 @@ PRODUCT_CREATE_FIELD_MAPPING = {
         "자체상품코드": "COMPAYNY_GOODS_CD",
         "사이트검색어": "GOODS_SEARCH",
         "상품구분": "GOODS_GUBUN",
+        "마이카테고리": ("CLASS_CD1", "CLASS_CD2", "CLASS_CD3", "CLASS_CD4"),
         "매입처ID": "PARTNER_ID",
         "물류처ID": "DPARTNER_ID", 
         "제조사": "MAKER",
