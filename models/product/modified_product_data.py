@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     Integer, Numeric, SmallInteger, String, Text, ForeignKey, 
-    CHAR
+    CHAR, BigInteger
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from models.product.product_raw_data import ProductRawData
@@ -42,7 +42,7 @@ class ModifiedProductData(Base):
     class_cd4: Mapped[str | None] = mapped_column(String(100))
 
     # --- 구분 (마스터, 전문몰, 1+1)
-    mall_gubun:Mapped[str] = mapped_column(String(100))
+    mall_gubun:Mapped[str] = mapped_column(String(10))
 
     # 거래처
     partner_id: Mapped[str | None] = mapped_column(String(50))
@@ -173,6 +173,7 @@ class ModifiedProductData(Base):
         Text)  # 오타 그대로 유지 (description -> descrition)
 
     # 수정버전
+    test_product_raw_data_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     rev: Mapped[int | None] = mapped_column(SmallInteger)
 
     raw = relationship("ProductRawData",

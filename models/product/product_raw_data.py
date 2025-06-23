@@ -38,7 +38,7 @@ class ProductRawData(Base):
     class_cd4: Mapped[str | None] = mapped_column(String(100))
 
     # --- 구분 (마스터, 전문몰, 1+1)
-    mall_gubun:Mapped[str] = mapped_column(String(100))
+    mall_gubun:Mapped[str] = mapped_column(String(10))
 
     # 거래처
     partner_id: Mapped[str | None] = mapped_column(String(50))
