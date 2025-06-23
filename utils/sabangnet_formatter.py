@@ -1,9 +1,11 @@
 import re
 import requests
 import pandas as pd
+from pathlib import Path
 from lxml import etree as ET
 from datetime import datetime
 from core.settings import SETTINGS
+from typing import Iterator, Tuple, Any
 from utils.sabangnet_path_utils import SabangNetPathUtils
 from utils.product_create_field_mapping import PRODUCT_CREATE_FIELD_MAPPING
 
@@ -32,12 +34,12 @@ class SabangNetFormatter:
         xml_str: str = xml_bytes.decode("euc-kr")
         return xml_str
 
-    def xlsx_to_xml(self, file_name: str, api_type: str) -> str:
+    def xlsx_to_xml(self, file_name: str, api_type: str) -> str | Path:
         """
         excel 파일을 xml 파일로 변환
         Args:
-            xlsx_path: 엑셀 파일 경로
-            file_name: 저장할 파일 이름
+            file_name: 엑셀 파일 이름
+            api_type: 지원하는 API 타입
         Returns:
             xml 파일 경로
         """
@@ -68,31 +70,46 @@ class SabangNetFormatter:
         df_xlsx.columns = headers
         df_xlsx.reset_index(drop=True, inplace=True)
 
-        # 3. 필드 매핑 적용 및 XML 생성
+        # 3. 필드 매핑 적용 및 XML 생성 -> 하드코딩 된 부분은 추후 마스터/전문몰/1+1 작업시 개선 예정
         data_list = []
         for _, row in df_xlsx.iterrows():
             already_exist_model_nm = False
             data = ET.Element("DATA")
-            for key, value in row.items():
-                mapped_key = field_mapping.get(key)
-                if isinstance(mapped_key, tuple): # 마이카테고리 처리
-                    for i in range(1, len(mapped_key) + 1):
-                        child: ET.Element = ET.SubElement(data, self.__sanitize_tag(f"{mapped_key[i - 1]}"))
-                        child.text = ET.CDATA(f"A{i}")
-                    continue
-                if mapped_key:
-                    if key == "모델명" and already_exist_model_nm:
+            row_items: Iterator[Tuple[str, str | Any]] = row.items()
+            # 3-1. 엑셀 헤더와 엑셀 값을 가져옴.
+            for excel_header, excel_value in row_items:
+                # 3-2. 필드 매핑 적용 (mapped_value: 사방넷 XML에 적용될 태그명)
+                xml_tag_name = field_mapping.get(excel_header) 
+                # 3-3. 매핑 딕셔너리에 있는 것들만 처리 ('구분', '대표이미지확인' 이런것들은 매핑 안되기 때문에 그냥 지나감...)
+                if xml_tag_name:
+                    if excel_header == "마이카테고리":
+                        # 마이카테고리가 비어있으면 모두 A01 ~ A04로 채움.
+                        if excel_value == "":
+                            # 여기서 xml_tag_name 은 ("CLASS_CD1", "CLASS_CD2", "CLASS_CD3", "CLASS_CD4" -> 마지막 건은 없을수도 있음) 가 됨.
+                            for i in range(1, len(xml_tag_name) + 1):
+                                child: ET.Element = ET.SubElement(data, self.__sanitize_tag(f"{xml_tag_name[i - 1]}"))
+                                child.text = ET.CDATA(f"A0{i}")
+                            continue
+                        else:
+                            values = [val.strip() for val in excel_value.split(">")] # 3 or 4개의 값이 있음.
+                            for i, category_code in enumerate(values):
+                                if category_code:
+                                    child = ET.SubElement(data, xml_tag_name[i])
+                                    child.text = ET.CDATA(category_code)
+                            continue
+                    # 이 부분은 임의로 이렇게 처리했지만 나중에 마스터/전문몰/1+1 다 처리해야됨.
+                    if excel_header == "모델명" and already_exist_model_nm:
                         continue
-                    child: ET.Element = ET.SubElement(data, self.__sanitize_tag(mapped_key))
+                    child: ET.Element = ET.SubElement(data, self.__sanitize_tag(xml_tag_name))
                     already_exist_model_nm = True
-                    if key == "상품명":
-                        child.text = ET.CDATA(f"[TEST]{str(value)}")
-                    elif key == "원가" or key == "판매가" or key == "TAG가":
+                    if excel_header == "상품명":
+                        child.text = ET.CDATA(f"[TEST]{str(excel_value)}")
+                    elif excel_header == "원가" or excel_header == "판매가" or excel_header == "TAG가":
                         child.text = ET.CDATA(f"999999999")
-                    elif key == "재고관리사용여부":
+                    elif excel_header == "재고관리사용여부":
                         child.text = ET.CDATA("N")
                     else:
-                        child.text = ET.CDATA(str(value))
+                        child.text = ET.CDATA(str(excel_value))
             data_list.append(data)
 
         # 4. XML 문자열 반환
@@ -119,89 +136,23 @@ class SabangNetFormatter:
         with open(xml_file_path, "r", encoding="euc-kr") as f:
             xml_content = f.read()
 
-        # return xml_file_path
-        return xml_content
-
-    # 나중에 쓸 메서드
-    # def find_header_row_with_mean(df_xlsx):
-    #     """
-    #     mean()과 threshold를 사용해서 헤더 행을 찾는 함수
-    #     """
-    #     max_rows_to_check = min(10, len(df_xlsx))
-        
-    #     scores = []
-        
-    #     for idx in range(max_rows_to_check):
-    #         row = df_xlsx.iloc[idx]
-            
-    #         # 1. 채움 비율 - pandas의 notna().mean() 사용
-    #         fill_ratio = row.notna().mean()
-            
-    #         # 2. 한글로 시작하는 비율 계산
-    #         korean_mask = row.apply(lambda x: bool(re.match(r'^[가-힣]', str(x).strip())) if pd.notna(x) else False)
-    #         korean_ratio = korean_mask.mean()  # True/False의 평균 = 비율
-            
-    #         # 3. 종합 점수
-    #         score = (fill_ratio * 0.7) + (korean_ratio * 0.3)
-            
-    #         scores.append({
-    #             'row_idx': idx,
-    #             'fill_ratio': fill_ratio,
-    #             'korean_ratio': korean_ratio, 
-    #             'score': score
-    #         })
-            
-    #         print(f"Row {idx}: 채움비율={fill_ratio:.2f}, 한글비율={korean_ratio:.2f}, 점수={score:.2f}")
-        
-    #     # DataFrame으로 변환해서 threshold 적용
-    #     scores_df = pd.DataFrame(scores)
-        
-    #     # Threshold 조건 적용
-    #     FILL_THRESHOLD = 0.5
-    #     KOREAN_THRESHOLD = 0.3
-        
-    #     # 조건을 만족하는 행들 필터링
-    #     candidates = scores_df[
-    #         (scores_df['fill_ratio'] >= FILL_THRESHOLD) & 
-    #         (scores_df['korean_ratio'] >= KOREAN_THRESHOLD)
-    #     ]
-        
-    #     if candidates.empty:
-    #         print("조건을 만족하는 헤더 행을 찾지 못했습니다.")
-    #         return 0
-        
-    #     # 가장 높은 점수의 행 선택
-    #     best_row = candidates.loc[candidates['score'].idxmax()]
-        
-    #     return int(best_row['row_idx'])
-
-    # def csv_to_xml(self, csv_path: str) -> str:
-    #     df_csv: pd.DataFrame = pd.read_csv(csv_path).fillna("")
-    #     dummy = ET.Element("dummy")
-    #     for _, row in df_csv.iterrows():
-    #         data = ET.SubElement(dummy, "DATA")
-    #         for key, value in row.items():
-    #             child = ET.SubElement(data, key)
-    #             child.text = ET.CDATA(str(value))
-    #     xml_str: bytes = ET.tostring(
-    #         dummy, encoding="euc-kr", pretty_print=True, xml_declaration=False, with_tail=False)
-    #     return "\n".join(xml_str.decode("euc-kr").splitlines()[1:-1])
-
-    # def json_to_xml(self, json_path: str) -> str:
-    #     with open(json_path, "r", encoding="euc-kr") as f:
-    #         json_data = json.load(f)
-    #     dummy = ET.Element("dummy")
-    #     for item in json_data:
-    #         data = ET.SubElement(dummy, "DATA")
-    #         for key, value in item.items():
-    #             child = ET.SubElement(data, key)
-    #             child.text = ET.CDATA(str(value))
+        return xml_file_path
 
 
 if __name__ == "__main__":
     target = "OK_test_디자인업무일지"
     formatter = SabangNetFormatter()
-    xml_content = formatter.xlsx_to_xml(target, "product_create_request")
+    xml_file_path = formatter.xlsx_to_xml(target, "product_create_request")
     # 웹훅 방식
-    requests.post(f"{SETTINGS.N8N_WEBHOOK_BASE_URL}{"-test" if SETTINGS.N8N_TEST == "TRUE" else ""}/{SETTINGS.N8N_WEBHOOK_PATH}", json={"xmlContent": xml_content})
-    print(xml_content)
+    with open(xml_file_path, 'rb') as f:
+        files = {
+            'file': (f'{xml_file_path.stem}_n8n_test.xml', f, 'application/xml')}
+        data = {'filename': f'{xml_file_path.stem}_n8n_test.xml'}
+        response = requests.post(
+            f"{SETTINGS.N8N_WEBHOOK_BASE_URL}{"-test" if SETTINGS.N8N_TEST == "TRUE" else ""}/{SETTINGS.N8N_WEBHOOK_PATH}",
+            files=files,
+            data=data
+        )
+        response.raise_for_status()
+        result: dict = response.json()
+        print(result)

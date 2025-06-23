@@ -17,11 +17,8 @@ def create_product_request():
         xml_file_path = product_create_service.xml_file_path
         if choice == "1":
             # 1. XML 생성 및 파일로 저장
-            
             if not xml_file_path.exists():
-                print(f"\n요청 XML이 {xml_file_path}에 존재하지 않습니다.")
-                return
-            print(f"\n요청 XML이 {xml_file_path}에 존재합니다.")
+                raise FileNotFoundError(f"요청 XML이 {xml_file_path}에 존재하지 않습니다.")
             # 파일 서버 업로드
             object_name = upload_to_file_server(xml_file_path)
             print(f"파일 서버에 업로드된 XML 파일 이름: {object_name}")
