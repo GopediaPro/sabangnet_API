@@ -30,7 +30,16 @@ class ProductCreateService:
             full_url = f"{api_url}?xml_url={xml_url}"
             logger.info(f"최종 요청 URL: {full_url}")
             print(f"최종 요청 URL: {full_url}")
-            response = requests.get(full_url, timeout=30) # post 방식으로도 성공함.
+            # Form-data 형식으로 전송
+            # payload = {
+            #     'xml_url': xml_url
+            # }
+            # response = requests.post(
+            #     api_url,
+            #     data=payload,
+            #     timeout=30
+            # )
+            response = requests.get(full_url, timeout=30)
             response.raise_for_status()
             # 요청 결과를 확인 후 변경 필요
             return response.text

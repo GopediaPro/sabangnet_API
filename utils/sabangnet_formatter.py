@@ -1,4 +1,5 @@
 import re
+import requests
 import pandas as pd
 from lxml import etree as ET
 from datetime import datetime
@@ -108,8 +109,64 @@ class SabangNetFormatter:
             f.write(xml_template)
 
         print(f"XML 파일이 생성되었습니다. {xml_file_path}")
+        with open(xml_file_path, "r", encoding="euc-kr") as f:
+            xml_content = f.read()
 
-        return xml_file_path
+        # return xml_file_path
+        return xml_content
+
+    # 나중에 쓸 메서드
+    # def find_header_row_with_mean(df_xlsx):
+    #     """
+    #     mean()과 threshold를 사용해서 헤더 행을 찾는 함수
+    #     """
+    #     max_rows_to_check = min(10, len(df_xlsx))
+        
+    #     scores = []
+        
+    #     for idx in range(max_rows_to_check):
+    #         row = df_xlsx.iloc[idx]
+            
+    #         # 1. 채움 비율 - pandas의 notna().mean() 사용
+    #         fill_ratio = row.notna().mean()
+            
+    #         # 2. 한글로 시작하는 비율 계산
+    #         korean_mask = row.apply(lambda x: bool(re.match(r'^[가-힣]', str(x).strip())) if pd.notna(x) else False)
+    #         korean_ratio = korean_mask.mean()  # True/False의 평균 = 비율
+            
+    #         # 3. 종합 점수
+    #         score = (fill_ratio * 0.7) + (korean_ratio * 0.3)
+            
+    #         scores.append({
+    #             'row_idx': idx,
+    #             'fill_ratio': fill_ratio,
+    #             'korean_ratio': korean_ratio, 
+    #             'score': score
+    #         })
+            
+    #         print(f"Row {idx}: 채움비율={fill_ratio:.2f}, 한글비율={korean_ratio:.2f}, 점수={score:.2f}")
+        
+    #     # DataFrame으로 변환해서 threshold 적용
+    #     scores_df = pd.DataFrame(scores)
+        
+    #     # Threshold 조건 적용
+    #     FILL_THRESHOLD = 0.5
+    #     KOREAN_THRESHOLD = 0.3
+        
+    #     # 조건을 만족하는 행들 필터링
+    #     candidates = scores_df[
+    #         (scores_df['fill_ratio'] >= FILL_THRESHOLD) & 
+    #         (scores_df['korean_ratio'] >= KOREAN_THRESHOLD)
+    #     ]
+        
+    #     if candidates.empty:
+    #         print("조건을 만족하는 헤더 행을 찾지 못했습니다.")
+    #         return 0
+        
+    #     # 가장 높은 점수의 행 선택
+    #     best_row = candidates.loc[candidates['score'].idxmax()]
+        
+    #     return int(best_row['row_idx'])
 
     # def csv_to_xml(self, csv_path: str) -> str:
     #     df_csv: pd.DataFrame = pd.read_csv(csv_path).fillna("")
@@ -138,4 +195,6 @@ if __name__ == "__main__":
     target = "OK_test_디자인업무일지"
     formatter = SabangNetFormatter()
     xml_content = formatter.xlsx_to_xml(target, "product_create_request")
+    # 웹훅 방식
+    requests.post(f"{SETTINGS.N8N_WEBHOOK_BASE_URL}{"-test" if SETTINGS.N8N_TEST == "TRUE" else ""}/{SETTINGS.N8N_WEBHOOK_PATH}", json={"xml_content": xml_content})
     print(xml_content)
