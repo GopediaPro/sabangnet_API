@@ -204,4 +204,4 @@ if __name__ == "__main__":
     xml_content = formatter.xlsx_to_xml(target, "product_create_request")
     # 웹훅 방식
     requests.post(f"{SETTINGS.N8N_WEBHOOK_BASE_URL}{"-test" if SETTINGS.N8N_TEST == "TRUE" else ""}/{SETTINGS.N8N_WEBHOOK_PATH}", json={"xmlContent": xml_content})
-    print(xml_content)
+    
