@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timezone
-from crud.create_receive_order import CreateReceiveOrder
+from repository.create_receive_order import CreateReceiveOrder
 from models.receive_order.receive_order import ReceiveOrder
 
 
