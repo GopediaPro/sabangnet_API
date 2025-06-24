@@ -5,7 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
 from models.product.product_raw_data import ProductRawData
 from models.product.modified_product_data import ModifiedProductData
-from models.product.test_product_raw_data import TestProductRawData
+# from models.product.test_product_raw_data import TestProductRawData >>> PR #43 merge시 미반영된 내역인지 확인 필요
 
 
 class ProductCRUD:
@@ -18,7 +18,8 @@ class ProductCRUD:
         Insert data to database and return id list.
         """
         try:
-            query = insert(TestProductRawData).returning(TestProductRawData.id)
+            # query = insert(TestProductRawData).returning(TestProductRawData.id) >>> PR #43 merge시 미반영된 내역인지 확인 필요
+            query = insert(ProductRawData).returning(ProductRawData.id)
             result = await self.session.execute(query, product_data)
             await self.session.commit()
             return [row[0] for row in result.fetchall()]
