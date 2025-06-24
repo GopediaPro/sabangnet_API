@@ -1,23 +1,15 @@
 import xml.etree.ElementTree as ET
 from decimal import Decimal
 import requests
-
+from utils.product_not_null_fields import PRODUCT_NOT_NULL_FIELDS
 class ProductXmlParser:
     """
     xml 파일을 파싱하여 list[dict]형태로 반환하는 클래스
     """
 
-    # 필수 항목 목록
-    NOT_NULL_FIELDS: set[str] = {
-        'goods_nm', 'compayny_goods_cd', 'goods_gubun', 'class_cd1', 'class_cd2', 'class_cd3',
-        'origin', 'goods_season', 'sex', 'status', 'tax_yn', 'delv_type',
-        'goods_cost', 'goods_price', 'goods_consumer_price',
-        'img_path', 'img_path1', 'img_path3', 'stock_use_yn','opt_type',
-    }
-
     # 필수 항목 검증
     def validate_fields(self, key: str, value: str | None) -> None:
-        if key in self.NOT_NULL_FIELDS and not value:
+        if key in PRODUCT_NOT_NULL_FIELDS and not value:
             raise ValueError(f"[{key}] 필수 항목이 비어 있습니다.")
 
     # xml 파일을 파싱하여 데이터 리스트로 반환

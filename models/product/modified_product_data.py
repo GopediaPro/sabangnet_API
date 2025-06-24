@@ -21,11 +21,7 @@ class ModifiedProductData(Base):
     # 기본 정보
     id: Mapped[int] = mapped_column(
         Integer, primary_key=True, autoincrement=True)
-    product_raw_data_id: Mapped[int] = mapped_column(
-        ForeignKey("test_product_raw_data.id",
-                   name="fk_test_product_raw_data", ondelete="CASCADE"),
-        nullable=False
-    )
+    
     goods_nm: Mapped[str] = mapped_column(String(250), nullable=False)
     goods_keyword: Mapped[str | None] = mapped_column(String(60))
     model_nm: Mapped[str | None] = mapped_column(String(60))
@@ -174,7 +170,11 @@ class ModifiedProductData(Base):
         Text)  # 오타 그대로 유지 (description -> descrition)
 
     # 수정버전
-    test_product_raw_data_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    test_product_raw_data_id: Mapped[int] = mapped_column(
+        ForeignKey("test_product_raw_data.id",
+                   name="test_product_raw_data", ondelete="CASCADE"),
+        nullable=False
+    )
     rev: Mapped[int | None] = mapped_column(SmallInteger)
 
     raw = relationship("ProductRawData",
