@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from fastapi import Depends
-from crud.product_crud import ProductCRUD
+from repository.product_repository import ProductRepository
 from services.product_xml_parse import ProductXmlParser
 from utils.convert_xlsx import ConvertXlsx
 from pathlib import Path
@@ -21,7 +21,7 @@ async def root():
 @router.post("/xml/db/create")
 async def root(xml_path: str, db: AsyncSession = Depends(get_async_session)):
     xml_parse = ProductXmlParser()
-    crud = ProductCRUD(db)
+    crud = ProductRepository(db)
     # xml parse
     product_data: list[dict] = xml_parse.xml_parse(xml_path)
     # DB insert test_product_raw_data

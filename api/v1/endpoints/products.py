@@ -9,7 +9,7 @@ from fastapi import Request
 from core.settings import SETTINGS
 from core.db import get_async_session
 
-from crud.product_crud import ProductCRUD
+from repository.product_repository import ProductRepository
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,8 +27,8 @@ router = APIRouter(
 
 
 # 의존성 주입을 통해 ProductCRUD 인스턴스 생성
-def get_product_crud(session: AsyncSession = Depends(get_async_session)) -> ProductCRUD:
-    return ProductCRUD(session=session)
+def get_product_crud(session: AsyncSession = Depends(get_async_session)) -> ProductRepository:
+    return ProductRepository(session=session)
 
 
 # @router.get("/raw", response_model=List[ProductRawData])
