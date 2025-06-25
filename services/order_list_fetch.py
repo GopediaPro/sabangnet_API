@@ -2,6 +2,7 @@ import os
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime
+from datetime import date
 from typing import List, Dict
 from urllib.parse import urljoin
 import logging
@@ -9,9 +10,13 @@ import json
 from pathlib import Path
 import re
 import hashlib
+from decimal import Decimal
+from utils.log_utils import write_log
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
+
+logging.getLogger("sqlalchemy.engine").setLevel(logging.ERROR)
 
 SABANG_COMPANY_ID = os.getenv('SABANG_COMPANY_ID', None)
 SABANG_AUTH_KEY = os.getenv('SABANG_AUTH_KEY', None)
@@ -92,7 +97,7 @@ class OrderListFetchService:
                         order_detail[elem_tag] = elem_text
                 order_detail["RECEIVE_DT"] = datetime.now().strftime('%Y%m%d%H%M%S')
                 order_list.append(order_detail)
-            logger.info(f"총 {len(order_list)}개의 주문을 수집했습니다.")
+            logger.error(f"총 {len(order_list)}개의 주문을 수집했습니다.")
             json_dir = Path("./files/json")
             json_dir.mkdir(exist_ok=True)
             json_path = json_dir / "order_list.json"
@@ -113,6 +118,9 @@ class OrderListFetchService:
         """
         from repository.create_receive_order import CreateReceiveOrder
         from models.receive_order.receive_order import ReceiveOrder
+        from decimal import Decimal
+        import re
+        from datetime import datetime, date
 
         MASKING_RULES = {
             'USER_NAME': 'name',
@@ -127,22 +135,62 @@ class OrderListFetchService:
             'MALL_ORDER_ID': 'id',
             'MALL_USER_ID': 'user_id'
         }
+
+        decimal_fields = [
+            'total_cost', 'pay_cost', 'sale_cost', 'mall_won_cost', 'won_cost', 'delv_cost'
+        ]
+        int_fields = [
+            'sale_cnt', 'box_ea', 'p_ea', 'mall_order_seq', 'acnt_regs_srno'
+        ]
+        date_fields = ['order_date']
+
+        def parse_date_field(val: str) -> date | None:
+            if not val:
+                return None
+            try:
+                if len(val) == 8:
+                    return datetime.strptime(val, '%Y%m%d').date()
+                elif len(val) == 14:
+                    return datetime.strptime(val, '%Y%m%d%H%M%S').date()
+                else:
+                    return None
+            except Exception as e:
+                write_log(f"order_date 변환 실패: {val} ({e})")
+                return None
+
         try:
             root = ET.fromstring(xml_content)
             order_list = []
             for data_node in root.findall('DATA'):
                 order_detail = {}
                 for elem in data_node.findall('*'):
-                    elem_tag = elem.tag.strip() if elem.tag else ''
+                    elem_tag = elem.tag.strip().lower() if elem.tag else ''
                     elem_text = elem.text.strip() if elem.text else ''
                     if elem.tag is not None and elem.text is not None:
-                        if safe_mode and (elem_tag in MASKING_RULES):
-                            mask_type = MASKING_RULES[elem_tag]
+                        if safe_mode and (elem_tag.upper() in MASKING_RULES):
+                            mask_type = MASKING_RULES[elem_tag.upper()]
                             elem_text = self.__mask_personal_info(elem_text, mask_type)
-                        order_detail[elem_tag.lower()] = elem_text
+                        order_detail[elem_tag] = elem_text
                 order_detail["receive_dt"] = datetime.now()
+                for field in decimal_fields:
+                    if field in order_detail:
+                        try:
+                            order_detail[field] = Decimal(order_detail[field]) if order_detail[field] != '' else None
+                        except Exception as e:
+                            write_log(f"{field} Decimal 변환 실패: {order_detail[field]} ({e})")
+                            order_detail[field] = None
+                for field in int_fields:
+                    if field in order_detail:
+                        try:
+                            order_detail[field] = int(order_detail[field]) if order_detail[field] != '' else None
+                        except Exception as e:
+                            write_log(f"{field} int 변환 실패: {order_detail[field]} ({e})")
+                            order_detail[field] = None
+                for field in date_fields:
+                    if field in order_detail:
+                        order_detail[field] = parse_date_field(order_detail[field])
                 order_list.append(order_detail)
-            logger.info(f"총 {len(order_list)}개의 주문을 DB에 저장합니다.")
+            write_log(f"총 {len(order_list)}개의 주문을 DB에 저장합니다.")
             inserter = CreateReceiveOrder()
             inserted = 0
             for order_data in order_list:
@@ -151,20 +199,21 @@ class OrderListFetchService:
                     await inserter.create(obj_in=order_model)
                     inserted += 1
                 except Exception as e:
-                    logger.error(f"DB 저장 실패: {e} (data: {order_data})")
+                    write_log(f"DB 저장 실패: {e} (data: {order_data})")
+            write_log(f"DB에 저장된 주문 수: {inserted}")
             return inserted
         except ET.ParseError as e:
-            logger.error(f"XML 파싱 오류: {e}")
+            write_log(f"XML 파싱 오류: {e}")
             raise
         except Exception as e:
-            logger.error(f"DB 저장 중 오류: {e}")
+            write_log(f"DB 저장 중 오류: {e}")
             raise
 
     def get_order_list_via_url(self, xml_url: str, to_db: bool = False) -> List[Dict[str, str]]:
         try:
             api_url = urljoin(self.admin_url, '/RTL_API/xml_order_info.html')
             full_url = f"{api_url}?xml_url={xml_url}"
-            logger.info(f"최종 요청 URL: {full_url}")
+            logger.error(f"최종 요청 URL: {full_url}")
             print(f"최종 요청 URL: {full_url}")
             response = requests.get(full_url, timeout=30)
             print(f"API 요청 결과: {response.text}")
@@ -172,7 +221,7 @@ class OrderListFetchService:
             if to_db:
                 import asyncio
                 inserted = asyncio.run(self.parse_response_xml_to_db(response.text))
-                logger.info(f"DB에 저장된 주문 수: {inserted}")
+                logger.error(f"DB에 저장된 주문 수: {inserted}")
                 return []
             else:
                 response_xml = self.parse_response_xml_to_json(response.text)
