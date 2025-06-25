@@ -79,12 +79,12 @@ class ReceiveOrder(Base):
     p_sku_value: Mapped[str | None] = mapped_column(Text)
     product_name: Mapped[str | None] = mapped_column(Text)
     sku_value: Mapped[str | None] = mapped_column(Text)
-    compayny_goods_cd: Mapped[str | None] = mapped_column(String(100))
+    compayny_goods_cd: Mapped[str | None] = mapped_column(String(255))
     sku_alias: Mapped[str | None] = mapped_column(String(200))
     goods_nm_pr: Mapped[str | None] = mapped_column(Text)
-    goods_keyword: Mapped[str | None] = mapped_column(String(200))
-    model_no: Mapped[str | None] = mapped_column(String(100))
-    model_name: Mapped[str | None] = mapped_column(String(200))
+    goods_keyword: Mapped[str | None] = mapped_column(String(255))
+    model_no: Mapped[str | None] = mapped_column(String(255))
+    model_name: Mapped[str | None] = mapped_column(String(255))
     barcode: Mapped[str | None] = mapped_column(String(100))
 
     # 수량 및 구분 정보
