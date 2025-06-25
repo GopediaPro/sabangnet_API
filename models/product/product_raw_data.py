@@ -22,7 +22,7 @@ class ProductRawData(Base):
         BigInteger, primary_key=True, autoincrement=True)
 
     # 기본 상품 정보
-    goods_nm: Mapped[str] = mapped_column(String(250), nullable=False)
+    goods_nm: Mapped[str] = mapped_column(String(255), nullable=False)
     goods_keyword: Mapped[str | None] = mapped_column(String(60))
     model_nm: Mapped[str | None] = mapped_column(String(60))
     model_no: Mapped[str | None] = mapped_column(String(60))
