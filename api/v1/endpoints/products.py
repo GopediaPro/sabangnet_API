@@ -17,8 +17,9 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from utils.sabangnet_formatter import SabangNetFormatter
 
-from models.product.product_raw_data import ProductRawData
-from models.product.modified_product_data import ModifiedProductData
+from services.product.product_write_service import ProductWriteService
+from schemas.product.request.product_form import ModifyProductNameForm
+from schemas.product.response.product_response import ProductNameResponse
 
 router = APIRouter(
     prefix="/products",
@@ -29,6 +30,9 @@ router = APIRouter(
 # 의존성 주입을 통해 ProductCRUD 인스턴스 생성
 def get_product_crud(session: AsyncSession = Depends(get_async_session)) -> ProductRepository:
     return ProductRepository(session=session)
+
+def get_product_write_service(session: AsyncSession = Depends(get_async_session)) -> ProductWriteService:
+    return ProductWriteService(session=session)
 
 
 @router.post("/xlsx-to-xml", response_model=dict)
@@ -59,3 +63,14 @@ async def xlsx_to_xml(request: Request):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/name", response_model=ProductNameResponse)
+async def modify_product_name(
+    request: ModifyProductNameForm = Depends(),
+    product_service: ProductWriteService = Depends(get_product_write_service)
+):
+    return ProductNameResponse.from_dto(await product_service.modify_product_name(
+        compayny_goods_cd=request.compayny_goods_cd,
+        product_name=request.name
+    ))
