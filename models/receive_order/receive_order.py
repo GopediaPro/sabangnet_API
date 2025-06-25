@@ -4,7 +4,7 @@ from decimal import Decimal
 from datetime import datetime
 
 from sqlalchemy import (
-    TIMESTAMP, Date, Integer, Numeric, String, Text, text
+    TIMESTAMP, Date, Integer, Numeric, String, Text, text, BigInteger
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -98,7 +98,7 @@ class ReceiveOrder(Base):
 
     # 기타 처리 정보
     jung_chk_yn: Mapped[str | None] = mapped_column(String(2))
-    mall_order_seq: Mapped[int | None] = mapped_column(Integer)
+    mall_order_seq: Mapped[int | None] = mapped_column(BigInteger)
     mall_order_id: Mapped[str | None] = mapped_column(String(100))
     etc_field3: Mapped[str | None] = mapped_column(Text)
     ord_field2: Mapped[str | None] = mapped_column(String(10))
