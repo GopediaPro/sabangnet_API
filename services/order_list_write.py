@@ -18,3 +18,17 @@ class OrderListWriteService:
         for order_data in order_data_list:
             order_model = self.convert_to_model(order_data)
             await self.create_receive_order.create(obj_in=order_model)
+
+    async def create_orders_from_xml(self, xml_content: str) -> int:
+        """
+        Parse the given XML content and insert orders into the DB using OrderListFetchService.
+        Returns the number of inserted records.
+        """
+        from services.order_list_fetch import OrderListFetchService
+        fetch_service = OrderListFetchService(
+            ord_st_date="",  # Not needed for this context
+            ord_ed_date="",
+            order_status=""
+        )
+        inserted = await fetch_service.parse_response_xml_to_db(xml_content)
+        return inserted
