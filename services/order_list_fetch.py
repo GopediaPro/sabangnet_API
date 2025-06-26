@@ -116,7 +116,7 @@ class OrderListFetchService:
         Parse XML response and insert order list into the DB.
         Returns the number of inserted records.
         """
-        from repository.create_receive_order import CreateReceiveOrder
+        from repository.receive_order_repository import CreateReceiveOrder
         from models.receive_order.receive_order import ReceiveOrder
         from decimal import Decimal
         import re
