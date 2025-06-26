@@ -4,7 +4,7 @@ from decimal import Decimal
 from datetime import datetime
 
 from sqlalchemy import (
-    TIMESTAMP, Date, Integer, Numeric, String, Text, text
+    TIMESTAMP, Date, Integer, Numeric, String, Text, text, BigInteger
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -79,12 +79,12 @@ class ReceiveOrder(Base):
     p_sku_value: Mapped[str | None] = mapped_column(Text)
     product_name: Mapped[str | None] = mapped_column(Text)
     sku_value: Mapped[str | None] = mapped_column(Text)
-    compayny_goods_cd: Mapped[str | None] = mapped_column(String(100))
+    compayny_goods_cd: Mapped[str | None] = mapped_column(String(255))
     sku_alias: Mapped[str | None] = mapped_column(String(200))
     goods_nm_pr: Mapped[str | None] = mapped_column(Text)
-    goods_keyword: Mapped[str | None] = mapped_column(String(200))
-    model_no: Mapped[str | None] = mapped_column(String(100))
-    model_name: Mapped[str | None] = mapped_column(String(200))
+    goods_keyword: Mapped[str | None] = mapped_column(String(255))
+    model_no: Mapped[str | None] = mapped_column(String(255))
+    model_name: Mapped[str | None] = mapped_column(String(255))
     barcode: Mapped[str | None] = mapped_column(String(100))
 
     # 수량 및 구분 정보
@@ -98,7 +98,7 @@ class ReceiveOrder(Base):
 
     # 기타 처리 정보
     jung_chk_yn: Mapped[str | None] = mapped_column(String(2))
-    mall_order_seq: Mapped[int | None] = mapped_column(Integer)
+    mall_order_seq: Mapped[int | None] = mapped_column(BigInteger)
     mall_order_id: Mapped[str | None] = mapped_column(String(100))
     etc_field3: Mapped[str | None] = mapped_column(Text)
     ord_field2: Mapped[str | None] = mapped_column(String(10))
