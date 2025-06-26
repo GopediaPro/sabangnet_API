@@ -7,9 +7,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from services.product_create_origin import ProductCreateService
 from repository.product_repository import ProductRepository
 
+# Product Registration API 추가
+from .product_registration_api import router as product_registration_router
+
 router = APIRouter(
     prefix="/api/product"
 )
+
+# Product Registration 라우터 포함
+router.include_router(product_registration_router)
 
 
 @router.get("/")
