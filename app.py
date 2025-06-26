@@ -4,7 +4,6 @@
 """
 
 # 레거시 SSL 수정
-import os
 from legacy_SSL_handler import LegacySSLHandler
 legacy_ssl_handler = LegacySSLHandler()
 legacy_ssl_handler.fix_legacy_ssl_config()
@@ -16,10 +15,11 @@ import asyncio
 from core.db import get_db_pool
 from controller import fetch_mall_list, fetch_order_list, create_product_request
 from dotenv import load_dotenv
-import logging
 import typer
 from services.order_list_write import OrderListWriteService
 from core.initialization import initialize_program
+from utils.sabangnet_logger import get_logger
+from core.settings import SETTINGS
 
 # Create Typer app instance
 app = typer.Typer(help="사방넷 쇼핑몰 API CLI 도구")
@@ -28,19 +28,18 @@ app = typer.Typer(help="사방넷 쇼핑몰 API CLI 도구")
 load_dotenv()
 
 # Environment variables
-SABANG_COMPANY_ID = os.getenv('SABANG_COMPANY_ID')
-SABANG_AUTH_KEY = os.getenv('SABANG_AUTH_KEY')
-SABANG_ADMIN_URL = os.getenv('SABANG_ADMIN_URL')
-MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT')
-MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY')
-MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY')
-MINIO_BUCKET_NAME = os.getenv('MINIO_BUCKET_NAME')
-MINIO_USE_SSL = os.getenv('MINIO_USE_SSL')
-MINIO_PORT = os.getenv('MINIO_PORT')
+SABANG_COMPANY_ID = SETTINGS.SABANG_COMPANY_ID
+SABANG_AUTH_KEY = SETTINGS.SABANG_AUTH_KEY
+SABANG_ADMIN_URL = SETTINGS.SABANG_ADMIN_URL
+MINIO_ENDPOINT = SETTINGS.MINIO_ENDPOINT
+MINIO_ACCESS_KEY = SETTINGS.MINIO_ACCESS_KEY
+MINIO_SECRET_KEY = SETTINGS.MINIO_SECRET_KEY
+MINIO_BUCKET_NAME = SETTINGS.MINIO_BUCKET_NAME
+MINIO_USE_SSL = SETTINGS.MINIO_USE_SSL
+MINIO_PORT = SETTINGS.MINIO_PORT
 
 # Logging configuration
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @app.command(help="쇼핑몰 목록을 조회합니다")

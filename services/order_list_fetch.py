@@ -1,22 +1,18 @@
-import os
+import re
+import json
+import hashlib
 import requests
-import xml.etree.ElementTree as ET
+from pathlib import Path
 from datetime import datetime
 from typing import List, Dict
 from urllib.parse import urljoin
-import logging
-import json
-from pathlib import Path
-import re
-import hashlib
+import xml.etree.ElementTree as ET
+from core.settings import SETTINGS
+from utils.sabangnet_logger import get_logger
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
-SABANG_COMPANY_ID = os.getenv('SABANG_COMPANY_ID', None)
-SABANG_AUTH_KEY = os.getenv('SABANG_AUTH_KEY', None)
-SABANG_ADMIN_URL = os.getenv('SABANG_ADMIN_URL', None)
-SABANG_SEND_DATE = os.getenv('SABANG_SEND_DATE', None)
+logger = get_logger(__name__)
+
 
 class OrderListFetchService:
     def __init__(
@@ -28,20 +24,18 @@ class OrderListFetchService:
             auth_key: str = None,
             admin_url: str = None,
             send_date: str = None,
-            ):
+    ):
         self.ord_st_date = ord_st_date
         self.ord_ed_date = ord_ed_date
         self.order_status = order_status
-        self.company_id = company_id or SABANG_COMPANY_ID
-        self.auth_key = auth_key or SABANG_AUTH_KEY
-        self.admin_url = admin_url or SABANG_ADMIN_URL
-        self.send_date = send_date or SABANG_SEND_DATE
+        self.company_id = company_id or SETTINGS.SABANG_COMPANY_ID
+        self.auth_key = auth_key or SETTINGS.SABANG_AUTH_KEY
+        self.admin_url = admin_url or SETTINGS.SABANG_ADMIN_URL
+        self.send_date = send_date or datetime.now().strftime('%Y%m%d')
         if not self.company_id or not self.auth_key:
             raise ValueError("SABANG_COMPANY_ID와 SABANG_AUTH_KEY는 필수입니다.")
 
     def create_request_xml(self) -> str:
-        if not self.send_date:
-            self.send_date = datetime.now().strftime('%Y%m%d')
         xml_content = f"""\
 <?xml version="1.0" encoding="EUC-KR"?>
 <SABANG_ORDER_LIST>
@@ -60,7 +54,6 @@ class OrderListFetchService:
         return xml_content
 
     def parse_response_xml(self, xml_content: str, safe_mode: bool = True) -> List[Dict[str, str]]:
-
         """
         특정 XML tag에 대해 민감정보 타입을 정의해놓은 상수.
         (tag : type 구조)
@@ -94,9 +87,11 @@ class OrderListFetchService:
                         # 개별 주문 정보 추출
                         if safe_mode and (elem_tag in MASKING_RULES):
                             mask_type = MASKING_RULES[elem_tag]
-                            elem_text = self.__mask_personal_info(elem_text, mask_type)
+                            elem_text = self.__mask_personal_info(
+                                elem_text, mask_type)
                         order_detail[elem_tag] = elem_text
-                order_detail["RECEIVE_DT"] = datetime.now().strftime('%Y%m%d%H%M%S')
+                order_detail["RECEIVE_DT"] = datetime.now().strftime(
+                    '%Y%m%d%H%M%S')
                 order_list.append(order_detail)
             logger.info(f"총 {len(order_list)}개의 주문을 수집했습니다.")
             json_dir = Path("./files/json")
@@ -136,13 +131,13 @@ class OrderListFetchService:
         """
         if not value or value.strip() == '':
             return value
-        
+
         if mask_type == 'name':
             # 이름: 첫 글자만 보이고 나머지는 *
             if len(value) <= 1:
                 return '*'
             return value[0] + '*' * (len(value) - 1)
-        
+
         elif mask_type == 'phone':
             # 전화번호: 중간 4자리를 ****로 마스킹
             phone_digits = re.sub(r'[^0-9]', '', value)
@@ -152,7 +147,7 @@ class OrderListFetchService:
                 elif len(phone_digits) == 10:  # 일반전화
                     return phone_digits[:3] + '****' + phone_digits[6:]
             return '****'
-        
+
         elif mask_type == 'address':
             # 주소: 상세주소 부분을 마스킹
             parts = value.split()
@@ -160,21 +155,21 @@ class OrderListFetchService:
                 # 시/도, 시/군/구는 유지하고 상세주소는 마스킹
                 return ' '.join(parts[:2]) + ' ****'
             return '****'
-        
+
         elif mask_type == 'zipcode':
             # 우편번호: 앞 3자리만 유지
             if len(value) >= 3:
                 return value[:3] + '*' * (len(value) - 3)
             return '*' * len(value)
-        
+
         elif mask_type == 'id':
             # ID: 해시값으로 대체 (일관성 유지를 위해)
             return hashlib.md5(value.encode()).hexdigest()[:8]
-        
+
         elif mask_type == 'user_id':
             # 사용자 ID: 앞 2자리만 유지
             if len(value) > 2:
                 return value[:2] + '*' * (len(value) - 2)
             return '*' * len(value)
-        
+
         return value
