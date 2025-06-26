@@ -123,6 +123,56 @@ def create_product():
         logger.error(f"쓰기 작업 중 오류 발생: {e}")
 
 
+@app.command(help="Excel 파일에서 상품 등록 데이터 가져오기")
+def import_product_registration_excel(
+    file_path: str = typer.Argument(..., help="Excel 파일 경로"),
+    sheet_name: str = typer.Option("Sheet1", help="시트명")
+):
+    """Excel 파일에서 상품 등록 데이터를 가져와 DB에 저장합니다."""
+    async def _import_excel():
+        try:
+            from core.db import AsyncSessionLocal
+            from services.product_registration import ProductRegistrationService
+            
+            async with AsyncSessionLocal() as session:
+                service = ProductRegistrationService(session)
+                
+                # Excel 파일 처리 및 DB 저장
+                excel_result, bulk_result = await service.process_excel_and_create(file_path, sheet_name)
+                
+                print(f"\n=== Excel 파일 처리 결과 ===")
+                print(f"파일 경로: {file_path}")
+                print(f"시트명: {sheet_name}")
+                print(f"전체 행 수: {excel_result.total_rows}")
+                print(f"유효 행 수: {excel_result.valid_rows}")
+                print(f"무효 행 수: {excel_result.invalid_rows}")
+                
+                if excel_result.validation_errors:
+                    print(f"\n검증 오류:")
+                    for error in excel_result.validation_errors:
+                        print(f"  - {error}")
+                
+                print(f"\n=== DB 저장 결과 ===")
+                print(f"성공한 데이터 수: {bulk_result.success_count}")
+                print(f"실패한 데이터 수: {bulk_result.error_count}")
+                print(f"생성된 ID: {bulk_result.created_ids[:10]}{'...' if len(bulk_result.created_ids) > 10 else ''}")
+                
+                if bulk_result.errors:
+                    print(f"\n저장 오류:")
+                    for error in bulk_result.errors:
+                        print(f"  - {error}")
+                
+                print(f"\n완료!")
+                
+        except Exception as e:
+            print(f"오류 발생: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    # 비동기 함수 실행
+    asyncio.run(_import_excel())
+
+
 def handle_error(e: Exception):
     """에러 처리 헬퍼 함수"""
     if isinstance(e, ValueError):
