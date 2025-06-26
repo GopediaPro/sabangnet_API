@@ -123,6 +123,21 @@ def create_product():
         logger.error(f"쓰기 작업 중 오류 발생: {e}")
 
 
+@app.command(help="주문 목록을 엑셀로 변환")
+def create_order_xlsx():
+    from repository.receive_order_repository import CreateReceiveOrder
+    from utils.convert_xlsx import ConvertXlsx
+    from utils.order_basic_erp_excel_field_mapping import ORDER_BASIC_ERP_EXCEL_FIELD_MAPPING
+    inserter = CreateReceiveOrder()
+    convert_xlsx = ConvertXlsx()
+    try:
+        orders = asyncio.run(inserter.read_all())
+        path = convert_xlsx.export_translated_to_excel(orders[:200], ORDER_BASIC_ERP_EXCEL_FIELD_MAPPING, "test-[기본양식]-ERP용")       
+        print(path)
+    except Exception as e:
+        logger.error(f"주문 목록 엑셀 변환 중 오류 발생: {e}")
+
+
 def handle_error(e: Exception):
     """에러 처리 헬퍼 함수"""
     if isinstance(e, ValueError):
