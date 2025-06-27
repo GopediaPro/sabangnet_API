@@ -38,3 +38,12 @@ AsyncSessionLocal = async_sessionmaker(
 async def get_async_session():
     async with AsyncSessionLocal() as session:
         return session
+
+async def test_db_write(value: str) -> bool:
+    pool = await get_db_pool()
+    table = SETTINGS.DB_TEST_TABLE
+    column = SETTINGS.DB_TEST_COLUMN
+    query = f'INSERT INTO "{table}" ("{column}") VALUES ($1) RETURNING "{column}"'
+    async with pool.acquire() as conn:
+        result = await conn.fetchval(query, value)
+        return result == value
