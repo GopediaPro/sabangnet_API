@@ -144,24 +144,12 @@ class ProductRepository:
 
     async def find_modified_product_data_by_product_raw_data_id(self, product_raw_data_id: int) -> ModifiedProductData:
         query = select(ModifiedProductData).\
-            where(ModifiedProductData.test_product_raw_data_id == product_raw_data_id).limit(1)
+            where(ModifiedProductData.test_product_raw_data_id == product_raw_data_id).order_by(ModifiedProductData.rev.desc()).limit(1)
         modified_product_data = await self.session.execute(query)
         return modified_product_data.scalar_one_or_none()
         
     
-    async def save_modified_product_name(self, compayny_goods_cd: str, product_name: str) -> ModifiedProductData:
-        product_raw_data = await self.find_product_raw_data_by_company_goods_cd(compayny_goods_cd)
-        if product_raw_data is None:
-            raise ValueError(f"Product raw data not found: {compayny_goods_cd}")
-        
-        modified_product_data = await self.find_modified_product_data_by_product_raw_data_id(product_raw_data.id)
-        rev = 0
-        if modified_product_data is not None:
-            query = select(ModifiedProductData)\
-                .where(ModifiedProductData.test_product_raw_data_id == product_raw_data.id)\
-                    .order_by(ModifiedProductData.rev.desc()).limit(1)
-            res = await self.session.execute(query)
-            rev = res.scalar_one().rev
+    async def save_modified_product_name(self, product_raw_data: ProductRawData, rev: int, product_name: str) -> ModifiedProductData:
 
         query = insert(ModifiedProductData).values(
             test_product_raw_data_id=product_raw_data.id,
