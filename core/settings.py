@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     DB_USER: str
     DB_PASSWORD: str
     DB_SSLMODE: str
+    DB_TEST_TABLE: str
+    DB_TEST_COLUMN: str
 
     # N8N
     N8N_TEST: str

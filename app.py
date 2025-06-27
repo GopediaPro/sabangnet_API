@@ -20,6 +20,7 @@ import logging
 import typer
 from services.order_list_write import OrderListWriteService
 from core.initialization import initialize_program
+from core.db import test_db_write
 
 # Create Typer app instance
 app = typer.Typer(help="사방넷 쇼핑몰 API CLI 도구")
@@ -80,6 +81,21 @@ def test_db_connection():
         except Exception as e:
             typer.echo(f"DB 연결 실패: {e}")
     asyncio.run(_test())
+
+@app.command(help="DB Write 테스트")
+def test_db_write_command(value: str = typer.Argument(..., help="테스트로 입력할 값")):
+    async def _test():
+        try:
+            success = await test_db_write(value)
+            if success:
+                typer.echo("DB Write 성공!")
+            else:
+                typer.echo("DB Write 실패: 값이 일치하지 않습니다.")
+        except Exception as e:
+            typer.echo(f"DB Write 실패: {e}")
+    asyncio.run(_test())
+
+
 
 
 @app.command(help="ReceiveOrder 모델 기본 조회 테스트")
