@@ -16,8 +16,8 @@ from fastapi.responses import RedirectResponse
 from fastapi import FastAPI, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
 from api.v1.endpoints.products import router as products_router
-from api.product_api import router as product_router
 from api.product_registration_api import router as product_registration_router
+
 
 
 # 앱 시작 시 Streamlit 백그라운드에서 실행
@@ -49,7 +49,6 @@ master_router.include_router(products_router)
 
 
 app.include_router(master_router)
-app.include_router(product_router)
 app.include_router(product_registration_router)
 app.add_middleware(
     CORSMiddleware,
