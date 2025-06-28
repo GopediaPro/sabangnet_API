@@ -37,6 +37,12 @@ venv\Scripts\activate
 # ssl 오류 해결용 명령어
 export OPENSSL_CONF=./config/openssl.cnf
 
+# 의존성 설치
+
+```bash
+pip3 install -r requirements.txt
+```
+
 ## CLI 명령어
 
 이 프로그램은 Typer를 사용한 CLI 인터페이스를 제공합니다:
@@ -56,12 +62,6 @@ python app.py order-list
 ```bash
 python app.py mall-list --help
 python app.py order-list --help
-```
-
-### 2. 의존성 설치
-
-```bash
-pip3 install -r requirements.txt
 ```
 
 ### 3. 환경변수 설정
@@ -143,4 +143,31 @@ logger.critical(내용)
 
 ### 파싱 오류
 - XML 파일 형식이 사방넷 API 스펙에 맞는지 확인
+
 - 응답 XML의 구조가 예상과 같은지 확인
+
+# 주요 CLI 명령어 요약
+
+- 쇼핑몰 목록 조회:  
+  python app.py mall-list
+
+- 주문 목록 조회:  
+  python app.py order-list
+
+- DB 연결 테스트:  
+  python app.py test-db-connection
+
+- DB Write 테스트:  
+  python app.py test-db-write "테스트값"
+
+- ReceiveOrder 모델 조회 테스트:  
+  python app.py test-receive-order
+
+- 수집된 주문 DB에 저장:  
+  python app.py create-order
+
+- 상품 등록:  
+  python app.py create-product
+
+- Excel 파일에서 상품 등록 데이터 가져오기:  
+  python app.py import-product-registration-excel "./경로/파일.xlsx" --sheet-name "Sheet1"

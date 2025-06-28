@@ -3,16 +3,26 @@ import json
 import hashlib
 import requests
 from pathlib import Path
+from datetime import date
 from datetime import datetime
+from decimal import Decimal
 from typing import List, Dict
 from urllib.parse import urljoin
 import xml.etree.ElementTree as ET
 from core.settings import SETTINGS
 from utils.sabangnet_logger import get_logger
 
-
 logger = get_logger(__name__)
 
+# import logging
+from utils.log_utils import write_log
+# logging.basicConfig(level=logging.ERROR)
+# logger = logging.getLogger(__name__)
+# logging.getLogger("sqlalchemy.engine").setLevel(logging.ERROR)
+# SABANG_COMPANY_ID = os.getenv('SABANG_COMPANY_ID', None)
+# SABANG_AUTH_KEY = os.getenv('SABANG_AUTH_KEY', None)
+# SABANG_ADMIN_URL = os.getenv('SABANG_ADMIN_URL', None)
+# SABANG_SEND_DATE = os.getenv('SABANG_SEND_DATE', None)
 
 class OrderListFetchService:
     def __init__(
@@ -53,14 +63,10 @@ class OrderListFetchService:
 </SABANG_ORDER_LIST>"""
         return xml_content
 
-    def parse_response_xml(self, xml_content: str, safe_mode: bool = True) -> List[Dict[str, str]]:
+    def parse_response_xml_to_json(self, xml_content: str, safe_mode: bool = True) -> List[Dict[str, str]]:
         """
-        특정 XML tag에 대해 민감정보 타입을 정의해놓은 상수.
-        (tag : type 구조)
-        - USER_NAME 은 name 타입의 민감정보.
-        - RECEIVE_TEL 은 phone 타입의 민감정보.
+        Parse XML response and save order list to JSON file.
         """
-
         MASKING_RULES = {
             'USER_NAME': 'name',
             'RECEIVE_NAME': 'name',
@@ -84,7 +90,6 @@ class OrderListFetchService:
                     elem_tag = elem.tag.strip() if elem.tag else ''
                     elem_text = elem.text.strip() if elem.text else ''
                     if elem.tag is not None and elem.text is not None:
-                        # 개별 주문 정보 추출
                         if safe_mode and (elem_tag in MASKING_RULES):
                             mask_type = MASKING_RULES[elem_tag]
                             elem_text = self.__mask_personal_info(
@@ -93,7 +98,7 @@ class OrderListFetchService:
                 order_detail["RECEIVE_DT"] = datetime.now().strftime(
                     '%Y%m%d%H%M%S')
                 order_list.append(order_detail)
-            logger.info(f"총 {len(order_list)}개의 주문을 수집했습니다.")
+            logger.error(f"총 {len(order_list)}개의 주문을 수집했습니다.")
             json_dir = Path("./files/json")
             json_dir.mkdir(exist_ok=True)
             json_path = json_dir / "order_list.json"
@@ -107,17 +112,121 @@ class OrderListFetchService:
             logger.error(f"응답 파싱 중 오류: {e}")
             raise
 
-    def get_order_list_via_url(self, xml_url: str) -> List[Dict[str, str]]:
+    async def parse_response_xml_to_db(self, xml_content: str, safe_mode: bool = True) -> int:
+        """
+        Parse XML response and insert order list into the DB.
+        Returns the number of inserted records.
+        """
+        from repository.receive_order_repository import CreateReceiveOrder
+        from models.receive_order.receive_order import ReceiveOrder
+        from decimal import Decimal
+        import re
+        from datetime import datetime, date
+
+        MASKING_RULES = {
+            'USER_NAME': 'name',
+            'RECEIVE_NAME': 'name',
+            'USER_ID': 'user_id',
+            'RECEIVE_TEL': 'phone',
+            'RECEIVE_CEL': 'phone',
+            'USER_CEL': 'phone',
+            'RECEIVE_ADDR': 'address',
+            'RECEIVE_ZIPCODE': 'zipcode',
+            'ORDER_ID': 'id',
+            'MALL_ORDER_ID': 'id',
+            'MALL_USER_ID': 'user_id'
+        }
+
+        decimal_fields = [
+            'total_cost', 'pay_cost', 'sale_cost', 'mall_won_cost', 'won_cost', 'delv_cost'
+        ]
+        int_fields = [
+            'sale_cnt', 'box_ea', 'p_ea', 'mall_order_seq', 'acnt_regs_srno'
+        ]
+        date_fields = ['order_date']
+
+        def parse_date_field(val: str) -> date | None:
+            if not val:
+                return None
+            try:
+                if len(val) == 8:
+                    return datetime.strptime(val, '%Y%m%d').date()
+                elif len(val) == 14:
+                    return datetime.strptime(val, '%Y%m%d%H%M%S').date()
+                else:
+                    return None
+            except Exception as e:
+                write_log(f"order_date 변환 실패: {val} ({e})")
+                return None
+
+        try:
+            root = ET.fromstring(xml_content)
+            order_list = []
+            for data_node in root.findall('DATA'):
+                order_detail = {}
+                for elem in data_node.findall('*'):
+                    elem_tag = elem.tag.strip().lower() if elem.tag else ''
+                    elem_text = elem.text.strip() if elem.text else ''
+                    if elem.tag is not None and elem.text is not None:
+                        if safe_mode and (elem_tag.upper() in MASKING_RULES):
+                            mask_type = MASKING_RULES[elem_tag.upper()]
+                            elem_text = self.__mask_personal_info(elem_text, mask_type)
+                        order_detail[elem_tag] = elem_text
+                order_detail["receive_dt"] = datetime.now()
+                for field in decimal_fields:
+                    if field in order_detail:
+                        try:
+                            order_detail[field] = Decimal(order_detail[field]) if order_detail[field] != '' else None
+                        except Exception as e:
+                            write_log(f"{field} Decimal 변환 실패: {order_detail[field]} ({e})")
+                            order_detail[field] = None
+                for field in int_fields:
+                    if field in order_detail:
+                        try:
+                            order_detail[field] = int(order_detail[field]) if order_detail[field] != '' else None
+                        except Exception as e:
+                            write_log(f"{field} int 변환 실패: {order_detail[field]} ({e})")
+                            order_detail[field] = None
+                for field in date_fields:
+                    if field in order_detail:
+                        order_detail[field] = parse_date_field(order_detail[field])
+                order_list.append(order_detail)
+            write_log(f"총 {len(order_list)}개의 주문을 DB에 저장합니다.")
+            inserter = CreateReceiveOrder()
+            inserted = 0
+            for order_data in order_list:
+                try:
+                    order_model = ReceiveOrder(**order_data)
+                    await inserter.create(obj_in=order_model)
+                    inserted += 1
+                except Exception as e:
+                    write_log(f"DB 저장 실패: {e} (data: {order_data})")
+            write_log(f"DB에 저장된 주문 수: {inserted}")
+            return inserted
+        except ET.ParseError as e:
+            write_log(f"XML 파싱 오류: {e}")
+            raise
+        except Exception as e:
+            write_log(f"DB 저장 중 오류: {e}")
+            raise
+
+    def get_order_list_via_url(self, xml_url: str, to_db: bool = False) -> List[Dict[str, str]]:
         try:
             api_url = urljoin(self.admin_url, '/RTL_API/xml_order_info.html')
             full_url = f"{api_url}?xml_url={xml_url}"
-            logger.info(f"최종 요청 URL: {full_url}")
+            logger.error(f"최종 요청 URL: {full_url}")
             print(f"최종 요청 URL: {full_url}")
             response = requests.get(full_url, timeout=30)
             print(f"API 요청 결과: {response.text}")
             response.raise_for_status()
-            response_xml = self.parse_response_xml(response.text)
-            return response_xml
+            if to_db:
+                import asyncio
+                inserted = asyncio.run(self.parse_response_xml_to_db(response.text))
+                logger.error(f"DB에 저장된 주문 수: {inserted}")
+                return []
+            else:
+                response_xml = self.parse_response_xml_to_json(response.text)
+                return response_xml
         except requests.RequestException as e:
             logger.error(f"API 요청 실패: {e}")
             raise

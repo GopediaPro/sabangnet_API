@@ -7,3 +7,4 @@ venv
 *.xlsx
 *.xml
 */__pycache__/*
+logs/*

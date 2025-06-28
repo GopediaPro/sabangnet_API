@@ -8,10 +8,19 @@ class ProductWriteService:
         self.product_repository = ProductRepository(session)
 
     async def modify_product_name(self, compayny_goods_cd: str, product_name: str) -> ModifiedProductDataDto:
-        result = await self.product_repository.\
-            save_modified_product_name(compayny_goods_cd=compayny_goods_cd, product_name=product_name)
+        
+        product_raw_data = await self.product_repository.find_product_raw_data_by_company_goods_cd(compayny_goods_cd)
+        if product_raw_data is None:
+            raise ValueError(f"Product raw data not found: {compayny_goods_cd}")
+        
+        modified_product_data = await self.product_repository.\
+            find_modified_product_data_by_product_raw_data_id(product_raw_data.id)
+        
+        rev = 0 if modified_product_data is None else modified_product_data.rev + 1
+        
+        result = await self.product_repository.save_modified_product_name(
+            product_raw_data=product_raw_data, rev=rev, product_name=product_name)
         
         dto = ModifiedProductDataDto.model_validate(result)
-
         return dto
     

@@ -80,6 +80,20 @@ def get_order_status():
     return order_status
 
 
+def select_order_save_method() -> bool:
+    print("\n주문 데이터 저장 방식을 선택하세요:")
+    print("1. DB에 저장 (권장)")
+    print("2. JSON 파일로 저장")
+    method = input("선택하세요 (1 또는 2): ").strip()
+    if method == "1":
+        return True
+    elif method == "2":
+        return False
+    else:
+        print("잘못된 선택입니다. 기본값(JSON 저장)으로 진행합니다.")
+        return False
+
+
 def fetch_order_list():
     xml_base_path = Path("./files/xml")
     try:
@@ -98,6 +112,7 @@ def fetch_order_list():
         print("2. XML 내용을 직접 업로드 후 URL로 호출")
         print("3. XML URL을 직접 입력하여 호출")
         choice = input("\n선택하세요 (1, 2 또는 3): ").strip()
+        to_db = select_order_save_method()
         if choice == "1":
             # 1. XML 생성 및 파일로 저장
             xml_content = fetcher.create_request_xml()
@@ -111,7 +126,7 @@ def fetch_order_list():
             logger.info(f"파일 서버에 업로드된 XML 파일 이름: {object_name}")
             xml_url = get_file_server_url(object_name)
             logger.info(f"파일 서버에 업로드된 XML URL: {xml_url}")
-            order_list = fetcher.get_order_list_via_url(xml_url)
+            result = fetcher.get_order_list_via_url(xml_url, to_db=to_db)
         elif choice == "2":
             # 2. XML 내용을 직접 파일 서버에 업로드
             xml_content = fetcher.create_request_xml()
@@ -122,18 +137,22 @@ def fetch_order_list():
             logger.info(f"파일 서버에 업로드된 XML 파일 이름: {object_name}")
             xml_url = get_file_server_url(object_name)
             logger.info(f"파일 서버에 업로드된 XML URL: {xml_url}")
-            order_list = fetcher.get_order_list_via_url(xml_url)
+            result = fetcher.get_order_list_via_url(xml_url, to_db=to_db)
         elif choice == "3":
             xml_url = input("\nXML 파일의 URL을 입력하세요 (예: http://www.abc.co.kr/aa.xml): ").strip()
             if not xml_url:
                 print("유효한 XML URL을 입력해주세요.")
                 return
-            order_list = fetcher.get_order_list_via_url(xml_url)
-            logger.info(f"XML URL 요청 결과: {order_list}")
+            result = fetcher.get_order_list_via_url(xml_url, to_db=to_db)
+            if not to_db:
+                logger.info(f"XML URL 요청 결과: {order_list}")
         else:
             print("잘못된 선택입니다.")
             return
-        print("성공적으로 저장되었습니다. (경로: ./json/order_list.json)")
+        if to_db:
+            print("성공적으로 DB에 저장되었습니다.")
+        else:
+            print("성공적으로 저장되었습니다. (경로: ./json/order_list.json)")
     except ValueError as e:
         print(f"\n환경변수를 확인해주세요: {e}")
         print("- SABANG_COMPANY_ID: 사방넷 로그인 아이디")

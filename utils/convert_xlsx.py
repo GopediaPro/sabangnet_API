@@ -1,20 +1,38 @@
 import pandas as pd
 from pathlib import Path
+from models.base_model import Base
 
 
 class ConvertXlsx:
 
-    def translate_field(self, data: list[dict], mapping_field: dict):
+    def translate_field(self, data: Base, mapping_field: dict):
         """
         Translate english key name to korean key name.
+        Args:
+            data: SQLAlchemy ORM 인스턴스
+            mapping_field: {한글필드명: 영문필드명} 
+        Returns:
+            {한글필드명: 영문필드명} 
         """
-        return {
-            key: data.get(value.lower()) for key, value in mapping_field.items()
-        }
+        result = {}
+        for key, value in mapping_field.items():
+            if callable(value):
+                result[key] = value(data)
+            elif value:
+                result[key] = getattr(data, value.lower(), None)
+            else:
+                result[key] = None
+        return result
 
     def export_translated_to_excel(self, data: list[dict], mapping_field: dict, file_name: str):
         """
         Translate the data to the Korean field name and save it as an Excel file.
+        Args:
+            data: SQLAlchemy ORM 인스턴스
+            mapping_field: {한글필드명: 영문필드명} 
+            file_name: 파일 이름
+        Returns:
+            Excel 파일 경로
         """
         translated_data: list[dict] = [
             self.translate_field(row, mapping_field) for row in data]

@@ -22,12 +22,20 @@ class Settings(BaseSettings):
     MINIO_PORT: Optional[str] = None
 
     # DB
-    DB_HOST: Optional[str] = None
-    DB_PORT: Optional[str] = None
-    DB_NAME: Optional[str] = None
-    DB_USER: Optional[str] = None
-    DB_PASSWORD: Optional[str] = None
-    DB_SSLMODE: Optional[str] = None
+    DB_HOST: str
+    DB_PORT: str
+    DB_NAME: str
+    DB_USER: str
+    DB_PASSWORD: str
+    DB_SSLMODE: str
+    DB_TEST_TABLE: str
+    DB_TEST_COLUMN: str
+    DB_HOST: str
+    DB_PORT: str
+    DB_NAME: str
+    DB_USER: str
+    DB_PASSWORD: str
+    DB_SSLMODE: str
 
     # N8N
     N8N_TEST: Optional[str] = None
