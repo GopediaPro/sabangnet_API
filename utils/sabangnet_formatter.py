@@ -72,6 +72,7 @@ class SabangNetFormatter:
 
         # 3. 필드 매핑 적용 및 XML 생성 -> 하드코딩 된 부분은 추후 마스터/전문몰/1+1 작업시 개선 예정
         data_list = []
+        idx = 1 # 자체상품코드 번호
         for _, row in df_xlsx.iterrows():
             already_exist_model_nm = False
             data = ET.Element("DATA")
@@ -104,6 +105,8 @@ class SabangNetFormatter:
                     already_exist_model_nm = True
                     if excel_header == "상품명":
                         child.text = ET.CDATA(f"[TEST]{str(excel_value)}")
+                    elif excel_header == "자체상품코드":
+                        child.text = ET.CDATA(f"TEST_backend_test_{idx}")
                     elif excel_header == "원가" or excel_header == "판매가" or excel_header == "TAG가":
                         child.text = ET.CDATA(f"999999999")
                     elif excel_header == "재고관리사용여부":
@@ -111,6 +114,7 @@ class SabangNetFormatter:
                     else:
                         child.text = ET.CDATA(str(excel_value))
             data_list.append(data)
+            idx += 1
 
         # 4. XML 문자열 반환
         xml_str: str = "\t\n".join(
