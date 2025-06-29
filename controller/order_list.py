@@ -1,7 +1,11 @@
 from pathlib import Path
 from datetime import datetime
+from utils.sabangnet_logger import get_logger
 from services.order_list_fetch import OrderListFetchService
 from file_server_handler import upload_to_file_server, get_file_server_url, upload_xml_content_to_file_server
+
+
+logger = get_logger(__name__)
 
 
 class OrderDateRangeException(Exception):
@@ -93,7 +97,7 @@ def select_order_save_method() -> bool:
 def fetch_order_list():
     xml_base_path = Path("./files/xml")
     try:
-        print(f"사방넷 주문수집")
+        print("사방넷 주문수집")
         print("=" * 50)
         ord_st_date, ord_ed_date = get_order_date_range()
         print("\n"*50)
@@ -119,9 +123,9 @@ def fetch_order_list():
             print(f"\n요청 XML이 {xml_file_path}에 저장되었습니다.")
             # 파일 서버 업로드
             object_name = upload_to_file_server(xml_file_path)
-            print(f"파일 서버에 업로드된 XML 파일 이름: {object_name}")
+            logger.info(f"파일 서버에 업로드된 XML 파일 이름: {object_name}")
             xml_url = get_file_server_url(object_name)
-            print(f"파일 서버에 업로드된 XML URL: {xml_url}")
+            logger.info(f"파일 서버에 업로드된 XML URL: {xml_url}")
             result = fetcher.get_order_list_via_url(xml_url, to_db=to_db)
         elif choice == "2":
             # 2. XML 내용을 직접 파일 서버에 업로드
@@ -130,9 +134,9 @@ def fetch_order_list():
             if not filename:
                 filename = xml_base_path / "order_list_request.xml"
             object_name = upload_xml_content_to_file_server(xml_content, filename)
-            print(f"파일 서버에 업로드된 XML 파일 이름: {object_name}")
+            logger.info(f"파일 서버에 업로드된 XML 파일 이름: {object_name}")
             xml_url = get_file_server_url(object_name)
-            print(f"파일 서버에 업로드된 XML URL: {xml_url}")
+            logger.info(f"파일 서버에 업로드된 XML URL: {xml_url}")
             result = fetcher.get_order_list_via_url(xml_url, to_db=to_db)
         elif choice == "3":
             xml_url = input("\nXML 파일의 URL을 입력하세요 (예: http://www.abc.co.kr/aa.xml): ").strip()
@@ -141,7 +145,7 @@ def fetch_order_list():
                 return
             result = fetcher.get_order_list_via_url(xml_url, to_db=to_db)
             if not to_db:
-                print(f"XML URL 요청 결과: {result}")
+                logger.info(f"XML URL 요청 결과: {order_list}")
         else:
             print("잘못된 선택입니다.")
             return

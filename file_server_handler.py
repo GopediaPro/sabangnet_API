@@ -1,9 +1,9 @@
 import os
 import requests
 from typing import Optional
-import logging
+from utils.sabangnet_logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # HTTPS 사용으로 변경 (SSL 검증은 환경에 따라 조정)
 FILE_SERVER_BASE_URL = os.getenv('FILE_SERVER_BASE_URL', 'https://file.lyckabc.xyz')
@@ -127,8 +127,6 @@ def test_connection():
         return False
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    
     # 연결 테스트
     if test_connection():
         print("파일 업로드 준비 완료!")
