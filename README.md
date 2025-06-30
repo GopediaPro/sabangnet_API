@@ -89,6 +89,29 @@ SABANG_ADMIN_URL=https://sbadmin실제번호.sabangnet.co.kr
 - **응답 파싱**: XML 응답을 Python 객체로 변환
 - **에러 처리**: 상세한 로깅과 예외 처리
 
+## 로깅
+
+- **로거 사용 방법**: 스크립트 최상단에 logger 객체를 불러와서 씁니다.
+
+```
+from utils.sabangnet_logger import get_logger
+
+logger = get_logger(__name__)
+
+# 아래중에 선택
+logger.debug(내용)
+logger.info(내용)
+logger.warning(내용)
+logger.error(내용)
+logger.critical(내용)
+```
+
+- **DEBUG**: 디버깅용 상세정보
+- **INFO**: 일반적인 정보
+- **WARNING**: 경고 (문제는 아니지만 주의)
+- **ERROR**: 에러 발생
+- **CRITICAL**: 치명적인 에러
+
 ## 파일 구조
 
 ```
@@ -120,6 +143,7 @@ SABANG_ADMIN_URL=https://sbadmin실제번호.sabangnet.co.kr
 
 ### 파싱 오류
 - XML 파일 형식이 사방넷 API 스펙에 맞는지 확인
+
 - 응답 XML의 구조가 예상과 같은지 확인
 
 # 주요 CLI 명령어 요약
