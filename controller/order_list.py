@@ -145,7 +145,7 @@ def fetch_order_list():
                 return
             result = fetcher.get_order_list_via_url(xml_url, to_db=to_db)
             if not to_db:
-                logger.info(f"XML URL 요청 결과: {order_list}")
+                logger.info(f"XML URL 요청 결과: {result}")
         else:
             print("잘못된 선택입니다.")
             return

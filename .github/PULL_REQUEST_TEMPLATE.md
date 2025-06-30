@@ -1,12 +1,12 @@
 ## 📋 프로세스 시각화
 
 ```
-상품명 입력 → 기준가격 조회 → 1+1가격 계산 → 쇼핑몰별 차등가격 계산 → DB 저장 → 결과 반환 (CLI 지원)
+상품 데이터 → 추가 필드 스키마 정의 → DB 모델 확장 → Repository 메서드 추가 → 주문 수집 기능 개선
 ```
 
 ## 🎯 개요
 
-1+1 상품의 자동 가격 계산 시스템을 구현했습니다. 기준가격을 기반으로 1+1 가격을 계산하고, 28개 쇼핑몰별로 차등 가격을 적용하여 DB에 저장하는 완전한 시스템입니다. 계층별 분리, 비동기 처리, Decimal 기반 정확한 가격 계산을 통해 확장성과 안정성을 확보했습니다.
+상품 데이터 모델에 필수 추가 필드들을 구현하고, 주문 수집 기능을 개선했습니다. 상품 관련 추가 메타데이터 필드들을 추가하여 더 풍부한 상품 정보 관리가 가능합니다.
 
 ## 🔄 변경 사항
 
@@ -14,203 +14,218 @@
 
 |파일|변경 내용|
 |---|---|
-|`app.py`|1+1 가격 계산 CLI 명령어 추가|
-|`repository/product_registration_repository.py`|상품 가격 조회 메서드 추가|
-|`repository/product_repository.py`|모델명/몰구분 기반 상품 조회 메서드 추가|
-|`utils/sabangnet_path_utils.py`|1+1 가격 계산 관련 경로 유틸리티 추가|
-|`utils/product/price_calculator.py`|**엑셀 ROUNDUP 함수와 동일한 올림 로직 구현**|
+|`controller/order_list.py`|**주문 수집 기능 대폭 개선** - DB 저장 옵션, 3가지 XML 전송 방식 지원|
+|`models/product/modified_product_data.py`|**상품 모델 확장** - gubun, product_nm 등 5개 필드 추가|
+|`models/product/product_raw_data.py`|**원본 상품 모델 확장** - 동일한 추가 필드 구조 적용|
+|`repository/product_repository.py`|**Repository 메서드 추가** - 상품명+구분 기반 조회 기능|
+|`schemas/product/modified_product_dto.py`|**DTO 스키마 확장** - 새로운 필드들에 대한 유효성 검증 추가|
+|`schemas/product/product_raw_data_dto.py`|**DTO 스키마 확장** - 원본 데이터용 DTO 필드 추가|
+|`services/product_create.py`|**상품 생성 서비스 개선** - XML 기반 상품 등록 로직 안정화|
 
-### ➕ Added Files
+## 🆕 주요 신규 기능
 
-<details> <summary><strong>🔸 Controller Layer</strong></summary>
+### 1. **상품 구분 관리 시스템**
 
-- **`controller/one_one_price.py`**
-    - 1+1 가격 계산 CLI 테스트 컨트롤러
-    - 비동기 DB 세션 관리 및 서비스 연동
-    - 계산 결과 출력 및 오류 처리 로직
+```python
+# gubun 필드를 통한 상품 구분
+gubun: Mapped[str] = mapped_column(String(10))  # 마스터, 전문몰, 1+1 등 구분
+```
 
-</details>
+### 2. **상품 메타데이터 확장**
 
-<details> <summary><strong>🔸 Model Layer</strong></summary>
+```python
+# 새로 추가된 필드들
+product_nm: str      # 원본상품명 (60자)
+no_product: str      # 상품번호 (30자)  
+detail_img_url: str  # 상세이미지 확인 URL
+no_word: str         # 글자수 (20자)
+no_keyword: str      # 키워드 (20자)
+```
 
-- **`models/product/price_calc/one_one_price_data.py`**
-    - PostgreSQL `one_one_price_data` 테이블 ORM 매핑
-    - 28개 쇼핑몰별 가격 필드 정의 (기준가격, 1+1가격 포함)
-    - SQLAlchemy 2.0 스타일 타입 힌트 및 Decimal 정밀도 적용
+### 3. **향상된 주문 수집 기능**
 
-</details>
+```python
+# 3가지 XML 전송 방식 지원
+1. XML 파일 업로드 후 URL 호출 (권장)
+2. XML 내용 직접 업로드 후 URL 호출  
+3. XML URL 직접 입력하여 호출
 
-<details> <summary><strong>🔸 Repository Layer</strong></summary>
-
-- **`repository/product/price_calc/one_one_price_repository.py`**
-    - 1+1 가격 데이터 CRUD 작업
-    - 비동기 DB 세션 처리 및 트랜잭션 관리
-    - DTO 기반 데이터 생성 및 조회
-
-</details>
-
-<details> <summary><strong>🔸 Service Layer</strong></summary>
-
-- **`services/product/price_calc/one_one_price_service.py`**
-    - 1+1 가격 계산 비즈니스 로직
-    - 28개 쇼핑몰별 차등가격 계산 (115%, 105%, 동일가격, +100원)
-    - Repository 계층 통합 및 전체 프로세스 관리
-
-</details>
-
-<details> <summary><strong>🔸 Schema Layer</strong></summary>
-
-- **`schemas/product/price_calc/one_one_price_dto.py`**
-    - 1+1 가격 데이터 전송 객체
-    - Pydantic 기반 데이터 유효성 검증
-    - 28개 쇼핑몰 가격 필드 정의
-
-</details>
-
-<details> <summary><strong>🔸 Utils Layer</strong></summary>
-
-- **`utils/product/price_calculator.py`**
-    - 1+1 가격 계산 핵심 로직
-    - Decimal 기반 정밀한 가격 계산
-    - **엑셀 ROUNDUP 함수와 동일한 천의자리 올림 로직 구현**
-    - 퍼센트 적용, 고정금액 추가 계산
-
-</details>
+# DB 직접 저장 옵션
+to_db = select_order_save_method()  # True: DB저장, False: JSON저장
+```
 
 ## 🏗️ 아키텍처 개선사항
 
-### 1. **계층화된 설계 (Layered Architecture)**
+### 1. **데이터 모델 확장성 개선**
 
 ```
-Controller Layer → Service Layer → Repository Layer → Model Layer
-     ↓                ↓              ↓              ↓
-   CLI 테스트      비즈니스 로직    데이터 액세스    DB 매핑
+기존: 기본 상품 정보만 관리
+개선: 상품 구분 + 메타데이터를 통한 세분화된 관리
 ```
 
-### 2. **가격 계산 알고리즘 개선**
+### 2. **주문 수집 방식 다양화**
+
+```
+기존: 단일 XML 방식
+개선: 3가지 XML 전송 방식 + DB/JSON 선택적 저장
+```
+
+### 3. **Repository 패턴 강화**
 
 ```python
-# 1+1 가격 계산 (엑셀 ROUNDUP과 동일한 로직)
-if 기준가 + 100 < 10000:
-    roundup(기준가 * 2 + 2000, -3) - 100  # 11800 → 12000 → 11900
-else:
-    roundup(기준가 * 2 + 1000, -3) - 100
-```
-
-### 3. **엑셀 호환성 개선**
-
-```python
-# 기존 방식 (Python quantize)
-value.quantize(Decimal('1000'), rounding=ROUND_UP)  # 11800 → 11800
-
-# 새로운 방식 (엑셀 ROUNDUP과 동일)
-math.ceil(float(value) / 1000) * 1000  # 11800 → 12000
+# 새로운 조회 메서드
+async def find_product_raw_data_by_product_nm_and_gubun(
+    self, product_nm: str, gubun: str
+) -> Optional[int]:
+    """상품명과 구분으로 상품 ID 조회"""
 ```
 
 ## 🔧 주요 기능
 
-### 💰 가격 계산 로직 개선
+### 📦 상품 필드 확장
 
-- **기준가격**: 상품등록 데이터에서 조회
-- **1+1가격**: 기준가격 기반 조건부 계산
-- **엑셀 호환성**: ROUNDUP 함수와 동일한 올림 로직 구현
-- **쇼핑몰별 차등가격**: 4개 그룹으로 분류
+- **gubun**: 상품 구분 관리 (마스터/전문몰/1+1)
+- **product_nm**: 원본 상품명 저장
+- **no_product**: 고유 상품번호 관리
+- **detail_img_url**: 상세 이미지 URL 관리
+- **no_word/no_keyword**: 상품 검색 최적화용 메타데이터
 
-### 🛒 쇼핑몰별 가격 정책
+### 🚀 주문 수집 기능 개선
 
-|그룹|계산방식|쇼핑몰 수|대표 쇼핑몰|
-|---|---|---|---|
-|**115% 그룹**|`roundup(1+1가격 * 1.15, -3) - 100`|8개|GS Shop, 텐바이텐, 롯데홈쇼핑|
-|**105% 그룹**|`roundup(1+1가격 * 1.05, -3) - 100`|7개|YES24, 오늘의집, 브랜디|
-|**동일가격 그룹**|`1+1가격 그대로`|11개|에이블리, 쿠팡, 토스쇼핑|
-|**+100원 그룹**|`1+1가격 + 100`|5개|스마트스토어, 11번가, 옥션|
+|방식|설명|장점|
+|---|---|---|
+|**파일 업로드**|XML 파일을 파일서버에 업로드 후 URL로 호출|안정성 높음, 추적 가능|
+|**내용 업로드**|XML 내용을 직접 파일서버에 업로드|빠른 처리, 파일 생성 불필요|
+|**URL 직접 입력**|외부 XML URL 직접 사용|기존 인프라 활용 가능|
 
-### 🔧 계산 정확성 개선
+### 💾 저장 방식 선택
 
-- **엑셀 호환성**: ROUNDUP 함수와 동일한 올림 로직으로 계산 정확성 보장
-- **Decimal 정밀도**: 부동소수점 오차 방지
-- **테스트 검증**: 실제 계산 결과 검증 완료
+- **DB 저장**: 즉시 데이터베이스에 저장하여 실시간 활용
+- **JSON 저장**: 파일로 저장하여 후속 처리나 백업용으로 활용
 
-## 🎮 CLI 명령어
+## 🎮 사용 예시
+
+### 1. 개선된 주문 수집 프로세스
 
 ```bash
-# 기본 사용법
+# 주문 수집 실행
 python -c "
-import asyncio
-from controller.one_one_price import test_one_one_price_calculation
-asyncio.run(test_one_one_price_calculation('상품명'))
+from controller.order_list import fetch_order_list
+fetch_order_list()
 "
+```
+
+### 2. 상품 구분별 조회
+
+```python
+# Repository를 통한 상품 조회
+product_id = await repository.find_product_raw_data_by_product_nm_and_gubun(
+    product_nm="테스트상품", 
+    gubun="1+1"
+)
+```
+
+### 3. 확장된 필드 활용
+
+```python
+# 새로운 필드들이 포함된 상품 데이터
+{
+    "gubun": "마스터",
+    "product_nm": "원본상품명",
+    "no_product": "PRD001", 
+    "detail_img_url": "https://example.com/detail.jpg",
+    "no_word": "50",
+    "no_keyword": "키워드1,키워드2"
+}
 ```
 
 ## 🔄 처리 플로우
 
 ```mermaid
 graph TD
-    A[상품명 입력] --> B[기준가격 조회]
-    B --> C[상품 FK 조회]
-    C --> D[1+1 가격 계산]
-    D --> E[쇼핑몰별 차등가격 계산]
-    E --> F[DTO 생성]
-    F --> G[DB 저장]
-    G --> H[결과 반환]
+    A[주문 수집 시작] --> B[날짜 범위 입력]
+    B --> C[상태 코드 선택]
+    C --> D[XML 전송 방식 선택]
+    D --> E[저장 방식 선택]
     
-    I[CLI 컨트롤러] --> A
+    E --> F{XML 전송 방식}
+    F -->|파일 업로드| G[XML 파일 생성]
+    F -->|내용 업로드| H[XML 내용 직접 전송]
+    F -->|URL 직접| I[외부 URL 사용]
     
-    B --> J[가격 정보 없음 오류]
-    C --> K[상품 정보 없음 오류]
-    F --> L[트랜잭션 관리]
-    G --> M[롤백 처리]
+    G --> J[파일서버 업로드]
+    H --> J
+    I --> K[API 호출]
+    J --> K
     
-    D --> N[엑셀 ROUNDUP 로직]
-    N --> O[정확한 올림 계산]
+    K --> L{저장 방식}
+    L -->|DB 저장| M[데이터베이스 저장]
+    L -->|JSON 저장| N[JSON 파일 저장]
+    
+    M --> O[처리 완료]
+    N --> O
+    
+    P[상품 데이터] --> Q[추가 필드 스키마]
+    Q --> R[모델 확장]
+    R --> S[Repository 메서드]
+    S --> T[DTO 업데이트]
 ```
 
 ## 🎯 관련 이슈
 
-- **Feature**: 1+1 상품 가격 자동 계산 시스템 구축
-- **Fix**: 엑셀 ROUNDUP 함수와 동일한 올림 로직 구현
+- **Feature**: 상품 구분 관리를 위한 gubun 필드 추가
+- **Feature**: 상품 메타데이터 확장 (product_nm, no_product 등)
+- **Enhancement**: 주문 수집 방식 다양화 및 DB 직접 저장 옵션
+- **Improvement**: Repository 패턴 강화로 조회 기능 확장
 
-## 🚀 사용 예시
+## 🔍 데이터 스키마 변경
 
-### 1. CLI 테스트
+### 추가된 필드들
 
-```bash
-# Python 스크립트 실행
-python -c "
-import asyncio
-from controller.one_one_price import test_one_one_price_calculation
-asyncio.run(test_one_one_price_calculation('테스트상품명'))
-"
+```sql
+-- test_product_raw_data 및 test_product_modified_data 테이블
+ALTER TABLE test_product_raw_data ADD COLUMN gubun VARCHAR(10);
+ALTER TABLE test_product_raw_data ADD COLUMN product_nm VARCHAR(60) NOT NULL;
+ALTER TABLE test_product_raw_data ADD COLUMN no_product VARCHAR(30) NOT NULL;
+ALTER TABLE test_product_raw_data ADD COLUMN detail_img_url TEXT NOT NULL;
+ALTER TABLE test_product_raw_data ADD COLUMN no_word VARCHAR(20) NOT NULL;
+ALTER TABLE test_product_raw_data ADD COLUMN no_keyword VARCHAR(20) NOT NULL;
 ```
 
-### 2. 결과 출력 예시
+## 🚀 실행 결과 예시
+
+### 주문 수집 개선된 인터페이스
 
 ```
-🔄 '테스트상품명' 상품의 1+1 가격 계산 및 DB 저장 테스트 시작...
-✅ DB 저장 성공!
-📝 생성된 ID: 1
-💰 기준가격: ₩4,900
-🎯 1+1가격: ₩11,900 (11800 → 12000 → 11900)
-🔗 FK: 123
-🛒 GS Shop: ₩13,600
-🛒 YES24: ₩12,400
-🛒 쿠팡: ₩11,900
-🛒 스마트스토어: ₩12,000
-```
+사방넷 주문수집
+==================================================
+주문수집일의 범위를 입력하세요 (예: 20250603~20250610)
+일주일 이전의 날짜 범위 권장: 20250101~20250107
 
-### 3. 가격 계산 검증
+상태코드 목록
+004    출고완료
+006    배송보류
+...
 
-```python
-# 기준가 4900원 테스트
-기준가: 4900
-기준가 * 2 + 2000: 11800
-올림 후: 12000 (엑셀 ROUNDUP과 동일)
-최종 결과: 11900 (12000 - 100)
+주문 수집 방법을 선택합니다.
+1. 파일(XML) 업로드 후 URL로 호출 (권장)
+2. XML 내용을 직접 업로드 후 URL로 호출
+3. XML URL을 직접 입력하여 호출
+
+선택하세요 (1, 2 또는 3): 1
+
+주문 데이터 저장 방식을 선택하세요:
+1. DB에 저장 (권장)
+2. JSON 파일로 저장
+선택하세요 (1 또는 2): 1
+
+✅ 성공적으로 DB에 저장되었습니다.
 ```
 
 ## 🏆 기대 효과
 
-- **자동화**: 수동 1+1 가격 계산 작업 완전 자동화
-- **정확성**: 엑셀과 동일한 ROUNDUP 로직으로 계산 정확성 보장
-- **확장성**: 쇼핑몰 추가 및 가격 정책 변경 용이
-- **효율성**: 28개 쇼핑몰 가격을 한 번에 계산 및 저장
+- **확장성**: 상품 구분을 통한 체계적인 상품 관리
+- **유연성**: 다양한 주문 수집 방식으로 상황별 최적 선택
+- **효율성**: DB 직접 저장으로 실시간 데이터 활용
+- **안정성**: 여러 XML 전송 방식으로 장애 상황 대응력 향상
+- **추적성**: 상품 메타데이터 확장으로 더 정확한 상품 관리
