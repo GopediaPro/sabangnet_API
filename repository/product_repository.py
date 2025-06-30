@@ -150,127 +150,24 @@ class ProductRepository:
         
     
     async def save_modified_product_name(self, product_raw_data: ProductRawData, rev: int, product_name: str) -> ModifiedProductData:
-
-        query = insert(ModifiedProductData).values(
-            test_product_raw_data_id=product_raw_data.id,
-            goods_nm=product_name,
-            goods_keyword=product_raw_data.goods_keyword,
-            model_nm=product_raw_data.model_nm,
-            model_no=product_raw_data.model_no,
-            brand_nm=product_raw_data.brand_nm,
-            compayny_goods_cd=product_raw_data.compayny_goods_cd,
-            goods_search=product_raw_data.goods_search,
-            goods_gubun=product_raw_data.goods_gubun,
-            class_cd1=product_raw_data.class_cd1,
-            class_cd2=product_raw_data.class_cd2,
-            class_cd3=product_raw_data.class_cd3,
-            class_cd4=product_raw_data.class_cd4,
-            mall_gubun=product_raw_data.mall_gubun,
-            partner_id=product_raw_data.partner_id,
-            dpartner_id=product_raw_data.dpartner_id,
-            maker=product_raw_data.maker,
-            origin=product_raw_data.origin,
-            make_year=product_raw_data.make_year,
-            make_dm=product_raw_data.make_dm,
-            goods_season=product_raw_data.goods_season,
-            sex=product_raw_data.sex,
-            status=product_raw_data.status,
-            deliv_able_region=product_raw_data.deliv_able_region,
-            tax_yn=product_raw_data.tax_yn,
-            delv_type=product_raw_data.delv_type,
-            delv_cost=product_raw_data.delv_cost,
-            banpum_area=product_raw_data.banpum_area,
-            goods_cost=product_raw_data.goods_cost,
-            goods_price=product_raw_data.goods_price,
-            goods_consumer_price=product_raw_data.goods_consumer_price,
-            goods_cost2=product_raw_data.goods_cost2,
-            char_1_nm=product_raw_data.char_1_nm,
-            char_1_val=product_raw_data.char_1_val,
-            char_2_nm=product_raw_data.char_2_nm,
-            char_2_val=product_raw_data.char_2_val,
-            img_path=product_raw_data.img_path,
-            img_mall_jpg=product_raw_data.img_mall_jpg,
-            img_add_2=product_raw_data.img_add_2,
-            img_add_3=product_raw_data.img_add_3,
-            img_add_4=product_raw_data.img_add_4,
-            img_add_5=product_raw_data.img_add_5,
-            img_add_6=product_raw_data.img_add_6,
-            img_add_7=product_raw_data.img_add_7,
-            img_add_8=product_raw_data.img_add_8,
-            img_add_9=product_raw_data.img_add_9,
-            img_add_10=product_raw_data.img_add_10,
-            img_add_11_list=product_raw_data.img_add_11_list,
-            img_add_12=product_raw_data.img_add_12,
-            img_add_13=product_raw_data.img_add_13,
-            img_add_14=product_raw_data.img_add_14,
-            img_add_15=product_raw_data.img_add_15,
-            img_add_16=product_raw_data.img_add_16,
-            img_add_17=product_raw_data.img_add_17,
-            img_add_18=product_raw_data.img_add_18,
-            img_add_19=product_raw_data.img_add_19,
-            img_add_20=product_raw_data.img_add_20,
-            img_add_21=product_raw_data.img_add_21,
-            img_add_22=product_raw_data.img_add_22,
-            cert_img=product_raw_data.cert_img,
-            import_cert_img=product_raw_data.import_cert_img,
-            goods_remarks=product_raw_data.goods_remarks,
-            certno=product_raw_data.certno,
-            avlst_dm=product_raw_data.avlst_dm,
-            avled_dm=product_raw_data.avled_dm,
-            issuedate=product_raw_data.issuedate,
-            certdate=product_raw_data.certdate,
-            cert_agency=product_raw_data.cert_agency,
-            certfield=product_raw_data.certfield,
-            material=product_raw_data.material,
-            opt_type=product_raw_data.opt_type,
-            prop1_cd=product_raw_data.prop1_cd,
-            prop_val1=product_raw_data.prop_val1,
-            prop_val2=product_raw_data.prop_val2,
-            prop_val3=product_raw_data.prop_val3,
-            prop_val4=product_raw_data.prop_val4,
-            prop_val5=product_raw_data.prop_val5,
-            prop_val6=product_raw_data.prop_val6,
-            prop_val7=product_raw_data.prop_val7,
-            prop_val8=product_raw_data.prop_val8,
-            prop_val9=product_raw_data.prop_val9,
-            prop_val10=product_raw_data.prop_val10,
-            prop_val11=product_raw_data.prop_val11,
-            prop_val12=product_raw_data.prop_val12,
-            prop_val13=product_raw_data.prop_val13,
-            prop_val14=product_raw_data.prop_val14,
-            prop_val15=product_raw_data.prop_val15,
-            prop_val16=product_raw_data.prop_val16,
-            prop_val17=product_raw_data.prop_val17,
-            prop_val18=product_raw_data.prop_val18,
-            prop_val19=product_raw_data.prop_val19,
-            prop_val20=product_raw_data.prop_val20,
-            prop_val21=product_raw_data.prop_val21,
-            prop_val22=product_raw_data.prop_val22,
-            prop_val23=product_raw_data.prop_val23,
-            prop_val24=product_raw_data.prop_val24,
-            prop_val25=product_raw_data.prop_val25,
-            prop_val26=product_raw_data.prop_val26,
-            prop_val27=product_raw_data.prop_val27,
-            prop_val28=product_raw_data.prop_val28,
-            prop_val29=product_raw_data.prop_val29,
-            prop_val30=product_raw_data.prop_val30,
-            prop_val31=product_raw_data.prop_val31,
-            prop_val32=product_raw_data.prop_val32,
-            prop_val33=product_raw_data.prop_val33,
-            pack_code_str=product_raw_data.pack_code_str,
-            goods_nm_en=product_raw_data.goods_nm_en,
-            goods_remarks2=product_raw_data.goods_remarks2,
-            goods_remarks3=product_raw_data.goods_remarks3,
-            goods_remarks4=product_raw_data.goods_remarks4,
-            importno=product_raw_data.importno,
-            origin2=product_raw_data.origin2,
-            expire_dm=product_raw_data.expire_dm,
-            supply_save_yn=product_raw_data.supply_save_yn,
-            descrition=product_raw_data.descrition,
-            goods_nm_pr=product_raw_data.goods_nm_pr,
-            stock_use_yn=product_raw_data.stock_use_yn,
-            rev=rev+1).returning(ModifiedProductData)
-
+        # 1. Get all column names from the model
+        columns = [c.key for c in inspect(ModifiedProductData).mapper.column_attrs]
+        
+        # 2. Build the insert dict
+        insert_dict = {}
+        for col in columns:
+            if col == "goods_nm":
+                insert_dict[col] = product_name
+            elif col == "rev":
+                insert_dict[col] = rev + 1
+            elif col == "test_product_raw_data_id":
+                insert_dict[col] = product_raw_data.id
+            else:
+                # Try to get the value from product_raw_data, fallback to None
+                insert_dict[col] = getattr(product_raw_data, col, None)
+        
+        # 3. Insert using the dict
+        query = insert(ModifiedProductData).values(**insert_dict).returning(ModifiedProductData)
         res = await self.session.execute(query)
         await self.session.commit()
         return res.scalar_one()
