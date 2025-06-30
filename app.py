@@ -205,6 +205,15 @@ def create_order_xlsx():
         logger.error(f"주문 목록 엑셀 변환 중 오류 발생: {e}")
 
 
+@app.command(help="1+1 가격 계산")
+def calculate_one_one_price():
+    from services.product.price_calc.one_one_price_service import OneOnePriceService
+    from repository.product_registration_repository import ProductRegistrationRepository
+    from repository.product_repository import ProductRepository
+    from repository.product.price_calc.one_one_price_repository import OneOnePriceRepository
+    from core.db import AsyncSessionLocal
+    
+
 def handle_error(e: Exception):
     """에러 처리 헬퍼 함수"""
     if isinstance(e, ValueError):

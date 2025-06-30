@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete, func
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import selectinload
+from decimal import Decimal
 
 from models.product.product_registration_data import ProductRegistrationRawData
 from schemas.product_registration import ProductRegistrationCreateDto, ProductRegistrationResponseDto
@@ -255,3 +256,9 @@ class ProductRegistrationRepository:
         except SQLAlchemyError as e:
             logger.error(f"데이터 검색 오류: {e}")
             raise
+
+    async def get_product_price_by_products_nm(self, products_nm: str) -> Optional[Decimal]:
+        """상품명으로 상품 가격 조회"""
+        query = select(ProductRegistrationRawData.goods_price).where(ProductRegistrationRawData.products_nm == products_nm)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
