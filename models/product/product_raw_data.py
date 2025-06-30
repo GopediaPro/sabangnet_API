@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Optional
 
 from sqlalchemy import (
-    BigInteger, SmallInteger, Integer, String, Text, Numeric, CHAR
+    BigInteger, SmallInteger, String, Text, Numeric, CHAR
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

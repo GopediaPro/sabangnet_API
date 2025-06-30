@@ -1,15 +1,10 @@
-import os
 import requests
-from datetime import datetime
 from urllib.parse import urljoin
-import logging
 from core.settings import SETTINGS
 from utils.sabangnet_path_utils import SabangNetPathUtils
+from utils.sabangnet_logger import get_logger
 
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
+logger = get_logger(__name__)
 
 class ProductCreateService:
 

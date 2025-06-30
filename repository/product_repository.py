@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete, func
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.inspection import inspect
-
+from typing import Optional
 from models.product.product_raw_data import ProductRawData
 from models.product.modified_product_data import ModifiedProductData
 
@@ -115,8 +115,8 @@ class ProductRepository:
         """
         query = (
             select(ProductRawData)
-            .outerjoin(ModifiedProductData, ProductRawData.id == ModifiedProductData.product_raw_data_id)
-            .where(ModifiedProductData.product_raw_data_id == None)
+            .outerjoin(ModifiedProductData, ProductRawData.id == ModifiedProductData.test_product_raw_data_id)
+            .where(ModifiedProductData.test_product_raw_data_id == None)
         )
         result = await self.session.execute(query)
         raw_data: list[dict] = [row.__dict__ for row in result.scalars().all()]
@@ -128,8 +128,8 @@ class ProductRepository:
         """
         query = (
             select(ModifiedProductData)
-            .distinct(ModifiedProductData.product_raw_data_id)
-            .order_by(ModifiedProductData.product_raw_data_id, ModifiedProductData.rev.desc())
+            .distinct(ModifiedProductData.test_product_raw_data_id)
+            .order_by(ModifiedProductData.test_product_raw_data_id, ModifiedProductData.rev.desc())
         )
         result = await self.session.execute(query)
         raw_data: list[dict] = [row.__dict__ for row in result.scalars().all()]
@@ -141,6 +141,17 @@ class ProductRepository:
         product_raw_data = await self.session.execute(query)
         return product_raw_data.scalar_one_or_none()
     
+
+    async def find_product_raw_data_by_model_nm_and_mall_gubun(self, model_nm: str, gubun: str) -> Optional[int]:
+        """모델명과 몰구분으로 test_product_raw_data의 ID 조회"""
+        # SELECT id FROM test_product_raw_data WHERE model_nm = ? AND mall_gubun = ?
+        query = select(ProductRawData.id).where(
+            ProductRawData.model_nm == model_nm,
+            ProductRawData.gubun == gubun
+        )
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
 
     async def find_modified_product_data_by_product_raw_data_id(self, product_raw_data_id: int) -> ModifiedProductData:
         query = select(ModifiedProductData).\

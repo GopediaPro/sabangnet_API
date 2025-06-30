@@ -6,12 +6,11 @@ Product Registration 데이터 전용 처리기
 import pandas as pd
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-from decimal import Decimal
-import logging
-from utils.log_utils import write_log
+from utils.sabangnet_logger import get_logger
 import json
+from utils.log_utils import write_log
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ProductRegistrationExcelProcessor:
