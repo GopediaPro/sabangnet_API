@@ -100,8 +100,6 @@ class ProductRawData(Base):
     img_path22: Mapped[str | None] = mapped_column(Text)
     img_path23: Mapped[str | None] = mapped_column(Text)
     img_path24: Mapped[str | None] = mapped_column(Text)
-    cert_img: Mapped[str | None] = mapped_column(Text)
-    import_cert_img: Mapped[str | None] = mapped_column(Text)
 
     # 상세/인증
     goods_remarks: Mapped[str | None] = mapped_column(Text, nullable=False)
@@ -173,3 +171,9 @@ class ProductRawData(Base):
     # 1:N 관계 설정
     modified_entries = relationship("ModifiedProductData",
                                     back_populates="raw", cascade="all, delete-orphan")
+    
+    # #mall price 1:1 관계 설정
+    # mall_price = relationship("MallPrice",
+    #                           uselist=False,
+    #                           cascade="all, delete-orphan",
+    #                           passive_deletes=True)
