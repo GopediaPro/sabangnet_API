@@ -1,11 +1,15 @@
-from decimal import Decimal, ROUND_UP
+import math
+from decimal import Decimal
 
 
 class PriceCalculator:
     @staticmethod
     def roundup_to_thousands(value: Decimal) -> Decimal:
-        """천의 자리에서 올림 (roundup)"""
-        return value.quantize(Decimal('1000'), rounding=ROUND_UP)
+        """천의 자리에서 올림 (roundup) - 엑셀 ROUNDUP과 동일한 동작"""
+        # 엑셀의 ROUNDUP(value, -3)과 동일한 로직
+        # 천의 자리에서 올림: 11800 -> 12000, 11801 -> 12000, 11999 -> 12000
+        thousands = math.ceil(float(value) / 1000) * 1000
+        return Decimal(str(thousands))
     
     @staticmethod
     def calculate_one_one_price(standard_price: Decimal) -> Decimal:

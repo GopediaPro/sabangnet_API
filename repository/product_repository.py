@@ -142,12 +142,12 @@ class ProductRepository:
         return product_raw_data.scalar_one_or_none()
     
 
-    async def find_product_raw_data_by_model_nm_and_mall_gubun(self, model_nm: str, mall_gubun: str) -> Optional[int]:
+    async def find_product_raw_data_by_model_nm_and_mall_gubun(self, model_nm: str, gubun: str) -> Optional[int]:
         """모델명과 몰구분으로 test_product_raw_data의 ID 조회"""
         # SELECT id FROM test_product_raw_data WHERE model_nm = ? AND mall_gubun = ?
         query = select(ProductRawData.id).where(
             ProductRawData.model_nm == model_nm,
-            ProductRawData.mall_gubun == mall_gubun
+            ProductRawData.gubun == gubun
         )
         result = await self.session.execute(query)
         return result.scalar_one_or_none()

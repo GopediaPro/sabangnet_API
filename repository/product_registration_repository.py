@@ -3,18 +3,17 @@ Product Registration Repository
 상품 등록 데이터 저장소 클래스
 """
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete, func
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from sqlalchemy.orm import selectinload
 from decimal import Decimal
 
 from models.product.product_registration_data import ProductRegistrationRawData
-from schemas.product_registration import ProductRegistrationCreateDto, ProductRegistrationResponseDto
-import logging
+from schemas.product_registration import ProductRegistrationCreateDto
+from utils.sabangnet_logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ProductRegistrationRepository:

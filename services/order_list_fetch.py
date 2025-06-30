@@ -11,18 +11,11 @@ from urllib.parse import urljoin
 import xml.etree.ElementTree as ET
 from core.settings import SETTINGS
 from utils.sabangnet_logger import get_logger
+from utils.log_utils import write_log
+from utils.sabangnet_path_utils import SabangNetPathUtils
 
 logger = get_logger(__name__)
 
-# import logging
-from utils.log_utils import write_log
-# logging.basicConfig(level=logging.ERROR)
-# logger = logging.getLogger(__name__)
-# logging.getLogger("sqlalchemy.engine").setLevel(logging.ERROR)
-# SABANG_COMPANY_ID = os.getenv('SABANG_COMPANY_ID', None)
-# SABANG_AUTH_KEY = os.getenv('SABANG_AUTH_KEY', None)
-# SABANG_ADMIN_URL = os.getenv('SABANG_ADMIN_URL', None)
-# SABANG_SEND_DATE = os.getenv('SABANG_SEND_DATE', None)
 
 class OrderListFetchService:
     def __init__(
@@ -99,7 +92,7 @@ class OrderListFetchService:
                     '%Y%m%d%H%M%S')
                 order_list.append(order_detail)
             logger.error(f"총 {len(order_list)}개의 주문을 수집했습니다.")
-            json_dir = Path("./files/json")
+            json_dir = SabangNetPathUtils.get_json_file_path()
             json_dir.mkdir(exist_ok=True)
             json_path = json_dir / "order_list.json"
             with open(json_path, 'w', encoding='utf-8') as f:

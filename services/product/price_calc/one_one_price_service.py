@@ -5,7 +5,9 @@ from repository.product_repository import ProductRepository
 from utils.product.price_calculator import PriceCalculator
 from models.product.price_calc.one_one_price_data import OneOnePriceData
 from schemas.product.price_calc.one_one_price_dto import OneOneDto
-from decimal import Decimal
+from utils.sabangnet_logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class OneOnePriceService:
