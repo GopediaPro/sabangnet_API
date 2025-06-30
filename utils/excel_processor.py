@@ -22,8 +22,8 @@ class ProductRegistrationExcelProcessor:
             'products_nm', 'goods_nm', 'detail_path_img', 'delv_cost', 
             'goods_search', 'goods_price', 'certno', 'char_process',
             'char_1_nm', 'char_1_val', 'char_2_nm', 'char_2_val',
-            'img_path', 'img_mall_jpg', 'img_add_2', 'img_add_3',
-            'img_add_4', 'img_add_5', 'goods_remarks', 'mobile_bn',
+            'img_path', 'img_path1', 'img_path2', 'img_path3',
+            'img_path4', 'img_path5', 'goods_remarks', 'mobile_bn',
             'one_plus_one_bn', 'goods_remarks_url', 'delv_one_plus_one'
         ]
     
@@ -136,11 +136,11 @@ class ProductRegistrationExcelProcessor:
             '옵션명2': 'char_2_nm',
             '옵션상세2': 'char_2_val',
             '대표이미지': 'img_path',
-            '부가이미지1': 'img_mall_jpg',
-            '부가이미지2': 'img_add_2',
-            '부가이미지3': 'img_add_3',
-            '부가이미지4': 'img_add_4',
-            '부가이미지5': 'img_add_5',
+            '부가이미지1': 'img_path1',
+            '부가이미지2': 'img_path2',
+            '부가이미지3': 'img_path3',
+            '부가이미지4': 'img_path4',
+            '부가이미지5': 'img_path5',
             '상세설명': 'goods_remarks',
             '모바일배너': 'mobile_bn',
             '1+1배너': 'one_plus_one_bn',
