@@ -37,7 +37,7 @@ class ProductRawData(Base):
     class_cd4: Mapped[str | None] = mapped_column(String(100))
 
     # --- 구분 (마스터, 전문몰, 1+1)
-    gubun:Mapped[str] = mapped_column(String(10))
+    gubun: Mapped[str] = mapped_column(String(10))
 
     # 거래처
     partner_id: Mapped[str | None] = mapped_column(String(50))
@@ -99,8 +99,6 @@ class ProductRawData(Base):
     img_path22: Mapped[str | None] = mapped_column(Text)
     img_path23: Mapped[str | None] = mapped_column(Text)
     img_path24: Mapped[str | None] = mapped_column(Text)
-    cert_img: Mapped[str | None] = mapped_column(Text)
-    import_cert_img: Mapped[str | None] = mapped_column(Text)
 
     # 상세/인증
     goods_remarks: Mapped[str | None] = mapped_column(Text, nullable=False)
@@ -168,6 +166,12 @@ class ProductRawData(Base):
     supply_save_yn: Mapped[str | None] = mapped_column(CHAR(1))
     descrition: Mapped[str | None] = mapped_column(
         Text)  # 오타 그대로 유지 (description -> descrition)
+
+    product_nm: Mapped[str] = mapped_column(String(60), nullable=False)
+    no_product: Mapped[str] = mapped_column(String(30), nullable=False)
+    detail_img_url: Mapped[str] = mapped_column(Text, nullable=False)
+    no_word: Mapped[str] = mapped_column(String(20), nullable=False)
+    no_keyword: Mapped[str] = mapped_column(String(20), nullable=False)
 
     # 1:N 관계 설정
     modified_entries = relationship("ModifiedProductData",

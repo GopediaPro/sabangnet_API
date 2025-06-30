@@ -157,3 +157,9 @@ class ModifiedProductDataDto(BaseModel):
     expire_dm: Optional[str] = Field(None, min_length=8, max_length=8, description="유효일자")
     supply_save_yn: Optional[str] = Field(None, min_length=1, max_length=1, description="합포제외여부(Y/N)")
     descrition: Optional[str] = Field(None, description="관리자메모")  # (오타 유지)
+
+    product_nm: str = Field(..., max_length=60, description="원본모델명")
+    no_product: str = Field(..., max_length=30, description="상품번호")
+    detail_img_url: str = Field(..., description="상세이미지 확인 URL")
+    no_word: str = Field(..., max_length=20, description="글자수")
+    no_keyword: str = Field(..., max_length=20, description="키워드")
