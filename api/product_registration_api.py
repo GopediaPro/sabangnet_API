@@ -4,11 +4,11 @@ Product Registration API
 """
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
-from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional
+from typing import List
 import tempfile
 import os
+import logging
 
 from core.db import get_async_session
 from services.product_registration import ProductRegistrationService
@@ -19,7 +19,6 @@ from schemas.product_registration import (
     ProductRegistrationBulkResponseDto,
     ExcelProcessResultDto
 )
-import logging
 
 logger = logging.getLogger(__name__)
 

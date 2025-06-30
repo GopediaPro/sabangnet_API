@@ -3,13 +3,12 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import List, Dict
 from urllib.parse import urljoin
-import logging
 import json
-from pathlib import Path
+from utils.sabangnet_path_utils import SabangNetPathUtils
 from core.settings import SETTINGS
+from utils.sabangnet_logger import get_logger
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class MallListFetchService:
     def __init__(self, company_id: str = None, auth_key: str = None, admin_url: str = None):
@@ -39,7 +38,7 @@ class MallListFetchService:
                     }
                     mall_list.append(mall_info)
             logger.info(f"총 {len(mall_list)}개의 쇼핑몰 정보를 파싱했습니다.")
-            json_dir = Path("./files/json")
+            json_dir = SabangNetPathUtils.get_json_file_path()
             json_dir.mkdir(exist_ok=True)
             json_path = json_dir / "mall_list.json"
             with open(json_path, 'w', encoding='utf-8') as f:
