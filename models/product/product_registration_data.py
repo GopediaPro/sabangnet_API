@@ -68,21 +68,21 @@ class ProductRegistrationRawData(Base):
 
     # 이미지 정보
     img_path: Mapped[Optional[str]] = mapped_column(
-        Text, nullable=True, comment="대표이미지"
+        Text, nullable=False, comment="대표이미지"
     )
-    img_mall_jpg: Mapped[Optional[str]] = mapped_column(
-        Text, nullable=True, comment="부가이미지1 (종합몰이미지_jpg)"
+    img_path1: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, comment="종합몰(JPG)이미지"
     )
-    img_add_2: Mapped[Optional[str]] = mapped_column(
+    img_path2: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True, comment="부가이미지2"
     )
-    img_add_3: Mapped[Optional[str]] = mapped_column(
+    img_path3: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True, comment="부가이미지3"
     )
-    img_add_4: Mapped[Optional[str]] = mapped_column(
+    img_path4: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True, comment="부가이미지4"
     )
-    img_add_5: Mapped[Optional[str]] = mapped_column(
+    img_path5: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True, comment="부가이미지5"
     )
 
@@ -123,11 +123,11 @@ class ProductRegistrationRawData(Base):
             'char_2_nm': self.char_2_nm,
             'char_2_val': self.char_2_val,
             'img_path': self.img_path,
-            'img_mall_jpg': self.img_mall_jpg,
-            'img_add_2': self.img_add_2,
-            'img_add_3': self.img_add_3,
-            'img_add_4': self.img_add_4,
-            'img_add_5': self.img_add_5,
+            'img_path1': self.img_path1,
+            'img_path2': self.img_path2,
+            'img_path3': self.img_path3,
+            'img_path4': self.img_path4,
+            'img_path5': self.img_path5,
             'goods_remarks': self.goods_remarks,
             'mobile_bn': self.mobile_bn,
             'one_plus_one_bn': self.one_plus_one_bn,
