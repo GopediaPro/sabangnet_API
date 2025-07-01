@@ -16,6 +16,7 @@ from fastapi.responses import RedirectResponse
 from fastapi import FastAPI, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
 from api.v1.endpoints.products import router as products_router
+from api.v1.endpoints.mall_price import router as mall_price_router
 from api.product_registration_api import router as product_registration_router
 
 
@@ -46,7 +47,7 @@ app = FastAPI(
 
 # API 프리픽스 라우터
 master_router.include_router(products_router)
-
+master_router.include_router(mall_price_router)
 
 app.include_router(master_router)
 app.include_router(product_registration_router)

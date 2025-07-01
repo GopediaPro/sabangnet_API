@@ -267,3 +267,9 @@ class ProductRegistrationRepository:
         query = select(ProductRegistrationRawData.id, ProductRegistrationRawData.goods_price).where(ProductRegistrationRawData.products_nm == products_nm)
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
+    
+    async def find_product_registration_data_by_products_nm(self, products_nm: str) -> Optional[ProductRegistrationRawData]:
+        """상품명으로 상품 등록 데이터 조회"""
+        query = select(ProductRegistrationRawData).where(ProductRegistrationRawData.products_nm == products_nm)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
