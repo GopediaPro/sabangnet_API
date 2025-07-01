@@ -177,8 +177,3 @@ class ProductRawData(Base):
     modified_entries = relationship("ModifiedProductData",
                                     back_populates="raw", cascade="all, delete-orphan")
     
-    # #mall price 1:1 관계 설정
-    # mall_price = relationship("MallPrice",
-    #                           uselist=False,
-    #                           cascade="all, delete-orphan",
-    #                           passive_deletes=True)
