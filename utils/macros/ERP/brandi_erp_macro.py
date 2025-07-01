@@ -252,7 +252,7 @@ def brandi_erp_macro_1_to_10(file_path):
     print("10단계: C열 기준 정렬 완료")
     
     # 파일 저장
-    output_path = file_path.replace('.xlsx', '_brandi_processed.xlsx')
+    output_path = file_path.replace('.xlsx', '_매크로_완료.xlsx')
     workbook.save(output_path)
     
     print(f"✓ 브랜디 ERP 자동화 1~10단계 모든 처리 완료!")

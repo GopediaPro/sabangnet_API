@@ -228,7 +228,7 @@ def other_site_macro_1_to_14(file_path):
         cell.alignment = center_alignment
     
     # 파일 저장
-    output_path = file_path.replace('.xlsx', '_processed.xlsx')
+    output_path = file_path.replace('.xlsx', '_매크로_완료.xlsx')
     workbook.save(output_path)
     print(f"처리된 파일이 저장되었습니다: {output_path}")
     

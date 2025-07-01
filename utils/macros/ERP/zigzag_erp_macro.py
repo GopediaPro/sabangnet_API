@@ -62,7 +62,7 @@ def zigzag_erp_macro_1_to_8(file_path):
         ws[f'V{row}'].value = f'=VLOOKUP(M{row},Sheet1!$A:$B,2,0)'
     
     # 수식을 값으로 변환
-    workbook.calculate()  # 수식 계산
+    # workbook.calculate()  # 수식 계산
     
     # ================================
     # 4단계: D열 수식 입력이나 복사
@@ -124,7 +124,7 @@ def zigzag_erp_macro_1_to_8(file_path):
         ws[f'A{row}'].value = row - 1
     
     # 파일 저장
-    output_path = file_path.replace('.xlsx', '_step1_8.xlsx')
+    output_path = file_path.replace('.xlsx', '_매크로_완료.xlsx')
     workbook.save(output_path)
     print(f"1-8단계 처리된 파일이 저장되었습니다: {output_path}")
     
@@ -311,11 +311,10 @@ def step9_10_11_12_final(file_path):
                     ws[f'G{row}'].alignment = right_alignment
     
     # 파일 저장
-    output_path = file_path.replace('.xlsx', '_final.xlsx')
-    workbook.save(output_path)
-    print(f"모든 단계 완료! (9~12단계) - 파일 저장: {output_path}")
+    workbook.save(file_path)
+    print(f"모든 단계 완료! (9~12단계) - 파일 저장: {file_path}")
     
-    return output_path
+    return file_path
 
 def zigzag_erp_automation_full(file_path):
     """

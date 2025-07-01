@@ -343,7 +343,7 @@ def ali_erp_macro_1_to_15(file_path, sheet_name="자동화"):
                     sheet.cell(row=row, column=7).alignment = right_alignment
     
     # 파일 저장
-    output_path = file_path.replace('.xlsx', '_processed.xlsx')
+    output_path = file_path.replace('.xlsx', '_매크로_완료.xlsx')
     workbook.save(output_path)
     
     print("✓ 1~15단계 전체 작업 완료! 시트 분리까지 성공적으로 처리되었습니다.")

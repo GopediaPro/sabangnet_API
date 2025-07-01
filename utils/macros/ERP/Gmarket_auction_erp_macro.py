@@ -216,7 +216,7 @@ def gmarket_auction_erp_1_to_8(file_path):
     print("8단계: 헤더 서식 완료")
     
     # 파일 저장
-    output_path = file_path.replace('.xlsx', '_gok_step1_8.xlsx')
+    output_path = file_path.replace('.xlsx', '_매크로_완료.xlsx')
     workbook.save(output_path)
     print(f"1~8단계 처리 완료! 파일 저장: {output_path}")
     
@@ -424,11 +424,10 @@ def run_steps_9_to_11(file_path):
     apply_formatting_to_all_sheets(workbook)
     
     # 파일 저장
-    output_path = file_path.replace('.xlsx', '_gok_final.xlsx')
-    workbook.save(output_path)
-    print(f"9~11단계 처리 완료! 최종 파일: {output_path}")
+    workbook.save(file_path)
+    print(f"9~11단계 처리 완료! 최종 파일: {file_path}")
     
-    return output_path
+    return file_path
 
 def apply_formatting_to_all_sheets(workbook):
     """
