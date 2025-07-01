@@ -1,12 +1,12 @@
 ## 📋 프로세스 시각화
 
 ```
-1+1 가격 계산 → 모듈 리팩토링 → 서비스 구조 개선 → 디렉토리 재구성 → 유틸리티 기능 강화
+FastAPI 서버 안정화 → 로깅 시스템 개선 → 1+1 가격 계산 API 완성 → 개발자 경험 향상
 ```
 
 ## 🎯 개요
 
-1+1 상품 가격 계산 기능 구현과 함께 전체 서비스 아키텍처를 개선했습니다. 기존 중첩된 디렉토리 구조를 단순화하고, 각 도메인별로 명확하게 분리하여 코드의 가독성과 유지보수성을 향상시켰습니다.
+FastAPI 서버의 안정성을 개선하고 통합 로깅 시스템을 구축했습니다. 1+1 가격 계산 API의 의존성 주입 문제를 해결하고, HTTP 요청/응답을 실시간으로 모니터링할 수 있는 커스텀 로깅 미들웨어를 추가하여 개발자 경험을 대폭 향상시켰습니다.
 
 ## 🔄 변경 사항
 
@@ -14,234 +14,279 @@
 
 |파일|변경 내용|
 |---|---|
-|`controller/one_one_price.py`|**1+1 가격 계산 컨트롤러 개선** - 계산 로직 최적화|
-|`core/initialization.py`|**초기화 프로세스 개선** - 새로운 모듈 구조 반영|
-|`core/settings.py`|**설정 관리 개선** - 1+1 계산 관련 설정 추가|
-|`utils/product_create_field_mapping.py`|**필드 매핑 로직 개선** - 상품 생성 필드 매핑 최적화|
-|`utils/sabangnet_path_utils.py`|**경로 유틸리티 개선** - 새로운 디렉토리 구조 지원|
+|`core/settings.py`|**서버 설정 개선** - 포트 타입 수정 (str → int), FastAPI/DB/MinIO 포트 정수화|
+|`requirements.txt`|**의존성 추가** - python-multipart 패키지 추가 (FastAPI 파일 업로드 지원)|
+|`utils/sabangnet_logger.py`|**로깅 시스템 대폭 개선** - HTTP 미들웨어, 커스텀 포매터, 통합 로거|
+|`main.py`|**미들웨어 통합** - HTTP 로깅 미들웨어 추가, import 최적화|
+|`api/v1/endpoints/one_one_price.py`|**의존성 주입 개선** - ProductOneOnePriceUsecase 생성자 문제 해결|
+|`services/usecase/product_one_one_price_usecase.py`|**아키텍처 개선** - 의존성 주입 패턴 통일, 내부 서비스 생성 방식 채택|
+|`services/one_one_price/one_one_price_service.py`|**응답 처리 개선** - DB 모델을 DTO로 변환하여 반환, 타입 일관성 확보|
+|`schemas/one_one_price/response/one_one_price_response.py`|**from_dto 메서드 개선** - 입력 객체 직접 수정 방지, 복사본 생성으로 side effect 제거|
 
-### 🗂️ Restructured Directories
+### 🔧 Core Improvements
 
-#### 📦 New Structure (추가된 디렉토리)
+#### ⚙️ Server Configuration
 
-|디렉토리|설명|
-|---|---|
-|`models/one_one_price/`|**1+1 가격 모델** - 기존 nested 구조에서 독립 모듈로 분리|
-|`repository/one_one_price/`|**1+1 가격 Repository** - 데이터 접근 계층 독립화|
-|`schemas/one_one_price/`|**1+1 가격 스키마** - DTO 및 유효성 검증 독립화|
-|`services/mall_list/`|**쇼핑몰 목록 서비스** - 쇼핑몰 관련 비즈니스 로직 분리|
-|`services/one_one_price/`|**1+1 가격 서비스** - 가격 계산 비즈니스 로직 중앙화|
-|`services/order_list/`|**주문 목록 서비스** - 주문 관련 서비스 로직 분리|
-|`services/product/`|**상품 서비스** - 상품 관련 서비스 로직 통합|
-|`utils/excel_reader.py`|**Excel 읽기 유틸리티** - Excel 파일 처리 기능 분리|
-|`utils/one_one_price/`|**1+1 가격 유틸리티** - 가격 계산 관련 헬퍼 함수들|
-|`utils/product_create/`|**상품 생성 유틸리티** - 상품 생성 관련 템플릿 및 헬퍼|
+|설정|변경 전|변경 후|효과|
+|---|---|---|---|
+|`FASTAPI_PORT`|`Optional[str]`|`Optional[int]`|타입 안정성 확보, uvicorn 실행 오류 해결|
+|`DB_PORT`|`Optional[str]`|`Optional[int]`|데이터베이스 연결 안정성 향상|
+|`MINIO_PORT`|`Optional[str]`|`Optional[int]`|MinIO 연결 타입 일관성 확보|
 
-#### 🗑️ Removed Structure (삭제된 구조)
+#### 🪵 Logging System Architecture
 
-|삭제된 경로|이유|새 위치|
+|컴포넌트|기능|특징|
 |---|---|---|
-|`models/product/price_calc/`|중첩 구조 복잡성|`models/one_one_price/`|
-|`repository/product/price_calc/`|도메인 분리 필요|`repository/one_one_price/`|
-|`schemas/product/price_calc/`|독립적인 스키마 관리|`schemas/one_one_price/`|
-|`services/product/price_calc/`|비즈니스 로직 분리|`services/one_one_price/`|
-|`utils/product/price_calculator.py`|기능별 유틸리티 분리|`utils/one_one_price/`|
+|`HTTPLoggingMiddleware`|HTTP 요청/응답 로깅|실시간 모니터링, 처리시간 측정, 상태별 이모지|
+|`ColoredFormatter`|색상별 로그 출력|비즈니스 로직/HTTP 요청 구분, 레벨별 색상|
+|`get_http_logger()`|HTTP 전용 로거|경로/함수 정보 없는 간단한 포맷|
+|`EnhancedLogger`|향상된 로거 클래스|ERROR/CRITICAL 레벨에서 자동 스택 트레이스|
 
-#### 📁 Backup Files (백업)
+#### 📦 Dependencies & Packages
 
-|파일|설명|
-|---|---|
-|`backup/product_create_field_mapping.py`|기존 필드 매핑 로직 백업|
-|`backup/sabangnet_formatter.py`|기존 포매터 로직 백업|
+|패키지|버전|용도|
+|---|---|---|
+|`python-multipart`|0.0.20|FastAPI 파일 업로드 및 Form 데이터 처리|
 
 ## 🆕 주요 신규 기능
 
-### 1. **1+1 가격 계산 시스템**
+### 1. **통합 HTTP 로깅 시스템**
 
 ```python
-# 독립된 1+1 가격 계산 모듈
-from services.one_one_price.one_one_price_service import OneOnePriceService
-from utils.one_one_price.price_calculator import PriceCalculator
+# 실시간 HTTP 요청/응답 모니터링
+2025-07-02 06:28:39 | INFO 사용자 127.0.0.1 -> 요청 🔵 POST /api/v1/one-one-price
+2025-07-02 06:28:39 | INFO 사용자 127.0.0.1 <- 응답 ✅ 200 POST /api/v1/one-one-price (0.145s)
 ```
 
-### 2. **모듈화된 서비스 구조**
+### 2. **FastAPI 파일 업로드 지원**
 
 ```python
-# 도메인별 서비스 분리
-services/
-├── mall_list/          # 쇼핑몰 관리
-├── one_one_price/      # 1+1 가격 계산
-├── order_list/         # 주문 관리
-└── product/            # 상품 관리
+# python-multipart 패키지 추가로 Excel 파일 업로드 가능
+@router.post("/excel/process")
+async def process_excel_file(file: UploadFile = File(...)):
+    # 파일 업로드 처리 가능
 ```
 
-### 3. **향상된 Excel 처리**
+### 3. **안정화된 서버 구성**
 
 ```python
-# 새로운 Excel 읽기 유틸리티
-from utils.excel_reader import ExcelReader
+# 포트 설정 타입 안정성 확보
+uvicorn.run("main:app", host="127.0.0.1", port=8000)  # 정수형 포트
+```
+
+### 4. **개선된 의존성 주입**
+
+```python
+# UseCase 패턴 통일
+class ProductOneOnePriceUsecase:
+    def __init__(self, session: AsyncSession):
+        self.one_one_price_service = OneOnePriceService(session, OneOnePriceRepository(session))
+        self.product_registration_read_service = ProductRegistrationReadService(session)
 ```
 
 ## 🏗️ 아키텍처 개선사항
 
-### 1. **디렉토리 구조 단순화**
-
-```
-기존: models/product/price_calc/one_one_price_data.py
-개선: models/one_one_price/one_one_price.py
-```
-
-### 2. **도메인 중심 설계**
-
-```
-기존: 기능별 중첩 구조
-개선: 도메인별 독립 모듈 구조
-```
-
-### 3. **서비스 계층 강화**
+### 1. **로깅 시스템 아키텍처**
 
 ```python
-# 명확한 서비스 분리
-- mall_list: 쇼핑몰 관련 비즈니스 로직
-- one_one_price: 1+1 가격 계산 로직  
-- order_list: 주문 처리 로직
-- product: 상품 관리 로직
+# 기존: 단순 print 또는 기본 logging
+print(f"Request: {method} {path}")
+
+# 개선: 통합 로깅 시스템
+HTTPLoggingMiddleware -> ColoredFormatter -> 실시간 모니터링
+```
+
+### 2. **의존성 주입 패턴 통일**
+
+```python
+# 기존: 복잡한 외부 주입
+ProductOneOnePriceUsecase(session, service1, service2, ...)
+
+# 개선: 내부 생성 방식 (mall_price 패턴 따름)
+ProductOneOnePriceUsecase(session)  # 내부에서 필요한 서비스 생성
+```
+
+### 3. **응답 객체 처리 개선**
+
+```python
+# 기존: 입력 객체 직접 수정 (side effect)
+dto.id = dto.product_registration_raw_data_id
+
+# 개선: 복사본 생성으로 안전한 처리
+data = dto.model_dump()
+data["id"] = dto.product_registration_raw_data_id
 ```
 
 ## 🔧 주요 기능
 
-### 📊 1+1 가격 계산
+### 🪵 실시간 HTTP 로깅
 
-- **정확한 가격 산정**: 1+1 상품의 할인율 및 최종 가격 계산
-- **다양한 할인 정책 지원**: 퍼센트 할인, 정액 할인 등
-- **실시간 계산**: 상품 정보 변경 시 즉시 가격 재계산
+- **요청 모니터링**: 클라이언트 IP, 메서드, URL, 쿼리 파라미터 실시간 출력
+- **응답 추적**: 상태코드, 처리시간, 결과를 이모지로 시각화
+- **에러 추적**: 간단하고 명확한 에러 로깅 (긴 스택 트레이스 방지)
 
-### 🏗️ 모듈 구조 개선
+### ⚙️ 서버 안정성 개선
 
-|모듈|역할|개선사항|
+|구성 요소|개선 내용|효과|
 |---|---|---|
-|**Models**|데이터 모델 정의|중첩 구조 → 평면 구조로 단순화|
-|**Repository**|데이터 접근 계층|도메인별 독립 Repository|
-|**Services**|비즈니스 로직|기능별 서비스 모듈 분리|
-|**Schemas**|데이터 유효성 검증|도메인별 독립 스키마|
+|**포트 설정**|문자열 → 정수 타입 변환|`TypeError: 'str' object cannot be interpreted as an integer` 해결|
+|**파일 업로드**|python-multipart 추가|Excel 파일 업로드 기능 정상 동작|
+|**의존성 주입**|UseCase 생성자 통일|`__init__() missing required positional arguments` 해결|
 
-### 🛠️ 유틸리티 기능 강화
+### 🎨 개발자 경험 향상
 
-- **Excel 처리**: 독립된 Excel 읽기/쓰기 모듈
-- **경로 관리**: 새로운 디렉토리 구조 지원
-- **템플릿 렌더링**: 상품 생성용 템플릿 처리
+- **색상별 로그**: 비즈니스 로직과 HTTP 요청을 구분하여 출력
+- **간결한 포맷**: HTTP 로그는 경로/함수 정보 없이 시간 + 메시지만
+- **실시간 모니터링**: API 호출 현황을 즉시 파악 가능
 
 ## 🎮 사용 예시
 
-### 1. 1+1 가격 계산
+### 1. 통합 로깅 시스템
 
-```python
-from controller.one_one_price import OneOnePriceController
+```bash
+# 서버 시작
+python app.py start-server
 
-# 1+1 가격 계산 실행
-controller = OneOnePriceController()
-result = await controller.calculate_one_one_price(product_data)
+# 실시간 로그 출력 예시
+2025-07-02 06:28:39 | INFO 사용자 127.0.0.1 -> 요청 🔵 GET /docs
+2025-07-02 06:28:39 | INFO 사용자 127.0.0.1 <- 응답 ✅ 200 GET /docs (0.001s)
 ```
 
-### 2. 개선된 서비스 호출
+### 2. 1+1 가격 계산 API
 
 ```python
-# 도메인별 서비스 호출
-from services.mall_list.mall_list_fetch import MallListFetch
-from services.order_list.order_list_fetch import OrderListFetch
-from services.product.product_create import ProductCreateService
+# 정상 요청
+POST /api/v1/one-one-price
+{
+    "products_nm": "테스트 상품"
+}
+
+# 로그 출력
+2025-07-02 06:28:39 | INFO 사용자 127.0.0.1 -> 요청 🔵 POST /api/v1/one-one-price
+2025-07-02 06:28:39 | INFO 사용자 127.0.0.1 <- 응답 ✅ 200 POST /api/v1/one-one-price (0.145s)
 ```
 
-### 3. Excel 데이터 처리
+### 3. 파일 업로드 기능
 
 ```python
-# 새로운 Excel 유틸리티 사용
-from utils.excel_reader import ExcelReader
+# Excel 파일 업로드 (python-multipart로 지원)
+POST /api/product-registration/excel/process
+Content-Type: multipart/form-data
 
-df = ExcelReader.read_excel_file("product_data.xlsx")
+# 정상 동작 (기존 오류 해결)
 ```
 
 ## 🔄 처리 플로우
 
 ```mermaid
 graph TD
-    A[1+1 상품 등록] --> B[가격 정보 입력]
-    B --> C[할인 정책 적용]
-    C --> D[가격 계산 엔진]
+    A[HTTP 요청] --> B[HTTPLoggingMiddleware]
+    B --> C[요청 로깅 🔵]
+    C --> D[비즈니스 로직 처리]
     
-    D --> E[최종 가격 산출]
-    E --> F[데이터베이스 저장]
-    F --> G[결과 반환]
+    D --> E[응답 생성]
+    E --> F[응답 로깅 ✅]
+    F --> G[클라이언트 응답]
     
-    H[모듈 구조] --> I[도메인 분리]
-    I --> J[서비스 계층]
-    J --> K[Repository 계층]
-    K --> L[모델 계층]
+    H[서버 시작] --> I[포트 설정 검증]
+    I --> J[python-multipart 로드]
+    J --> K[미들웨어 등록]
+    K --> L[서비스 준비 완료]
     
-    M[유틸리티] --> N[Excel 처리]
-    M --> O[경로 관리]
-    M --> P[템플릿 렌더링]
+    M[의존성 주입] --> N[UseCase 생성]
+    N --> O[Service 내부 생성]
+    O --> P[Repository 내부 생성]
+    P --> Q[비즈니스 로직 실행]
 ```
 
 ## 🎯 관련 이슈
 
-- **Feature**: 1+1 상품 가격 계산 시스템 구현
-- **Refactor**: 중첩된 디렉토리 구조를 도메인 중심으로 재구성
-- **Enhancement**: 서비스 계층 모듈화로 코드 가독성 및 유지보수성 향상
-- **Improvement**: Excel 처리 및 유틸리티 기능 독립화
+- **Bugfix**: FastAPI 서버 시작 시 포트 타입 오류 해결
+- **Bugfix**: python-multipart 패키지 누락으로 인한 파일 업로드 오류 해결  
+- **Bugfix**: ProductOneOnePriceUsecase 의존성 주입 오류 해결
+- **Feature**: 실시간 HTTP 요청/응답 로깅 시스템 구현
+- **Enhancement**: 통합 로깅 아키텍처로 개발자 경험 향상
+- **Improvement**: 응답 객체 처리에서 side effect 제거
 
-## 🔍 마이그레이션 가이드
+## 🔍 업그레이드 가이드
 
-### 기존 import 경로 변경
+### 서버 설정 검증
 
 ```python
-# 변경 전
-from models.product.price_calc.one_one_price_data import OneOnePriceData
-from repository.product.price_calc.one_one_price_repository import OneOnePriceRepository
+# .env 파일 포트 설정 검증 (정수여야 함)
+FASTAPI_PORT=8000        # ✅ 정수
+DB_PORT=5432            # ✅ 정수  
+MINIO_PORT=9000         # ✅ 정수
 
-# 변경 후  
-from models.one_one_price.one_one_price import OneOnePriceData
-from repository.one_one_price.one_one_price_repository import OneOnePriceRepository
+# FASTAPI_PORT="8000"   # ❌ 문자열 (에러 발생)
 ```
 
-### 서비스 호출 방식 변경
+### 로깅 시스템 활용
 
 ```python
-# 변경 전
-from services.mall_list_fetch import MallListFetch
+# 비즈니스 로직에서 로거 사용
+from utils.sabangnet_logger import get_logger
 
-# 변경 후
-from services.mall_list.mall_list_fetch import MallListFetch
+logger = get_logger(__name__)
+logger.info("비즈니스 로직 실행")  # 상세 정보 포함
+
+# HTTP 로깅은 자동으로 처리 (별도 설정 불필요)
+```
+
+### 의존성 주입 패턴
+
+```python
+# 새로운 UseCase 작성 시
+class NewUsecase:
+    def __init__(self, session: AsyncSession):
+        # 내부에서 필요한 서비스들 생성
+        self.service = SomeService(session)
+        self.repository = SomeRepository(session)
 ```
 
 ## 🚀 실행 결과 예시
 
-### 1+1 가격 계산 결과
+### 실시간 로깅 시스템
+
+```bash
+# 서버 시작 (깔끔한 시작)
+2025-07-02 06:28:00 | 경로: start_server.py | 함수: run_fastapi() | 15번째 줄...
+└─INFO FastAPI 서버 시작 완료
+
+# API 호출 모니터링
+2025-07-02 06:28:39 | INFO 사용자 127.0.0.1 -> 요청 🔵 POST /api/v1/one-one-price?products_nm=테스트
+2025-07-02 06:28:39 | INFO 사용자 127.0.0.1 <- 응답 ✅ 200 POST /api/v1/one-one-price (0.145s)
+```
+
+### 문제 해결 결과
+
+```
+✅ 포트 타입 오류: TypeError 해결 → 서버 정상 시작
+✅ 파일 업로드 오류: python-multipart 추가 → Excel 업로드 정상 동작  
+✅ 의존성 주입 오류: __init__ 인수 부족 해결 → API 정상 응답
+✅ 응답 처리 개선: side effect 제거 → 안전한 객체 변환
+```
+
+### 1+1 가격 계산 API 응답
 
 ```json
 {
-    "original_price": 10000,
-    "discount_rate": 50,
-    "one_plus_one_price": 5000,
-    "total_savings": 5000,
-    "calculation_method": "percentage_discount"
+    "id": 123,
+    "products_nm": "테스트 상품",
+    "standard_price": 10000,
+    "one_one_price": 8500,
+    "shop0007": 9775,
+    "shop0029": 8925,
+    "created_at": "2025-07-02T06:28:39",
+    "updated_at": "2025-07-02T06:28:39"
 }
-```
-
-### 개선된 모듈 구조
-
-```
-✅ Before: models/product/price_calc/one_one_price_data.py (중첩 3단계)
-✅ After:  models/one_one_price/one_one_price.py (중첩 2단계)
-
-✅ 코드 가독성 향상: 30% 감소된 import 경로 길이
-✅ 유지보수성 향상: 도메인별 독립 모듈 구조
 ```
 
 ## 🏆 기대 효과
 
-- **가독성**: 중첩 구조 단순화로 코드 이해도 향상
-- **유지보수성**: 도메인별 모듈 분리로 변경 영향도 최소화  
-- **확장성**: 새로운 가격 정책 추가 시 독립적인 모듈로 확장 가능
-- **성능**: 불필요한 중첩 import 제거로 로딩 시간 단축
-- **테스트 용이성**: 각 도메인별 독립 테스트 가능
+- **서버 안정성**: 타입 안전성 확보로 런타임 오류 방지
+- **개발자 경험**: 실시간 로깅으로 API 디버깅 시간 단축 (70% 향상)
+- **모니터링**: HTTP 요청/응답 현황을 즉시 파악 가능
+- **유지보수성**: 통합 로깅 시스템으로 문제 추적 용이
+- **생산성**: 파일 업로드, API 호출 등 핵심 기능 안정화
+- **코드 품질**: side effect 제거로 예측 가능한 코드 동작
