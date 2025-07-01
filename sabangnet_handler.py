@@ -1,25 +1,21 @@
-import os
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import List, Dict
 from urllib.parse import urljoin
-import logging
 import json
 from pathlib import Path
+from utils.sabangnet_logger import get_logger
+from core.settings import SETTINGS
 
-SABANG_COMPANY_ID = os.getenv('SABANG_COMPANY_ID')
-SABANG_AUTH_KEY = os.getenv('SABANG_AUTH_KEY')
-SABANG_ADMIN_URL = os.getenv('SABANG_ADMIN_URL')
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class SabangNetMallAPI:
-    def __init__(self, company_id: str = None, auth_key: str = None, admin_url: str = None):
-        self.company_id = company_id or SABANG_COMPANY_ID
-        self.auth_key = auth_key or SABANG_AUTH_KEY
-        self.admin_url = admin_url or SABANG_ADMIN_URL
+    def __init__(self):
+        self.company_id = SETTINGS.SABANG_COMPANY_ID
+        self.auth_key = SETTINGS.SABANG_AUTH_KEY
+        self.admin_url = SETTINGS.SABANG_ADMIN_URL
+        
         if not self.company_id or not self.auth_key:
             raise ValueError("SABANG_COMPANY_ID와 SABANG_AUTH_KEY는 필수입니다.")
 

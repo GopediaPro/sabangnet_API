@@ -1,15 +1,10 @@
-import os
 import requests
-from datetime import datetime
 from urllib.parse import urljoin
-import logging
 from core.settings import SETTINGS
 from utils.sabangnet_path_utils import SabangNetPathUtils
+from utils.sabangnet_logger import get_logger
 
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
+logger = get_logger(__name__)
 
 class ProductCreateService:
 
@@ -25,21 +20,15 @@ class ProductCreateService:
     # 상품 등록 요청
     def create_product_via_url(self, xml_url: str) -> str:
         try:
-            api_url = urljoin(SETTINGS.SABANG_ADMIN_URL,
-                              '/RTL_API/xml_goods_info.html')
-            full_url = f"{api_url}?xml_url={xml_url}"
-            logger.info(f"최종 요청 URL: {full_url}")
-            print(f"최종 요청 URL: {full_url}")
-            # Form-data 형식으로 전송
-            # payload = {
-            #     'xml_url': xml_url
-            # }
-            # response = requests.post(
-            #     api_url,
-            #     data=payload,
-            #     timeout=30
-            # )
-            response = requests.get(full_url, timeout=30)
+            api_url = urljoin(SETTINGS.SABANG_ADMIN_URL, '/RTL_API/xml_goods_info.html')
+            payload = {
+                'xml_url': xml_url
+            }
+            response = requests.post(
+                api_url,
+                data=payload,
+                timeout=30
+            )
             response.raise_for_status()
             # 요청 결과를 확인 후 변경 필요
             return response.text

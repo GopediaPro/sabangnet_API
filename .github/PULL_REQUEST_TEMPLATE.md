@@ -1,12 +1,12 @@
 ## 📋 프로세스 시각화
 
 ```
-Excel 업로드/로컬 파일 → K:AZ 컬럼 데이터 추출 → 유효성 검증 → DTO 변환 → DB 저장 → 결과 반환 (API/CLI 지원)
+상품 데이터 → 추가 필드 스키마 정의 → DB 모델 확장 → Repository 메서드 추가 → 주문 수집 기능 개선
 ```
 
 ## 🎯 개요
 
-디자인업무일지 기반 상품등록 Excel 데이터를 자동으로 처리하여 데이터베이스에 저장하는 완전한 시스템을 구현했습니다. 계층별 분리, 비동기 처리, Pydantic 기반 유효성 검증을 통해 확장성과 안정성을 확보했습니다.
+상품 데이터 모델에 필수 추가 필드들을 구현하고, 주문 수집 기능을 개선했습니다. 상품 관련 추가 메타데이터 필드들을 추가하여 더 풍부한 상품 정보 관리가 가능합니다.
 
 ## 🔄 변경 사항
 
@@ -14,114 +14,218 @@ Excel 업로드/로컬 파일 → K:AZ 컬럼 데이터 추출 → 유효성 검
 
 |파일|변경 내용|
 |---|---|
-|`api/product_api.py`|상품등록 API 라우터 분리 및 include로 모듈화|
+|`controller/order_list.py`|**주문 수집 기능 대폭 개선** - DB 저장 옵션, 3가지 XML 전송 방식 지원|
+|`models/product/modified_product_data.py`|**상품 모델 확장** - gubun, product_nm 등 5개 필드 추가|
+|`models/product/product_raw_data.py`|**원본 상품 모델 확장** - 동일한 추가 필드 구조 적용|
+|`repository/product_repository.py`|**Repository 메서드 추가** - 상품명+구분 기반 조회 기능|
+|`schemas/product/modified_product_dto.py`|**DTO 스키마 확장** - 새로운 필드들에 대한 유효성 검증 추가|
+|`schemas/product/product_raw_data_dto.py`|**DTO 스키마 확장** - 원본 데이터용 DTO 필드 추가|
+|`services/product_create.py`|**상품 생성 서비스 개선** - XML 기반 상품 등록 로직 안정화|
 
+## 🆕 주요 신규 기능
 
-### ➕ Added Files
+### 1. **상품 구분 관리 시스템**
 
-<details> <summary><strong>🔸 API Layer</strong></summary>
+```python
+# gubun 필드를 통한 상품 구분
+gubun: Mapped[str] = mapped_column(String(10))  # 마스터, 전문몰, 1+1 등 구분
+```
 
-- **`api/product_registration_api.py`**
-    - 상품등록 전용 RESTful API 엔드포인트
-    - Excel 업로드/로컬파일 처리/CRUD/검색 기능
-    - 파일 업로드 및 임시파일 처리 로직
+### 2. **상품 메타데이터 확장**
 
-</details> <details> <summary><strong>🔸 Model Layer</strong></summary>
+```python
+# 새로 추가된 필드들
+product_nm: str      # 원본상품명 (60자)
+no_product: str      # 상품번호 (30자)  
+detail_img_url: str  # 상세이미지 확인 URL
+no_word: str         # 글자수 (20자)
+no_keyword: str      # 키워드 (20자)
+```
 
-- **`models/product/product_registration_data.py`**
-    - PostgreSQL `product_registration_raw_data` 테이블 ORM 매핑
-    - 23개 필드 정의 (제품명, 상품명, 이미지, 가격, 옵션 등)
-    - SQLAlchemy 2.0 스타일 타입 힌트 적용
+### 3. **향상된 주문 수집 기능**
 
+```python
+# 3가지 XML 전송 방식 지원
+1. XML 파일 업로드 후 URL 호출 (권장)
+2. XML 내용 직접 업로드 후 URL 호출  
+3. XML URL 직접 입력하여 호출
 
-</details>
+# DB 직접 저장 옵션
+to_db = select_order_save_method()  # True: DB저장, False: JSON저장
+```
 
 ## 🏗️ 아키텍처 개선사항
 
-### 1. **계층화된 설계 (Layered Architecture)**
+### 1. **데이터 모델 확장성 개선**
 
 ```
-API Layer → Service Layer → Repository Layer → Model Layer
-     ↓           ↓              ↓              ↓
-  FastAPI    비즈니스 로직    데이터 액세스    DB 매핑
+기존: 기본 상품 정보만 관리
+개선: 상품 구분 + 메타데이터를 통한 세분화된 관리
 ```
 
-### 2. **의존성 주입 패턴**
+### 2. **주문 수집 방식 다양화**
+
+```
+기존: 단일 XML 방식
+개선: 3가지 XML 전송 방식 + DB/JSON 선택적 저장
+```
+
+### 3. **Repository 패턴 강화**
 
 ```python
-async def get_product_registration_service(
-    session: AsyncSession = Depends(get_async_session)
-) -> ProductRegistrationService:
-    return ProductRegistrationService(session)
+# 새로운 조회 메서드
+async def find_product_raw_data_by_product_nm_and_gubun(
+    self, product_nm: str, gubun: str
+) -> Optional[int]:
+    """상품명과 구분으로 상품 ID 조회"""
 ```
-
 
 ## 🔧 주요 기능
 
-### 📤 Excel 파일 처리
+### 📦 상품 필드 확장
 
-- **업로드 방식**: MultipartFile 업로드
-- **로컬 파일**: 서버 내 파일 직접 처리
-- **컬럼 범위**: K:AZ (인덱스 10-51) 전용 추출
+- **gubun**: 상품 구분 관리 (마스터/전문몰/1+1)
+- **product_nm**: 원본 상품명 저장
+- **no_product**: 고유 상품번호 관리
+- **detail_img_url**: 상세 이미지 URL 관리
+- **no_word/no_keyword**: 상품 검색 최적화용 메타데이터
 
-## 📊 API 엔드포인트
+### 🚀 주문 수집 기능 개선
 
-|Method|Endpoint|설명|
+|방식|설명|장점|
 |---|---|---|
-|`POST`|`/api/product-registration/excel/import`|Excel 파일 업로드 및 DB 저장|
+|**파일 업로드**|XML 파일을 파일서버에 업로드 후 URL로 호출|안정성 높음, 추적 가능|
+|**내용 업로드**|XML 내용을 직접 파일서버에 업로드|빠른 처리, 파일 생성 불필요|
+|**URL 직접 입력**|외부 XML URL 직접 사용|기존 인프라 활용 가능|
 
-## 🎮 CLI 명령어
+### 💾 저장 방식 선택
+
+- **DB 저장**: 즉시 데이터베이스에 저장하여 실시간 활용
+- **JSON 저장**: 파일로 저장하여 후속 처리나 백업용으로 활용
+
+## 🎮 사용 예시
+
+### 1. 개선된 주문 수집 프로세스
+
 ```bash
-# 기본 사용법
-python app.py import-product-registration-excel files/excel/product_registration_data_sample.xlsx
+# 주문 수집 실행
+python -c "
+from controller.order_list import fetch_order_list
+fetch_order_list()
+"
+```
+
+### 2. 상품 구분별 조회
+
+```python
+# Repository를 통한 상품 조회
+product_id = await repository.find_product_raw_data_by_product_nm_and_gubun(
+    product_nm="테스트상품", 
+    gubun="1+1"
+)
+```
+
+### 3. 확장된 필드 활용
+
+```python
+# 새로운 필드들이 포함된 상품 데이터
+{
+    "gubun": "마스터",
+    "product_nm": "원본상품명",
+    "no_product": "PRD001", 
+    "detail_img_url": "https://example.com/detail.jpg",
+    "no_word": "50",
+    "no_keyword": "키워드1,키워드2"
+}
+```
 
 ## 🔄 처리 플로우
 
 ```mermaid
 graph TD
-    A[Excel 파일] --> B[K:AZ 컬럼 추출]
-    B --> C[데이터 유효성 검증]
-    C --> D[DTO 변환]
-    D --> E[배치 처리]
-    E --> F[DB 저장]
-    F --> G[결과 반환]
+    A[주문 수집 시작] --> B[날짜 범위 입력]
+    B --> C[상태 코드 선택]
+    C --> D[XML 전송 방식 선택]
+    D --> E[저장 방식 선택]
     
-    H[API 엔드포인트] --> A
-    I[CLI 명령어] --> A
+    E --> F{XML 전송 방식}
+    F -->|파일 업로드| G[XML 파일 생성]
+    F -->|내용 업로드| H[XML 내용 직접 전송]
+    F -->|URL 직접| I[외부 URL 사용]
     
-    C --> J[검증 오류 처리]
-    E --> K[트랜잭션 관리]
-    F --> L[롤백 처리]
+    G --> J[파일서버 업로드]
+    H --> J
+    I --> K[API 호출]
+    J --> K
+    
+    K --> L{저장 방식}
+    L -->|DB 저장| M[데이터베이스 저장]
+    L -->|JSON 저장| N[JSON 파일 저장]
+    
+    M --> O[처리 완료]
+    N --> O
+    
+    P[상품 데이터] --> Q[추가 필드 스키마]
+    Q --> R[모델 확장]
+    R --> S[Repository 메서드]
+    S --> T[DTO 업데이트]
 ```
 
 ## 🎯 관련 이슈
 
-- **Issue**: #54 
+- **Feature**: 상품 구분 관리를 위한 gubun 필드 추가
+- **Feature**: 상품 메타데이터 확장 (product_nm, no_product 등)
+- **Enhancement**: 주문 수집 방식 다양화 및 DB 직접 저장 옵션
+- **Improvement**: Repository 패턴 강화로 조회 기능 확장
 
-## 🚀 사용 예시
+## 🔍 데이터 스키마 변경
 
-### 1. CLI 사용
+### 추가된 필드들
 
-```bash
-python app.py import-product-registration-excel files/excel/product_registration_data_sample.xlsx
+```sql
+-- test_product_raw_data 및 test_product_modified_data 테이블
+ALTER TABLE test_product_raw_data ADD COLUMN gubun VARCHAR(10);
+ALTER TABLE test_product_raw_data ADD COLUMN product_nm VARCHAR(60) NOT NULL;
+ALTER TABLE test_product_raw_data ADD COLUMN no_product VARCHAR(30) NOT NULL;
+ALTER TABLE test_product_raw_data ADD COLUMN detail_img_url TEXT NOT NULL;
+ALTER TABLE test_product_raw_data ADD COLUMN no_word VARCHAR(20) NOT NULL;
+ALTER TABLE test_product_raw_data ADD COLUMN no_keyword VARCHAR(20) NOT NULL;
 ```
 
-### 2. API 사용
+## 🚀 실행 결과 예시
 
-```bash
-# 파일 업로드
-curl -X POST "http://localhost:8000/api/product-registration/excel/import" \
-     -H "Content-Type: multipart/form-data" \
-     -F "file=@product_data.xlsx"
+### 주문 수집 개선된 인터페이스
 
-# 로컬 파일 처리
-curl -X POST "http://localhost:8000/api/product-registration/local-excel/import?file_path=files/excel/product_registration_data_sample.xlsx"
 ```
+사방넷 주문수집
+==================================================
+주문수집일의 범위를 입력하세요 (예: 20250603~20250610)
+일주일 이전의 날짜 범위 권장: 20250101~20250107
 
-## ⚠️ 다음 단계
+상태코드 목록
+004    출고완료
+006    배송보류
+...
 
-1. **Excel 컬럼 매핑 확인**: 실제 Excel 파일의 K:AZ 컬럼명에 맞게 매핑 수정
+주문 수집 방법을 선택합니다.
+1. 파일(XML) 업로드 후 URL로 호출 (권장)
+2. XML 내용을 직접 업로드 후 URL로 호출
+3. XML URL을 직접 입력하여 호출
+
+선택하세요 (1, 2 또는 3): 1
+
+주문 데이터 저장 방식을 선택하세요:
+1. DB에 저장 (권장)
+2. JSON 파일로 저장
+선택하세요 (1 또는 2): 1
+
+✅ 성공적으로 DB에 저장되었습니다.
+```
 
 ## 🏆 기대 효과
 
-- **자동화**: 수동 Excel 처리 작업 완전 자동화
+- **확장성**: 상품 구분을 통한 체계적인 상품 관리
+- **유연성**: 다양한 주문 수집 방식으로 상황별 최적 선택
+- **효율성**: DB 직접 저장으로 실시간 데이터 활용
+- **안정성**: 여러 XML 전송 방식으로 장애 상황 대응력 향상
+- **추적성**: 상품 메타데이터 확장으로 더 정확한 상품 관리

@@ -2,6 +2,9 @@ import asyncpg
 from typing import Optional
 from core.settings import SETTINGS
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from utils.sabangnet_logger import get_logger
+
+logger = get_logger(__name__)
 
 DB_DSN = f"postgresql://{SETTINGS.DB_USER}:{SETTINGS.DB_PASSWORD}@{SETTINGS.DB_HOST}:{SETTINGS.DB_PORT}/{SETTINGS.DB_NAME}?sslmode={SETTINGS.DB_SSLMODE}"
 

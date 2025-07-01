@@ -4,8 +4,8 @@ Product Registration Service
 """
 
 from typing import List, Optional, Tuple
+from utils.sabangnet_logger import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import SQLAlchemyError
 
 from repository.product_registration_repository import ProductRegistrationRepository
 from utils.excel_processor import ProductRegistrationExcelProcessor
@@ -15,10 +15,8 @@ from schemas.product_registration import (
     ProductRegistrationBulkResponseDto,
     ExcelProcessResultDto
 )
-from models.product.product_registration_data import ProductRegistrationRawData
-import logging
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ProductRegistrationService:

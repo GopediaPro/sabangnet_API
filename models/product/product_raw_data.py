@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Optional
 
 from sqlalchemy import (
-    BigInteger, SmallInteger, Integer, String, Text, Numeric, CHAR
+    BigInteger, SmallInteger, String, Text, Numeric, CHAR
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -38,7 +37,7 @@ class ProductRawData(Base):
     class_cd4: Mapped[str | None] = mapped_column(String(100))
 
     # --- 구분 (마스터, 전문몰, 1+1)
-    gubun:Mapped[str] = mapped_column(String(10))
+    gubun: Mapped[str] = mapped_column(String(10))
 
     # 거래처
     partner_id: Mapped[str | None] = mapped_column(String(50))
@@ -167,6 +166,12 @@ class ProductRawData(Base):
     supply_save_yn: Mapped[str | None] = mapped_column(CHAR(1))
     descrition: Mapped[str | None] = mapped_column(
         Text)  # 오타 그대로 유지 (description -> descrition)
+
+    product_nm: Mapped[str] = mapped_column(String(60), nullable=False)
+    no_product: Mapped[str] = mapped_column(String(30), nullable=False)
+    detail_img_url: Mapped[str] = mapped_column(Text, nullable=False)
+    no_word: Mapped[str] = mapped_column(String(20), nullable=False)
+    no_keyword: Mapped[str] = mapped_column(String(20), nullable=False)
 
     # 1:N 관계 설정
     modified_entries = relationship("ModifiedProductData",
