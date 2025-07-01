@@ -1,16 +1,16 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from schemas.one_one_price.one_one_price_dto import OneOneDto
-from models.one_one_price.one_one_price import OneOnePrice
-from sqlalchemy import select, insert
 from typing import List
 from decimal import Decimal
+from sqlalchemy import select, insert
+from sqlalchemy.ext.asyncio import AsyncSession
+from models.one_one_price.one_one_price import OneOnePrice
+from schemas.one_one_price.one_one_price_dto import OneOnePriceDto
 
 
 class OneOnePriceRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def create_one_one_price_data(self, data: OneOneDto) -> OneOnePrice:
+    async def create_one_one_price_data(self, data: OneOnePriceDto) -> OneOnePrice:
         """쇼핑몰별 1+1 가격 데이터 생성"""
         try:
             data_dict = data.model_dump(exclude_none=True)
@@ -22,7 +22,7 @@ class OneOnePriceRepository:
             await self.session.rollback()
             raise e
     
-    async def bulk_create_one_one_price_data(self, data_list: List[OneOneDto]) -> List[int]:
+    async def bulk_create_one_one_price_data(self, data_list: List[OneOnePriceDto]) -> List[int]:
         """쇼핑몰별 1+1 가격 데이터 대량 생성"""
         try:
             data_dict_list = [data.model_dump(exclude_none=True) for data in data_list]

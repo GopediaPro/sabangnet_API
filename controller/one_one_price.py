@@ -3,47 +3,53 @@
 """
 
 # 서비스 및 리포지토리 import
-from core.db import get_async_session
-from services.one_one_price.one_one_price_service import OneOnePriceService
-from repository.one_one_price.one_one_price_repository import OneOnePriceRepository
-from repository.product_registration_repository import ProductRegistrationRepository
-from repository.product_repository import ProductRepository
+from core.db import AsyncSessionLocal
 from utils.sabangnet_logger import get_logger
+from schemas.one_one_price.one_one_price_dto import OneOnePriceDto
+from services.one_one_price.one_one_price_service import OneOnePriceService
+from services.usecase.product_one_one_price_usecase import ProductOneOnePriceUsecase
+from services.product_registration.product_registration_read_service import ProductRegistrationReadService
+from repository.one_one_price_repository import OneOnePriceRepository
+
 
 logger = get_logger(__name__)
 
 
-async def test_one_one_price_calculation(model_nm: str):
-    """1+1 가격 계산 및 DB 저장 테스트"""
+async def test_one_one_price_calculation(product_nm: str):
+    """
+    1+1 가격 계산 및 DB 저장 테스트
     
-    print(f"🔄 '{model_nm}' 상품의 1+1 가격 계산 및 DB 저장 테스트 시작...")
+    CLI 환경이라 의존성 관리를 직접 해야 함
+    """
+    
+    logger.info(f"🔄 '{product_nm}' 상품의 1+1 가격 계산 및 DB 저장 테스트 시작...")
     
     try:
         # 데이터베이스 세션 생성
-        async for session in get_async_session():
-            # Repository 인스턴스 생성
-            product_registration_repo = ProductRegistrationRepository(session)
-            product_repo = ProductRepository(session)
-            one_one_price_repo = OneOnePriceRepository(session)
+        async with AsyncSessionLocal() as session:
+            # 필요한 리포지토리들 생성
+            one_one_price_repository = OneOnePriceRepository(session)
             
-            # Service 인스턴스 생성
-            service = OneOnePriceService(
+            # 필요한 서비스들 수동 생성 (의존성 주입)
+            one_one_price_service = OneOnePriceService(session, one_one_price_repository)
+            product_registration_read_service = ProductRegistrationReadService(session)
+            
+            # 유즈케이스 인스턴스 생성
+            product_one_one_price_usecase = ProductOneOnePriceUsecase(
                 session=session,
-                product_registration_repository=product_registration_repo,
-                product_repository=product_repo,
-                one_one_price_repository=one_one_price_repo
+                one_one_price_service=one_one_price_service,
+                product_registration_read_service=product_registration_read_service
             )
             
-            # 1+1 가격 계산 및 저장 실행
-            await service.calculate_and_save_one_one_prices(model_nm)
-
-            break
+            result: OneOnePriceDto = await product_one_one_price_usecase.calculate_and_save_one_one_prices(product_nm=product_nm)
+            logger.info(f"✅ 성공! 1+1 가격 계산 및 저장 완료")
+            logger.info(f"📊 결과: {result.model_dump_json()}")
             
     except ValueError as e:
-        print(f"❌ 데이터 오류: {e}")
+        logger.error(f"❌ 데이터 오류: {e}")
         return False
     except Exception as e:
-        print(f"❌ 시스템 오류: {e}")
+        logger.error(f"❌ 시스템 오류: {e}")
         return False
     
     return True

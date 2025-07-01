@@ -1,14 +1,16 @@
+import json
 import requests
-import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import List, Dict
 from urllib.parse import urljoin
-import json
-from utils.sabangnet_path_utils import SabangNetPathUtils
+import xml.etree.ElementTree as ET
 from core.settings import SETTINGS
 from utils.sabangnet_logger import get_logger
+from utils.sabangnet_path_utils import SabangNetPathUtils
+
 
 logger = get_logger(__name__)
+
 
 class MallListFetchService:
     def __init__(self, company_id: str = None, auth_key: str = None, admin_url: str = None):

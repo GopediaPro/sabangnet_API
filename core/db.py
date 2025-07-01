@@ -27,7 +27,7 @@ DATABASE_URL = f"postgresql+asyncpg://{SETTINGS.DB_USER}:{SETTINGS.DB_PASSWORD}@
 # 비동기 엔진 생성
 async_engine = create_async_engine(
     DATABASE_URL,
-    echo=True,  
+    echo=False,  
     future=True,
     pool_pre_ping=True, 
 )

@@ -130,7 +130,7 @@ def create_order():
         handle_error(e)
 
 
-@app.command(help="상품 등록")
+@app.command(help="상품 등록 API 테스트")
 def request_product_create(
     file_name: str = typer.Argument(..., help="Excel 파일 이름"),
     sheet_name: str = typer.Argument(..., help="시트명")
@@ -209,9 +209,15 @@ def create_order_xlsx():
 
 
 @app.command(help="1+1 가격 계산")
-def calculate_one_one_price(model_nm: str = typer.Argument(..., help="모델명")):
-    test_one_one_price_calculation(model_nm)
+def calculate_one_one_price(product_nm: str = typer.Argument(..., help="상품명")):
+    asyncio.run(test_one_one_price_calculation(product_nm))
     return
+
+
+@app.command(help="FastAPI 서버 실행")
+def start_server():
+    from start_server import run_fastapi
+    run_fastapi()
 
 
 def handle_error(e: Exception):
