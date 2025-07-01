@@ -5,14 +5,14 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 import re
 from collections import defaultdict
 
-def step1_14_integrated_process(file_path):
+def other_site_macro_1_to_14(file_path):
     """
     Excel 매크로의 Step1_14_전체작업통합 함수를 Python으로 변환
     
     Args:
         file_path (str): 처리할 Excel 파일 경로
     """
-    
+    print(f"파일 경올 : {file_path}")
     # Excel 파일 로드
     workbook = openpyxl.load_workbook(file_path)
     ws = workbook.active
@@ -271,6 +271,7 @@ def apply_conditional_formatting(file_path):
             ws[f'L{row}'].font = red_font
     
     workbook.save(file_path)
+    return file_path
 
 # 사용 예시
 if __name__ == "__main__":
@@ -278,7 +279,7 @@ if __name__ == "__main__":
     excel_file_path = "./files/xlsx/test-[기본양식]-ERP용.xlsx"
     
     # 매크로 실행
-    processed_file = step1_14_integrated_process(excel_file_path)
+    processed_file = other_site_macro_1_to_14(excel_file_path)
     
     # 조건부 서식 적용
     apply_conditional_formatting(processed_file)
