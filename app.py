@@ -206,6 +206,14 @@ def create_order_xlsx():
     except Exception as e:
         logger.error(f"주문 목록 엑셀 변환 중 오류 발생: {e}")
 
+@app.command(help="테스트 ERP 매크로 실행")
+def test_erp_macro():
+    from controller.erp_macro import test_erp_macro
+    try:
+        test_erp_macro()
+    except Exception as e:
+        logger.error(f"ERP 매크로 실행 중 오류 발생: {e}")
+        handle_error(e)
 
 @app.command(help="1+1 가격 계산")
 def calculate_one_one_price(model_nm: str = typer.Argument(..., help="모델명")):
