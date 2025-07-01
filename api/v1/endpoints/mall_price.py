@@ -15,7 +15,7 @@ def get_product_mall_price_usecase(session: AsyncSession = Depends(get_async_ses
     return ProductMallPriceUsecase(session=session)
 
 @router.post("", response_model=SettingMallPriceResponse)
-async def modify_product_name(
+async def mall_price_setting햐(
     request: CreateMallPriceForm = Depends(),
     product_mall_price_usecase: ProductMallPriceUsecase = Depends(get_product_mall_price_usecase)
 ):
