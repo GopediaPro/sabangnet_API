@@ -1,10 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from repository.product.price_calc.one_one_price_repository import OneOnePriceRepository
+from repository.one_one_price.one_one_price_repository import OneOnePriceRepository
 from repository.product_registration_repository import ProductRegistrationRepository
-from repository.product_repository import ProductRepository
-from utils.product.price_calculator import PriceCalculator
-from models.product.price_calc.one_one_price_data import OneOnePriceData
-from schemas.product.price_calc.one_one_price_dto import OneOneDto
+from utils.one_one_price.price_calculator import PriceCalculator
+from models.one_one_price.one_one_price import OneOnePrice
+from schemas.one_one_price.one_one_price_dto import OneOneDto
 from utils.sabangnet_logger import get_logger
 
 logger = get_logger(__name__)
@@ -32,34 +31,25 @@ class OneOnePriceService:
         self,
         session: AsyncSession,
         product_registration_repository: ProductRegistrationRepository,
-        product_repository: ProductRepository,
         one_one_price_repository: OneOnePriceRepository,
     ):
         self.session = session
         self.product_registration_repository = product_registration_repository
-        self.product_repository = product_repository
         self.one_one_price_repository = one_one_price_repository
 
-    async def calculate_and_save_one_one_prices(self, model_nm: str) -> OneOnePriceData:
+    async def calculate_and_save_one_one_prices(self, product_nm: str) -> OneOnePrice:
         """전체 프로세스 실행"""
         # 1. 어떤 제품의 기준 가격 조회
-        standard_price = await self.product_registration_repository.get_product_price_by_products_nm(model_nm)
+        product_registration_raw_data_id, standard_price = await self.product_registration_repository.find_product_price_and_id_by_products_nm(product_nm)
         
         # 상품명에 대한 가격 정보를 찾을 수 없는 경우 체크
         if standard_price is None:
-            raise ValueError(f"상품명 {model_nm}에 대한 가격 정보를 찾을 수 없습니다.")
+            raise ValueError(f"상품명 {product_nm}에 대한 가격 정보를 찾을 수 없습니다.")
 
-        # 2. 그 제품의 FK 조회
-        fk_id = await self.product_repository.find_product_raw_data_by_model_nm_and_mall_gubun(model_nm, "1+1")
-        
-        # 상품명을 찾을 수 없는 경우 체크
-        if fk_id is None:
-            raise ValueError(f"상품명 {model_nm}을 찾을 수 없습니다.")
-
-        # 3-1. 그 제품의 1+1 가격 계산
+        # 2. 그 제품의 1+1 가격 계산
         one_one_price = PriceCalculator.calculate_one_one_price(standard_price)
 
-        # 3-2 각 그룹별 가격 계산
+        # 3 각 그룹별 가격 계산
         shop_prices = {}
 
         # 그대로 적용 그룹
@@ -83,7 +73,8 @@ class OneOnePriceService:
             
         # 4. DTO 생성
         one_one_dto = OneOneDto(
-            test_product_raw_data_id=fk_id,
+            product_registration_raw_data_id=product_registration_raw_data_id,
+            products_nm=product_nm,
             standard_price=standard_price,
             one_one_price=one_one_price,
             **shop_prices

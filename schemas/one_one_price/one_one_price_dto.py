@@ -12,7 +12,11 @@ class OneOneDto(BaseModel):
 
     """1+1 상품 가격 계산을 위한 데이터 생성용 DTO"""
 
-    test_product_raw_data_id: int = Field(..., description="원본 상품 데이터 FK(BigInt)")
+    # 상품등록 FK
+    product_registration_raw_data_id: int = Field(..., description="상품등록 FK(BigInt)")
+
+    # 상품명
+    products_nm: Optional[str] = Field(None, description="상품명")
 
     # 기준가격(전문몰 가격)
     standard_price: Optional[Decimal] = Field(None, ge=0, description="기준가격")
