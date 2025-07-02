@@ -159,7 +159,7 @@ class ModifiedProductDataDto(BaseModel):
     descrition: Optional[str] = Field(None, description="관리자메모")  # (오타 유지)
 
     product_nm: str = Field(..., max_length=60, description="원본상품명")
-    no_product: str = Field(..., max_length=30, description="상품번호")
+    no_product: int = Field(..., description="순번")
     detail_img_url: str = Field(..., description="상세이미지 확인 URL")
-    no_word: str = Field(..., max_length=20, description="글자수")
-    no_keyword: str = Field(..., max_length=20, description="키워드")
+    no_word: int = Field(..., description="글자수")
+    no_keyword: int = Field(..., description="키워드")
