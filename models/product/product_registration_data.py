@@ -23,7 +23,7 @@ class ProductRegistrationRawData(Base):
     )
 
     # 상품 기본 정보
-    products_nm: Mapped[Optional[str]] = mapped_column(
+    product_nm: Mapped[Optional[str]] = mapped_column(
         String(255), comment="제품명"
     )
     goods_nm: Mapped[Optional[str]] = mapped_column(
@@ -107,13 +107,13 @@ class ProductRegistrationRawData(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<ProductRegistrationRawData(id={self.id}, products_nm='{self.products_nm}', char_1_nm='{self.char_1_nm}')>"
+        return f"<ProductRegistrationRawData(id={self.id}, product_nm='{self.product_nm}', char_1_nm='{self.char_1_nm}')>"
 
     def to_dict(self) -> dict:
         """모델을 딕셔너리로 변환"""
         return {
             'id': self.id,
-            'products_nm': self.products_nm,
+            'product_nm': self.product_nm,
             'goods_nm': self.goods_nm,
             'detail_path_img': self.detail_path_img,
             'delv_cost': float(self.delv_cost) if self.delv_cost else None,
