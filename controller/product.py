@@ -3,7 +3,7 @@ from file_server_handler import upload_to_file_server, get_file_server_url, uplo
 
 # 상품코드 생성 및 test_product_raw_data 저장 실행 함수
 import asyncio
-from services.product_registration.product_integrated_service import generate_and_save_all_product_code_data
+from services.product_registration.product_integrated_service import ProductCodeIntegratedService
 
 
 def create_product_request():
@@ -65,7 +65,8 @@ def create_product_request():
 def run_generate_and_save_all_product_code_data():
     print("\n[상품코드 생성 및 test_product_raw_data 저장 시작]")
     try:
-        result = asyncio.run(generate_and_save_all_product_code_data())
+        service = ProductCodeIntegratedService()
+        result = asyncio.run(service.generate_and_save_all_product_code_data())
         print("\n=== 처리 결과 ===")
         print(f"성공: {result['success']}")
         print(f"실패: {result['failed']}")
