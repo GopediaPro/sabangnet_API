@@ -1,4 +1,5 @@
 # 1. 가상환경 생성
+Python 3.12.*
 python3 -m venv venv
 source venv/bin/activate  # Linux/Mac
 # 또는 venv\Scripts\activate  # Windows
