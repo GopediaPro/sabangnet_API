@@ -176,3 +176,4 @@ class ProductRawData(Base):
     # 1:N 관계 설정
     modified_entries = relationship("ModifiedProductData",
                                     back_populates="raw", cascade="all, delete-orphan")
+    
