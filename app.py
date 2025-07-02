@@ -24,6 +24,7 @@ from sqlalchemy import select
 from models.receive_order.receive_order import ReceiveOrder
 from core.db import AsyncSessionLocal
 from core.settings import SETTINGS
+from controller.product import run_generate_and_save_all_product_code_data
 
 # Create Typer app instance
 app = typer.Typer(help="사방넷 쇼핑몰 API CLI 도구")
@@ -206,6 +207,10 @@ def create_order_xlsx():
     except Exception as e:
         logger.error(f"주문 목록 엑셀 변환 중 오류 발생: {e}")
 
+@app.command(help="상품코드 생성 및 test_product_raw_data 저장")
+def generate_product_code_data():
+    """product_registration_raw_data에서 데이터를 읽어 test_product_raw_data에 저장합니다."""
+    run_generate_and_save_all_product_code_data()
 
 @app.command(help="1+1 가격 계산")
 def calculate_one_one_price(model_nm: str = typer.Argument(..., help="모델명")):
