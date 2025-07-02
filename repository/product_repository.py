@@ -182,3 +182,10 @@ class ProductRepository:
         res = await self.session.execute(query)
         await self.session.commit()
         return res.scalar_one()
+
+async def insert_product_raw_data(session: AsyncSession, data: dict) -> ProductRawData:
+    obj = ProductRawData(**data)
+    session.add(obj)
+    await session.commit()
+    await session.refresh(obj)
+    return obj
