@@ -122,27 +122,26 @@ class ProductRegistrationRepository:
             logger.error(f"데이터 조회 오류: {e}")
             raise
     
-    async def get_all(self, limit: int = 100, offset: int = 0) -> List[ProductRegistrationRawData]:
+    async def get_all(self, limit: int = None, offset: int = None) -> List[ProductRegistrationRawData]:
         """
         모든 상품 등록 데이터를 조회합니다.
         
         Args:
-            limit: 조회할 데이터 수 제한
-            offset: 조회 시작 위치
-            
+            limit: 조회할 데이터 수 제한 (None이면 제한 없음)
+            offset: 조회 시작 위치 (None이면 0)
+        
         Returns:
             List[ProductRegistrationRawData]: 조회된 데이터 리스트
         """
         try:
-            stmt = (
-                select(ProductRegistrationRawData)
-                .offset(offset)
-                .limit(limit)
-                .order_by(ProductRegistrationRawData.created_at.desc())
-            )
+            stmt = select(ProductRegistrationRawData).order_by(ProductRegistrationRawData.created_at.desc())
+            if offset is not None:
+                stmt = stmt.offset(offset)
+            if limit is not None:
+                stmt = stmt.limit(limit)
             result = await self.session.execute(stmt)
             return result.scalars().all()
-            
+        
         except SQLAlchemyError as e:
             logger.error(f"데이터 목록 조회 오류: {e}")
             raise
@@ -261,3 +260,9 @@ class ProductRegistrationRepository:
         query = select(ProductRegistrationRawData.goods_price).where(ProductRegistrationRawData.products_nm == products_nm)
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
+    
+async def get_all_registration_data(session: AsyncSession) -> List[ProductRegistrationRawData]:
+    result = await session.execute(
+        select(ProductRegistrationRawData)
+    )
+    return result.scalars().all()
