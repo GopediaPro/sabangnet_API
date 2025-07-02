@@ -47,7 +47,7 @@ class ProductCodeIntegratedService:
             for reg in registration_data_list:
                 reg_dict = reg.to_dict() if hasattr(reg, 'to_dict') else dict(reg.__dict__)
                 logger.debug(f"모든 컬럼 값: {reg_dict}")
-                product_nm = reg_dict.get('products_nm') or reg_dict.get('product_nm')
+                product_nm = reg_dict.get('product_nm') or reg_dict.get('product_nm')
                 for gubun in ["마스터","전문몰","1+1"]:
                     try:
                         service = ProductCodeRegistrationService(reg_dict)

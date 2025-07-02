@@ -15,7 +15,7 @@ class OneOnePriceDto(BaseModel):
     product_registration_raw_data_id: int = Field(..., description="상품등록 FK(BigInt)")
 
     # 상품명
-    products_nm: Optional[str] = Field(None, description="상품명")
+    product_nm: Optional[str] = Field(None, description="상품명")
 
     # 기준가격(전문몰 가격)
     standard_price: Optional[Decimal] = Field(None, ge=0, description="기준가격")

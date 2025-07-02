@@ -6,7 +6,7 @@ class MallPriceDto(BaseModel):
     class Config:
         from_attributes = True
 
-    products_nm: str = Field(..., description="상품코드")
+    product_nm: str = Field(..., description="상품코드")
     product_registration_raw_data_id: int = Field(..., description="product_registration_raw_data ID (fk)")
     standard_price: int = Field(..., description="기준 가격")
 

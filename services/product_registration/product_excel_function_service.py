@@ -508,7 +508,7 @@ def create_bulk_product_code_data(source_data_list: List[Dict[str, Any]],
         source_data_dict = {}
         for data in source_data_list:
             # 모델코드에 해당하는 키를 찾아야 함 (실제 DB 스키마에 따라 조정 필요)
-            model_key = data.get('products_nm', '') or data.get('product_nm', '')
+            model_key = data.get('product_nm', '') or data.get('product_nm', '')
             if model_key:
                 source_data_dict[model_key] = data
         

@@ -73,7 +73,7 @@ class OneOnePriceService:
         # 4. DTO 생성
         one_one_price_dto = OneOnePriceDto(
             product_registration_raw_data_id=product_registration_raw_data_id,
-            products_nm=product_nm,
+            product_nm=product_nm,
             standard_price=standard_price,
             one_one_price=one_one_price,
             **shop_prices
