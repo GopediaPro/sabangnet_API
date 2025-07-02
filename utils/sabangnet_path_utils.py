@@ -17,8 +17,8 @@ class SabangNetPathUtils:
         return cls.PROJECT_ROOT / "files"
 
     @classmethod
-    def get_xlsx_file_path(cls) -> Path:
-        return cls.get_files_path() / "xlsx"
+    def get_excel_file_path(cls) -> Path:
+        return cls.get_files_path() / "excel"
 
     @classmethod
     def get_xml_file_path(cls) -> Path:

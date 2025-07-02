@@ -4,26 +4,24 @@
 """
 
 # 레거시 SSL 수정
-import os
 from legacy_SSL_handler import LegacySSLHandler
 legacy_ssl_handler = LegacySSLHandler()
 legacy_ssl_handler.fix_legacy_ssl_config()
 # 레거시 SSL 수정 완료
-
-from core.db import test_db_write
-from utils.sabangnet_logger import get_logger
-from core.initialization import initialize_program
-from services.order_list_write import OrderListWriteService
-import typer
-import logging
-from dotenv import load_dotenv
-from controller import fetch_mall_list, fetch_order_list, create_product_request
-from core.db import get_db_pool
-import asyncio
-from sqlalchemy import select
-from models.receive_order.receive_order import ReceiveOrder
-from core.db import AsyncSessionLocal
 from core.settings import SETTINGS
+from core.db import AsyncSessionLocal
+from models.receive_order.receive_order import ReceiveOrder
+from sqlalchemy import select
+import asyncio
+from core.db import get_db_pool
+from controller import fetch_mall_list, fetch_order_list, test_one_one_price_calculation, request_product_create as request_product_create_controller
+from dotenv import load_dotenv
+import typer
+from services.order_list.order_list_write import OrderListWriteService
+from core.initialization import initialize_program
+from utils.sabangnet_logger import get_logger
+from core.db import test_db_write
+
 
 # Create Typer app instance
 app = typer.Typer(help="사방넷 쇼핑몰 API CLI 도구")
@@ -132,10 +130,13 @@ def create_order():
         handle_error(e)
 
 
-@app.command(help="상품 등록")
-def create_product():
+@app.command(help="상품 등록 API 테스트")
+def request_product_create(
+    file_name: str = typer.Argument(..., help="Excel 파일 이름"),
+    sheet_name: str = typer.Argument(..., help="시트명")
+):
     try:
-        create_product_request()
+        request_product_create_controller(file_name, sheet_name)
     except Exception as e:
         logger.error(f"쓰기 작업 중 오류 발생: {e}")
 
@@ -208,25 +209,16 @@ def create_order_xlsx():
 
 
 @app.command(help="1+1 가격 계산")
-def calculate_one_one_price(model_nm: str = typer.Argument(..., help="모델명")):
-    from services.product.price_calc.one_one_price_service import OneOnePriceService
-    from repository.product_registration_repository import ProductRegistrationRepository
-    from repository.product_repository import ProductRepository
-    from repository.product.price_calc.one_one_price_repository import OneOnePriceRepository
-    from core.db import AsyncSessionLocal
-    
-    async def _calculate_one_one_price(model_nm):
-        try:
-            async with AsyncSessionLocal() as session:
-                one_one_price_service = OneOnePriceService(
-                    session,
-                    ProductRegistrationRepository(session),
-                    ProductRepository(session),
-                    OneOnePriceRepository(session))
-                await one_one_price_service.calculate_and_save_one_one_prices(model_nm)
-        except Exception as e:
-            logger.error(f"1+1 가격 계산 중 오류 발생: {e}")
-    asyncio.run(_calculate_one_one_price(model_nm))
+def calculate_one_one_price(product_nm: str = typer.Argument(..., help="상품명")):
+    asyncio.run(test_one_one_price_calculation(product_nm))
+    return
+
+
+@app.command(help="FastAPI 서버 실행")
+def start_server():
+    from start_server import run_fastapi
+    run_fastapi()
+
 
 def handle_error(e: Exception):
     """에러 처리 헬퍼 함수"""

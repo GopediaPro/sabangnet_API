@@ -1,24 +1,19 @@
 import requests
 from urllib.parse import urljoin
 from core.settings import SETTINGS
-from utils.sabangnet_path_utils import SabangNetPathUtils
+from pathlib import Path
 from utils.sabangnet_logger import get_logger
+from utils.product_create.excel_processor import ExcelProcessor
+
 
 logger = get_logger(__name__)
 
+
 class ProductCreateService:
 
-    def __init__(self):
-        self.xml_base_path = SabangNetPathUtils.get_xml_file_path()
-        self.xml_file_path = self.xml_base_path / "product_create_request.xml"
-
-    def read_xml_content(self) -> str:
-        with open(self.xml_file_path, "r", encoding="euc-kr") as f:
-            xml_content = f.read()
-        return xml_content
-
     # 상품 등록 요청
-    def create_product_via_url(self, xml_url: str) -> str:
+    @staticmethod
+    def request_product_create_via_url(xml_url: str) -> str:
         try:
             api_url = urljoin(SETTINGS.SABANG_ADMIN_URL, '/RTL_API/xml_goods_info.html')
             payload = {
@@ -35,3 +30,11 @@ class ProductCreateService:
         except Exception as e:
             logger.error(f"응답 파싱 중 오류: {e}")
             raise
+
+    @staticmethod
+    def excel_to_xml_file(file_name: str, sheet_name: str) -> str | Path:
+        return ExcelProcessor().excel_to_xml_file(file_name, sheet_name)
+    
+    @staticmethod
+    def excel_to_xml_string(file_name: str, sheet_name: str) -> str:
+        return ExcelProcessor().excel_to_xml_string(file_name, sheet_name)

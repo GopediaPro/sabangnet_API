@@ -3,11 +3,12 @@ Product Registration Repository
 상품 등록 데이터 저장소 클래스
 """
 
-from typing import List, Optional
+from decimal import Decimal
+from sqlalchemy.engine import Row
+from typing import List, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete, func
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from decimal import Decimal
 
 from models.product.product_registration_data import ProductRegistrationRawData
 from schemas.product_registration import ProductRegistrationCreateDto
@@ -256,13 +257,21 @@ class ProductRegistrationRepository:
             logger.error(f"데이터 검색 오류: {e}")
             raise
 
-    async def get_product_price_by_products_nm(self, products_nm: str) -> Optional[Decimal]:
+    async def find_product_price_by_products_nm(self, products_nm: str) -> Optional[Decimal]:
         """상품명으로 상품 가격 조회"""
         query = select(ProductRegistrationRawData.goods_price).where(ProductRegistrationRawData.products_nm == products_nm)
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
     
+    async def find_product_id_and_price_by_products_nm(self, products_nm: str) -> Optional[Tuple[int, Decimal]]:
+        """상품명으로 상품 가격과 id 조회"""
+        query = select(ProductRegistrationRawData.id, ProductRegistrationRawData.goods_price).where(ProductRegistrationRawData.products_nm == products_nm)
+        result = await self.session.execute(query)
+        row: Optional[Tuple[int, Decimal]] = result.one_or_none()
+        return row
+    
     async def find_product_registration_data_by_products_nm(self, products_nm: str) -> Optional[ProductRegistrationRawData]:
+        """상품명으로 상품 등록 데이터 조회"""
         query = select(ProductRegistrationRawData).where(ProductRegistrationRawData.products_nm == products_nm)
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
