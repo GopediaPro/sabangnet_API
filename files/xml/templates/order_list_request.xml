@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="EUC-KR"?>
+<SABANG_ORDER_LIST>
+    <HEADER>
+        <SEND_COMPAYNY_ID>{company_id}</SEND_COMPAYNY_ID>
+        <SEND_AUTH_KEY>{auth_key}</SEND_AUTH_KEY>
+        <SEND_DATE>{send_date}</SEND_DATE>
+    </HEADER>
+    <DATA>
+		<ORD_ST_DATE>{ord_st_date}</ORD_ST_DATE>
+		<ORD_ED_DATE>{ord_ed_date}</ORD_ED_DATE>
+		<ORD_FIELD>{ord_field}</ORD_FIELD>
+		<ORDER_STATUS>{order_status}</ORDER_STATUS>
+	</DATA>
+</SABANG_ORDER_LIST>

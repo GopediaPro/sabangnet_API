@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from sqlalchemy import (
-    BigInteger, SmallInteger, String, Text, Numeric, CHAR
+    BigInteger, SmallInteger, String, Text, Numeric, CHAR, Integer
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -31,9 +31,9 @@ class ProductRawData(Base):
 
     # 분류·구분 코드
     goods_gubun: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    class_cd1: Mapped[str] = mapped_column(String(100), nullable=False)
-    class_cd2: Mapped[str] = mapped_column(String(100), nullable=False)
-    class_cd3: Mapped[str] = mapped_column(String(100), nullable=False)
+    class_cd1: Mapped[str] = mapped_column(String(100))
+    class_cd2: Mapped[str] = mapped_column(String(100))
+    class_cd3: Mapped[str] = mapped_column(String(100))
     class_cd4: Mapped[str | None] = mapped_column(String(100))
 
     # --- 구분 (마스터, 전문몰, 1+1)
@@ -50,8 +50,8 @@ class ProductRawData(Base):
     make_dm: Mapped[str | None] = mapped_column(CHAR(8))
 
     # 시즌·성별·상태
-    goods_season: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    sex: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    goods_season: Mapped[int] = mapped_column(SmallInteger)
+    sex: Mapped[int] = mapped_column(SmallInteger)
     status: Mapped[int] = mapped_column(SmallInteger, nullable=False)
 
     # 배송·세금
@@ -62,7 +62,7 @@ class ProductRawData(Base):
 
     # 반품·가격
     banpum_area: Mapped[int | None] = mapped_column(SmallInteger)
-    goods_cost: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
+    goods_cost: Mapped[Decimal] = mapped_column(Numeric(12, 0))
     goods_price: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
     goods_consumer_price: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
     goods_cost2: Mapped[Decimal | None] = mapped_column(Numeric(12, 0))
@@ -112,10 +112,10 @@ class ProductRawData(Base):
 
     # 식품·재고
     material: Mapped[str | None] = mapped_column(Text)
-    stock_use_yn: Mapped[str | None] = mapped_column(CHAR(1), nullable=False)
+    stock_use_yn: Mapped[str | None] = mapped_column(CHAR(1))
 
     # 옵션·속성 제어
-    opt_type: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=2)
+    opt_type: Mapped[int] = mapped_column(SmallInteger, default=2)
     prop1_cd: Mapped[str | None] = mapped_column(CHAR(3))
 
     # 속성값 1-33
@@ -167,12 +167,13 @@ class ProductRawData(Base):
     descrition: Mapped[str | None] = mapped_column(
         Text)  # 오타 그대로 유지 (description -> descrition)
 
-    product_nm: Mapped[str] = mapped_column(String(60), nullable=False)
-    no_product: Mapped[str] = mapped_column(String(30), nullable=False)
-    detail_img_url: Mapped[str] = mapped_column(Text, nullable=False)
-    no_word: Mapped[str] = mapped_column(String(20), nullable=False)
-    no_keyword: Mapped[str] = mapped_column(String(20), nullable=False)
+    product_nm: Mapped[str] = mapped_column(String(60))
+    no_product: Mapped[int] = mapped_column(Integer)
+    detail_img_url: Mapped[str] = mapped_column(Text)
+    no_word: Mapped[int] = mapped_column(Integer)
+    no_keyword: Mapped[int] = mapped_column(Integer)
 
     # 1:N 관계 설정
     modified_entries = relationship("ModifiedProductData",
                                     back_populates="raw", cascade="all, delete-orphan")
+    

@@ -4,9 +4,9 @@ def create_required_dirs():
     required_dirs = [
         "files/json",
         "files/xml",
-        "files/xml/template",
+        "files/xml/templates",
         "files/logs",
-        "files/xlsx"
+        "files/excel"
     ]
     for d in required_dirs:
         os.makedirs(d, exist_ok=True)

@@ -1,4 +1,6 @@
 # 1. 가상환경 생성
+Python 3.12.*
+
 python3 -m venv venv
 source venv/bin/activate  # Linux/Mac
 # 또는 venv\Scripts\activate  # Windows
@@ -122,6 +124,13 @@ logger.critical(내용)
 ├── .env.example          # 환경변수 예시
 ├── .env                  # 실제 환경변수 (생성 필요)
 └── README.md            # 이 파일
+└── files                # 작업용 files
+└─────── excel
+└─────── json
+└─────── excel
+└─────── sample
+└─────── xml
+└── logs                 # 작업용 log 파일 관리
 ```
 
 ## 주의사항
@@ -171,3 +180,36 @@ logger.critical(내용)
 
 - Excel 파일에서 상품 등록 데이터 가져오기:  
   python app.py import-product-registration-excel "./경로/파일.xlsx" --sheet-name "Sheet1"
+
+- 상품 등록 Data 기반으로 excel 수식 To Method 상품 등록 대량 등록 To DB
+  python app.py generate-product-code-data
+
+```bash
+# .env file
+# 사방넷 API 설정
+SABANG_COMPANY_ID=
+SABANG_AUTH_KEY=
+SABANG_ADMIN_URL=
+
+MINIO_ROOT_USER=
+MINIO_ROOT_PASSWORD=
+MINIO_ACCESS_KEY=
+MINIO_SECRET_KEY=
+MINIO_ENDPOINT=
+MINIO_BUCKET_NAME=
+MINIO_USE_SSL=
+MINIO_PORT=
+
+DB_HOST=
+DB_PORT=
+DB_NAME=
+DB_USER=
+DB_PASSWORD=
+DB_SSLMODE=
+DB_TEST_COLUMN=
+DB_TEST_TABLE=
+
+N8N_TEST=
+N8N_WEBHOOK_BASE_URL=
+N8N_WEBHOOK_PATH=
+```
