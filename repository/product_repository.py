@@ -14,6 +14,7 @@ class ProductRepository:
 
     def to_dict(self, obj) -> dict:
         return {c.key: getattr(obj, c.key) for c in inspect(obj).mapper.column_attrs}
+    
 
     async def product_raw_data_create(self, product_data: list[dict]) -> list[int]:
         """
@@ -162,7 +163,8 @@ class ProductRepository:
     
     async def save_modified_product_name(self, product_raw_data: ProductRawData, rev: int, product_name: str) -> ModifiedProductData:
         # 1. Get all column names from the model
-        columns = [c.key for c in inspect(ModifiedProductData).mapper.column_attrs]
+        columns = [c.key for c in inspect(ModifiedProductData).mapper.column_attrs
+                   if c.key != 'id']
         
         # 2. Build the insert dict
         insert_dict = {}
@@ -170,7 +172,7 @@ class ProductRepository:
             if col == "goods_nm":
                 insert_dict[col] = product_name
             elif col == "rev":
-                insert_dict[col] = rev + 1
+                insert_dict[col] = rev
             elif col == "test_product_raw_data_id":
                 insert_dict[col] = product_raw_data.id
             else:
