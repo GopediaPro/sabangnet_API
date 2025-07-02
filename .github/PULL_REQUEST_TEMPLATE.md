@@ -13,12 +13,12 @@
 ## 📋 프로세스 시각화
 
 ```
-상품 데이터 → 추가 필드 스키마 정의 → DB 모델 확장 → Repository 메서드 추가 → 주문 수집 기능 개선
+FastAPI 서버 안정화 → 로깅 시스템 개선 → 1+1 가격 계산 API 완성 → 개발자 경험 향상
 ```
 
 ## 🎯 개요
 
-상품 데이터 모델에 필수 추가 필드들을 구현하고, 주문 수집 기능을 개선했습니다. 상품 관련 추가 메타데이터 필드들을 추가하여 더 풍부한 상품 정보 관리가 가능합니다.
+FastAPI 서버의 안정성을 개선하고 통합 로깅 시스템을 구축했습니다. 1+1 가격 계산 API의 의존성 주입 문제를 해결하고, HTTP 요청/응답을 실시간으로 모니터링할 수 있는 커스텀 로깅 미들웨어를 추가하여 개발자 경험을 대폭 향상시켰습니다.
 
 ## 🔄 변경 사항
 
@@ -26,218 +26,103 @@
 
 |파일|변경 내용|
 |---|---|
-|`controller/order_list.py`|**주문 수집 기능 대폭 개선** - DB 저장 옵션, 3가지 XML 전송 방식 지원|
-|`models/product/modified_product_data.py`|**상품 모델 확장** - gubun, product_nm 등 5개 필드 추가|
-|`models/product/product_raw_data.py`|**원본 상품 모델 확장** - 동일한 추가 필드 구조 적용|
-|`repository/product_repository.py`|**Repository 메서드 추가** - 상품명+구분 기반 조회 기능|
-|`schemas/product/modified_product_dto.py`|**DTO 스키마 확장** - 새로운 필드들에 대한 유효성 검증 추가|
-|`schemas/product/product_raw_data_dto.py`|**DTO 스키마 확장** - 원본 데이터용 DTO 필드 추가|
-|`services/product_create.py`|**상품 생성 서비스 개선** - XML 기반 상품 등록 로직 안정화|
+|`core/settings.py`|**서버 설정 개선** - 포트 타입 수정 (str → int), FastAPI/DB/MinIO 포트 정수화|
+
+
+### 🔧 Core Improvements
+
+#### ⚙️ Server Configuration
+
+|설정|변경 전|변경 후|효과|
+|---|---|---|---|
+|`FASTAPI_PORT`|`Optional[str]`|`Optional[int]`|타입 안정성 확보, uvicorn 실행 오류 해결|
+
+
+#### 🪵 Logging System Architecture
+
+|컴포넌트|기능|특징|
+|---|---|---|
+|`HTTPLoggingMiddleware`|HTTP 요청/응답 로깅|실시간 모니터링, 처리시간 측정, 상태별 이모지|
+
+
+#### 📦 Dependencies & Packages
+
+|패키지|버전|용도|
+|---|---|---|
+|`python-multipart`|0.0.20|FastAPI 파일 업로드 및 Form 데이터 처리|
 
 ## 🆕 주요 신규 기능
 
-### 1. **상품 구분 관리 시스템**
+### 1. **통합 HTTP 로깅 시스템**
 
 ```python
-# gubun 필드를 통한 상품 구분
-gubun: Mapped[str] = mapped_column(String(10))  # 마스터, 전문몰, 1+1 등 구분
-```
-
-### 2. **상품 메타데이터 확장**
-
-```python
-# 새로 추가된 필드들
-product_nm: str      # 원본상품명 (60자)
-no_product: str      # 상품번호 (30자)  
-detail_img_url: str  # 상세이미지 확인 URL
-no_word: str         # 글자수 (20자)
-no_keyword: str      # 키워드 (20자)
-```
-
-### 3. **향상된 주문 수집 기능**
-
-```python
-# 3가지 XML 전송 방식 지원
-1. XML 파일 업로드 후 URL 호출 (권장)
-2. XML 내용 직접 업로드 후 URL 호출  
-3. XML URL 직접 입력하여 호출
-
-# DB 직접 저장 옵션
-to_db = select_order_save_method()  # True: DB저장, False: JSON저장
+# 실시간 HTTP 요청/응답 모니터링
+2025-07-02 06:28:39 | INFO 사용자 127.0.0.1 -> 요청 🔵 POST /api/v1/one-one-price
 ```
 
 ## 🏗️ 아키텍처 개선사항
 
-### 1. **데이터 모델 확장성 개선**
-
-```
-기존: 기본 상품 정보만 관리
-개선: 상품 구분 + 메타데이터를 통한 세분화된 관리
-```
-
-### 2. **주문 수집 방식 다양화**
-
-```
-기존: 단일 XML 방식
-개선: 3가지 XML 전송 방식 + DB/JSON 선택적 저장
-```
-
-### 3. **Repository 패턴 강화**
+### 1. **로깅 시스템 아키텍처**
 
 ```python
-# 새로운 조회 메서드
-async def find_product_raw_data_by_product_nm_and_gubun(
-    self, product_nm: str, gubun: str
-) -> Optional[int]:
-    """상품명과 구분으로 상품 ID 조회"""
+# 기존: 단순 print 또는 기본 logging
+print(f"Request: {method} {path}")
+
 ```
 
 ## 🔧 주요 기능
 
-### 📦 상품 필드 확장
+### 🪵 실시간 HTTP 로깅
 
-- **gubun**: 상품 구분 관리 (마스터/전문몰/1+1)
-- **product_nm**: 원본 상품명 저장
-- **no_product**: 고유 상품번호 관리
-- **detail_img_url**: 상세 이미지 URL 관리
-- **no_word/no_keyword**: 상품 검색 최적화용 메타데이터
+- **요청 모니터링**: 클라이언트 IP, 메서드, URL, 쿼리 파라미터 실시간 출력
 
-### 🚀 주문 수집 기능 개선
+### ⚙️ 서버 안정성 개선
 
-|방식|설명|장점|
+|구성 요소|개선 내용|효과|
 |---|---|---|
-|**파일 업로드**|XML 파일을 파일서버에 업로드 후 URL로 호출|안정성 높음, 추적 가능|
-|**내용 업로드**|XML 내용을 직접 파일서버에 업로드|빠른 처리, 파일 생성 불필요|
-|**URL 직접 입력**|외부 XML URL 직접 사용|기존 인프라 활용 가능|
+|**포트 설정**|문자열 → 정수 타입 변환|`TypeError: 'str' object cannot be interpreted as an integer` 해결|
 
-### 💾 저장 방식 선택
+### 🎨 개발자 경험 향상
 
-- **DB 저장**: 즉시 데이터베이스에 저장하여 실시간 활용
-- **JSON 저장**: 파일로 저장하여 후속 처리나 백업용으로 활용
+- **색상별 로그**: 비즈니스 로직과 HTTP 요청을 구분하여 출력
 
 ## 🎮 사용 예시
 
-### 1. 개선된 주문 수집 프로세스
+### 1. 통합 로깅 시스템
 
 ```bash
-# 주문 수집 실행
-python -c "
-from controller.order_list import fetch_order_list
-fetch_order_list()
-"
-```
+# 서버 시작
+python app.py start-server
 
-### 2. 상품 구분별 조회
-
-```python
-# Repository를 통한 상품 조회
-product_id = await repository.find_product_raw_data_by_product_nm_and_gubun(
-    product_nm="테스트상품", 
-    gubun="1+1"
-)
-```
-
-### 3. 확장된 필드 활용
-
-```python
-# 새로운 필드들이 포함된 상품 데이터
-{
-    "gubun": "마스터",
-    "product_nm": "원본상품명",
-    "no_product": "PRD001", 
-    "detail_img_url": "https://example.com/detail.jpg",
-    "no_word": "50",
-    "no_keyword": "키워드1,키워드2"
-}
+# 실시간 로그 출력 예시
+2025-07-02 06:28:39 | INFO 사용자 127.0.0.1 -> 요청 🔵 GET /docs
+2025-07-02 06:28:39 | INFO 사용자 127.0.0.1 <- 응답 ✅ 200 GET /docs (0.001s)
 ```
 
 ## 🔄 처리 플로우
 
 ```mermaid
 graph TD
-    A[주문 수집 시작] --> B[날짜 범위 입력]
-    B --> C[상태 코드 선택]
-    C --> D[XML 전송 방식 선택]
-    D --> E[저장 방식 선택]
-    
-    E --> F{XML 전송 방식}
-    F -->|파일 업로드| G[XML 파일 생성]
-    F -->|내용 업로드| H[XML 내용 직접 전송]
-    F -->|URL 직접| I[외부 URL 사용]
-    
-    G --> J[파일서버 업로드]
-    H --> J
-    I --> K[API 호출]
-    J --> K
-    
-    K --> L{저장 방식}
-    L -->|DB 저장| M[데이터베이스 저장]
-    L -->|JSON 저장| N[JSON 파일 저장]
-    
-    M --> O[처리 완료]
-    N --> O
-    
-    P[상품 데이터] --> Q[추가 필드 스키마]
-    Q --> R[모델 확장]
-    R --> S[Repository 메서드]
-    S --> T[DTO 업데이트]
+    A[HTTP 요청] --> B[HTTPLoggingMiddleware]
+    B --> C[요청 로깅 🔵]
+    C --> D[비즈니스 로직 처리]
+   
 ```
 
 ## 🎯 관련 이슈
 
-- **Feature**: 상품 구분 관리를 위한 gubun 필드 추가
-- **Feature**: 상품 메타데이터 확장 (product_nm, no_product 등)
-- **Enhancement**: 주문 수집 방식 다양화 및 DB 직접 저장 옵션
-- **Improvement**: Repository 패턴 강화로 조회 기능 확장
-
-## 🔍 데이터 스키마 변경
-
-### 추가된 필드들
-
-```sql
--- test_product_raw_data 및 test_product_modified_data 테이블
-ALTER TABLE test_product_raw_data ADD COLUMN gubun VARCHAR(10);
-ALTER TABLE test_product_raw_data ADD COLUMN product_nm VARCHAR(60) NOT NULL;
-ALTER TABLE test_product_raw_data ADD COLUMN no_product VARCHAR(30) NOT NULL;
-ALTER TABLE test_product_raw_data ADD COLUMN detail_img_url TEXT NOT NULL;
-ALTER TABLE test_product_raw_data ADD COLUMN no_word VARCHAR(20) NOT NULL;
-ALTER TABLE test_product_raw_data ADD COLUMN no_keyword VARCHAR(20) NOT NULL;
-```
+- **Bugfix**: FastAPI 서버 시작 시 포트 타입 오류 해결
 
 ## 🚀 실행 결과 예시
 
-### 주문 수집 개선된 인터페이스
+### 실시간 로깅 시스템
 
-```
-사방넷 주문수집
-==================================================
-주문수집일의 범위를 입력하세요 (예: 20250603~20250610)
-일주일 이전의 날짜 범위 권장: 20250101~20250107
-
-상태코드 목록
-004    출고완료
-006    배송보류
-...
-
-주문 수집 방법을 선택합니다.
-1. 파일(XML) 업로드 후 URL로 호출 (권장)
-2. XML 내용을 직접 업로드 후 URL로 호출
-3. XML URL을 직접 입력하여 호출
-
-선택하세요 (1, 2 또는 3): 1
-
-주문 데이터 저장 방식을 선택하세요:
-1. DB에 저장 (권장)
-2. JSON 파일로 저장
-선택하세요 (1 또는 2): 1
-
-✅ 성공적으로 DB에 저장되었습니다.
+```bash
+# 서버 시작 (깔끔한 시작)
 ```
 
-## 🏆 기대 효과
+### 문제 해결 결과
 
-- **확장성**: 상품 구분을 통한 체계적인 상품 관리
-- **유연성**: 다양한 주문 수집 방식으로 상황별 최적 선택
-- **효율성**: DB 직접 저장으로 실시간 데이터 활용
-- **안정성**: 여러 XML 전송 방식으로 장애 상황 대응력 향상
-- **추적성**: 상품 메타데이터 확장으로 더 정확한 상품 관리
+```
+✅ 포트 타입 오류: TypeError 해결 → 서버 정상 시작
+```
