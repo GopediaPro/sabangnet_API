@@ -6,16 +6,16 @@ One One Price Data 모델
 from __future__ import annotations
 from decimal import Decimal
 from typing import Optional
-from sqlalchemy import BigInteger, Numeric, ForeignKey
+from sqlalchemy import BigInteger, Numeric, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 from models.base_model import Base
 
 
-class OneOnePriceData(Base):
+class OneOnePrice(Base):
     """
-    1+1 상품 가격 계산을 위한 데이터 테이블 (one_one_price_data) ORM 매핑
+    1+1 상품 가격 계산을 위한 데이터 테이블 (one_one_price) ORM 매핑
     """
-    __tablename__ = "one_one_price_data"
+    __tablename__ = "one_one_price"
 
     # 기본 정보
     id: Mapped[int] = mapped_column(
@@ -24,14 +24,16 @@ class OneOnePriceData(Base):
         autoincrement=True,
         comment="고유 식별자")
 
-    # 원본 상품 데이터 FK
-    test_product_raw_data_id: Mapped[int] = mapped_column(
+    # 상품등록 FK
+    product_registration_raw_data_id: Mapped[int] = mapped_column(
         ForeignKey(
-            "test_product_raw_data.id",
-            name="test_product_raw_data_id",
+            "product_registration_raw_data.id",
+            name="product_registration_raw_data_id",
             ondelete="CASCADE"),
         nullable=False,
-        comment="원본 상품 데이터 FK")
+        comment="상품등록 FK")
+    
+    product_nm: Mapped[Optional[str]] = mapped_column(String(100), nullable=False)
 
     # 기준가격(전문몰 가격)
     standard_price: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 0), nullable=True, comment="기준가격")
@@ -79,13 +81,14 @@ class OneOnePriceData(Base):
     shop0464: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 0), nullable=True, comment="11번가")
 
     def __repr__(self) -> str:
-        return f"<ProductOneOnePriceRawData(id={self.id}, test_product_raw_data_id='{self.test_product_raw_data_id}')>"
+        return f"<OneOnePrice(id={self.id}), ProductRegistrationRawData(id={self.product_registration_raw_data_id})>"
 
     def to_dict(self) -> dict:
         """모델을 딕셔너리로 변환"""
         return {
             'id': self.id,
-            'test_product_raw_data_id': self.test_product_raw_data_id,
+            'product_registration_raw_data_id': self.product_registration_raw_data_id,
+            'product_nm': self.product_nm,
             'standard_price': self.standard_price,
             'one_one_price': self.one_one_price,
             'shop0007': self.shop0007,

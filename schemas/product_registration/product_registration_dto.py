@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field, validator
 class ProductRegistrationCreateDto(BaseModel):
     """상품 등록 데이터 생성용 DTO"""
     
-    products_nm: Optional[str] = Field(None, max_length=255, description="제품명")
+    product_nm: Optional[str] = Field(None, max_length=255, description="제품명")
     goods_nm: Optional[str] = Field(None, max_length=255, description="상품명")
     detail_path_img: Optional[str] = Field(None, description="상세페이지경로(이미지폴더)")
     delv_cost: Optional[Decimal] = Field(None, ge=0, description="배송비")
@@ -20,12 +20,12 @@ class ProductRegistrationCreateDto(BaseModel):
     goods_price: Optional[Decimal] = Field(None, ge=0, description="판매가(유료배송)")
     certno: Optional[str] = Field(None, description="인증번호")
     char_process: Optional[str] = Field(None, max_length=255, description="진행옵션 가져오기")
-    char_1_nm: Optional[str] = Field(None, max_length=100, description="옵션명1")
+    char_1_nm: Optional[str] = Field(None, description="옵션명1")
     char_1_val: Optional[str] = Field(None, description="옵션상세1")
-    char_2_nm: Optional[str] = Field(None, max_length=100, description="옵션명2")
+    char_2_nm: Optional[str] = Field(None, description="옵션명2")
     char_2_val: Optional[str] = Field(None, description="옵션상세2")
     img_path: Optional[str] = Field(None, description="대표이미지")
-    img_path1: Optional[str] = Field(None, description="부가이미지1 (종합몰이미지_jpg)")
+    img_path1: Optional[str] = Field(None, description="종합몰(JPG)이미지")
     img_path2: Optional[str] = Field(None, description="부가이미지2")
     img_path3: Optional[str] = Field(None, description="부가이미지3")
     img_path4: Optional[str] = Field(None, description="부가이미지4")
@@ -34,7 +34,8 @@ class ProductRegistrationCreateDto(BaseModel):
     mobile_bn: Optional[str] = Field(None, description="모바일배너")
     one_plus_one_bn: Optional[str] = Field(None, description="1+1배너")
     goods_remarks_url: Optional[str] = Field(None, description="상세설명url")
-    delv_one_plus_one: Optional[str] = Field(None, max_length=255, description="1+1옵션(배송)")
+    delv_one_plus_one: Optional[str] = Field(None, max_length=100, description="1+1옵션(배송)")
+    delv_one_plus_one_detail: Optional[str] = Field(None, max_length=100, description="1+1옵션상세")
 
     @validator('delv_cost', 'goods_price', pre=True, always=True)
     def validate_numeric_fields(cls, v):

@@ -169,11 +169,11 @@ class ModifiedProductData(Base):
     descrition: Mapped[str | None] = mapped_column(
         Text)  # 오타 그대로 유지 (description -> descrition)
     
-    product_nm: Mapped[str] = mapped_column(String(60), nullable=False)
-    no_product: Mapped[str] = mapped_column(String(30), nullable=False)
-    detail_img_url: Mapped[str] = mapped_column(Text, nullable=False)
-    no_word: Mapped[str] = mapped_column(String(20), nullable=False)
-    no_keyword: Mapped[str] = mapped_column(String(20), nullable=False)
+    product_nm: Mapped[str] = mapped_column(String(60))
+    no_product: Mapped[int] = mapped_column(Integer)
+    detail_img_url: Mapped[str] = mapped_column(Text)
+    no_word: Mapped[int] = mapped_column(Integer)
+    no_keyword: Mapped[int] = mapped_column(Integer)
 
     # 수정버전
     test_product_raw_data_id: Mapped[int] = mapped_column(
