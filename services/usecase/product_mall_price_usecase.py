@@ -2,12 +2,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from services.mall_price.mall_price_write_service import MallPriceWriteService
 from services.product.product_read_service import ProductReadService
 from schemas.mall_price.mall_price_dto import MallPriceDto
+from utils.make_xml.mall_price_registration_xml import MallPriceRegistrationXml
 
 class ProductMallPriceUsecase:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.mall_price_write_service = MallPriceWriteService(session)
         self.product_read_service = ProductReadService(session)
+        self.mall_price_registration_xml = MallPriceRegistrationXml()
 
     async def setting_mall_price(self, gubun: str, product_nm: str) -> MallPriceDto:
         product_raw_data_dto = await self.product_read_service.\
@@ -18,6 +20,9 @@ class ProductMallPriceUsecase:
                                standard_price=product_raw_data_dto.goods_price,
                                product_nm=product_nm,
                                compayny_goods_cd=product_raw_data_dto.compayny_goods_cd)
+        
+        self.mall_price_registration_xml.make_mall_price_dto_registration_xml(mall_price_dto=mall_price_dto)
+        
         return mall_price_dto
 
     
