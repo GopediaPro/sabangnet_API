@@ -25,8 +25,8 @@ class ProductWriteService:
         dto = ModifiedProductDataDto.model_validate(result)
         return dto
     
-    async def get_products(self) -> list[ProductRawDataDto]:
-        products = await self.product_repository.get_products()
+    async def get_products(self, page: int) -> list[ProductRawDataDto]:
+        products = await self.product_repository.get_products(page=page)
         dtos = [ProductRawDataDto.model_validate(product) for product in products]
         return dtos
     
