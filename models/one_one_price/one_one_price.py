@@ -33,7 +33,7 @@ class OneOnePrice(Base):
         nullable=False,
         comment="상품등록 FK")
     
-    products_nm: Mapped[Optional[str]] = mapped_column(String(100), nullable=False)
+    product_nm: Mapped[Optional[str]] = mapped_column(String(100), nullable=False)
 
     # 기준가격(전문몰 가격)
     standard_price: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 0), nullable=True, comment="기준가격")
@@ -88,7 +88,7 @@ class OneOnePrice(Base):
         return {
             'id': self.id,
             'product_registration_raw_data_id': self.product_registration_raw_data_id,
-            'products_nm': self.products_nm,
+            'product_nm': self.product_nm,
             'standard_price': self.standard_price,
             'one_one_price': self.one_one_price,
             'shop0007': self.shop0007,

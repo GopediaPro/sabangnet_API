@@ -18,7 +18,7 @@ class ProductRegistrationExcelProcessor:
     
     def __init__(self):
         self.required_columns = [
-            'products_nm', 'goods_nm', 'detail_path_img', 'delv_cost', 
+            'product_nm', 'goods_nm', 'detail_path_img', 'delv_cost', 
             'goods_search', 'goods_price', 'certno', 'char_process',
             'char_1_nm', 'char_1_val', 'char_2_nm', 'char_2_val',
             'img_path', 'img_path1', 'img_path2', 'img_path3',
@@ -122,7 +122,7 @@ class ProductRegistrationExcelProcessor:
         return {
             # Excel 컬럼명 -> DB 필드명
             # 실제 Excel 파일 구조에 맞게 수정해야 함
-            '제품명': 'products_nm',
+            '제품명': 'product_nm',
             '상품명': 'goods_nm', 
             '상세페이지경로': 'detail_path_img',
             '배송비': 'delv_cost',
@@ -206,7 +206,7 @@ class ProductRegistrationExcelProcessor:
             row_errors = []
             
             # 필수 필드 검증
-            required_fields = ['products_nm', 'goods_nm']
+            required_fields = ['product_nm', 'goods_nm']
             for field in required_fields:
                 if not row.get(field):
                     row_errors.append(f"필수 필드 '{field}' 누락")

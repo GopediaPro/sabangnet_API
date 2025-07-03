@@ -242,7 +242,7 @@ class ProductRegistrationRepository:
             stmt = (
                 select(ProductRegistrationRawData)
                 .where(
-                    (ProductRegistrationRawData.products_nm.ilike(search_pattern)) |
+                    (ProductRegistrationRawData.product_nm.ilike(search_pattern)) |
                     (ProductRegistrationRawData.goods_nm.ilike(search_pattern))
                 )
                 .limit(limit)
@@ -256,22 +256,22 @@ class ProductRegistrationRepository:
             logger.error(f"데이터 검색 오류: {e}")
             raise
 
-    async def find_product_price_by_products_nm(self, products_nm: str) -> Optional[Decimal]:
+    async def find_product_price_by_product_nm(self, product_nm: str) -> Optional[Decimal]:
         """상품명으로 상품 가격 조회"""
-        query = select(ProductRegistrationRawData.goods_price).where(ProductRegistrationRawData.products_nm == products_nm)
+        query = select(ProductRegistrationRawData.goods_price).where(ProductRegistrationRawData.product_nm == product_nm)
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
     
-    async def find_product_id_and_price_by_products_nm(self, products_nm: str) -> Optional[Tuple[int, Decimal]]:
+    async def find_product_id_and_price_by_product_nm(self, product_nm: str) -> Optional[Tuple[int, Decimal]]:
         """상품명으로 상품 가격과 id 조회"""
-        query = select(ProductRegistrationRawData.id, ProductRegistrationRawData.goods_price).where(ProductRegistrationRawData.products_nm == products_nm)
+        query = select(ProductRegistrationRawData.id, ProductRegistrationRawData.goods_price).where(ProductRegistrationRawData.product_nm == product_nm)
         result = await self.session.execute(query)
         row: Optional[Tuple[int, Decimal]] = result.one_or_none()
         return row
     
-    async def find_product_registration_data_by_products_nm(self, products_nm: str) -> Optional[ProductRegistrationRawData]:
+    async def find_product_registration_data_by_product_nm(self, product_nm: str) -> Optional[ProductRegistrationRawData]:
         """상품명으로 상품 등록 데이터 조회"""
-        query = select(ProductRegistrationRawData).where(ProductRegistrationRawData.products_nm == products_nm)
+        query = select(ProductRegistrationRawData).where(ProductRegistrationRawData.product_nm == product_nm)
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
       

@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 class OneOnePriceCreate(BaseModel):
     """1+1 상품 가격 계산을 위한 데이터 단일 생성"""
 
-    products_nm: str = Field(..., description="상품명")
+    product_nm: str = Field(..., description="상품명")
 
     class Config:
         from_attributes = True
