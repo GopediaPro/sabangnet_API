@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
+from typing import Optional
 
 class ProductNameResponse(BaseModel):
     rev: int = Field(alias="rev", description="수정 차수")
@@ -15,23 +16,25 @@ class ProductNameResponse(BaseModel):
         )
     
 class ProductResponse(BaseModel):
+    id: int = Field(alias="id", description="ID")
     goods_nm: str = Field(alias="goods_nm", description="상품명")
     brand_nm: str = Field(alias="brand_nm", description="브랜드명")
     goods_price: int = Field(alias="goods_price", description="상품가격")
     goods_consumer_price: int = Field(alias="goods_consumer_price", description="소비자가격")
-    status: str = Field(alias="status", description="상품상태")
+    status: int = Field(alias="status", description="상품상태")
     maker: str = Field(alias="maker", description="제조사")
     origin: str = Field(alias="origin", description="원산지")
-    goods_keyword: str = Field(alias="goods_keywords", description="상품키워드")
-    char_1_nm: str = Field(alias="char_1_nm", description="속성1명")
-    char_1_val: str = Field(alias="char_1_val", description="속성1값")
-    char_2_nm: str = Field(alias="char_2_nm", description="속성2명")
-    char_2_val: str = Field(alias="char_2_val", description="속성2값")
+    goods_keyword: str = Field(alias="goods_keyword", description="상품키워드")
+    char_1_nm: Optional[str] = Field(alias="char_1_nm", default=None, description="속성1명")
+    char_1_val: Optional[str] = Field(alias="char_1_val", default=None, description="속성1값")
+    char_2_nm: Optional[str] = Field(alias="char_2_nm", default=None, description="속성2명")
+    char_2_val: Optional[str] = Field(alias="char_2_val", default=None, description="속성2값")
     created_at: datetime = Field(alias="created_at", description="생성일시")
 
     @classmethod
     def from_dto(cls, dto) -> "ProductResponse":
         return cls(
+            id=dto.id,
             goods_nm=dto.goods_nm,
             brand_nm=dto.brand_nm,
             goods_price=dto.goods_price,

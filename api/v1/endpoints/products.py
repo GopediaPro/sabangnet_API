@@ -17,7 +17,7 @@ from services.product.product_create_service import ProductCreateService
 
 from services.product.product_write_service import ProductWriteService
 from schemas.product.request.product_form import ModifyProductNameForm
-from schemas.product.response.product_response import ProductNameResponse, ProductResponse
+from schemas.product.response.product_response import ProductNameResponse, ProductResponse, ProductPageResponse
 
 from utils.sabangnet_logger import get_logger
 
@@ -81,9 +81,13 @@ async def modify_product_name(
         product_name=request.name
     ))
 
-@router.get("", response_model=list[ProductResponse])
+@router.get("", response_model=ProductPageResponse)
 async def get_products(
     page: int = Query(1, ge=1),
     product_service: ProductWriteService = Depends(get_product_write_service)
 ):
-    return [ProductResponse.from_dto(product) for product in await product_service.get_products(page=page)]
+    return ProductPageResponse.builder(
+        products=[ProductResponse.from_dto(product) for product in await product_service.get_products(page=page)],
+        current_page=page,
+        page_size=20
+    )
