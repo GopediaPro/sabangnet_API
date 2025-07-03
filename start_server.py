@@ -16,6 +16,6 @@ def run_fastapi():
     logger = get_logger(__name__)
     try:
         import uvicorn
-        uvicorn.run("main:app", host=SETTINGS.FASTAPI_HOST, port=SETTINGS.FASTAPI_PORT, reload=True, access_log=False)
+        uvicorn.run("main:app", host=SETTINGS.FASTAPI_HOST, port=SETTINGS.FASTAPI_PORT, reload=False, access_log=False)
     except Exception as e:
         logger.exception(f"FastAPI 서버 실행 중 오류 발생: {e}")
