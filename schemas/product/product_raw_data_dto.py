@@ -12,6 +12,7 @@ class ProductRawDataDto(BaseModel):
     class Config:
         from_attributes = True
 
+    id: int = Field(..., description="ID")
     # 기본 상품 정보
     goods_nm: str = Field(..., max_length=255, description="상품명")
     goods_keyword: Optional[str] = Field(None, max_length=60, description="상품약어")
