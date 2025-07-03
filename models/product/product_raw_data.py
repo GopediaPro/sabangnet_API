@@ -62,7 +62,7 @@ class ProductRawData(Base):
 
     # 반품·가격
     banpum_area: Mapped[int | None] = mapped_column(SmallInteger)
-    goods_cost: Mapped[Decimal] = mapped_column(Numeric(12, 0))
+    goods_cost: Mapped[Decimal | None] = mapped_column(Numeric(12, 0))
     goods_price: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
     goods_consumer_price: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
     goods_cost2: Mapped[Decimal | None] = mapped_column(Numeric(12, 0))
