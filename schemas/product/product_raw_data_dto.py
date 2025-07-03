@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Optional
 
 from pydantic import BaseModel, Field, ConfigDict
-
+from datetime import datetime
 
 class ProductRawDataDto(BaseModel):
     """ProductRawData DTO (ORM 2025-06-24 기준)"""
@@ -12,6 +12,7 @@ class ProductRawDataDto(BaseModel):
     class Config:
         from_attributes = True
 
+    id: int = Field(..., description="ID")
     # 기본 상품 정보
     goods_nm: str = Field(..., max_length=255, description="상품명")
     goods_keyword: Optional[str] = Field(None, max_length=60, description="상품약어")
@@ -52,7 +53,7 @@ class ProductRawDataDto(BaseModel):
 
     # 반품·가격
     banpum_area: Optional[int] = Field(None, description="반품지구분")
-    goods_cost: Decimal = Field(..., ge=0, description="원가")
+    goods_cost: Optional[Decimal] = Field(None, ge=0, description="원가")
     goods_price: Decimal = Field(..., ge=0, description="판매가")
     goods_consumer_price: Decimal = Field(..., ge=0, description="TAG가(소비자가)")
     goods_cost2: Optional[Decimal] = Field(None, ge=0, description="원가2(참고용)")
@@ -102,7 +103,7 @@ class ProductRawDataDto(BaseModel):
 
     # 식품·재고
     material: Optional[str] = Field(None, description="식품재료/원산지")
-    stock_use_yn: str = Field(..., min_length=1, max_length=1, description="재고관리사용여부(Y/N)")
+    stock_use_yn: Optional[str] = Field(None, min_length=1, max_length=1, description="재고관리사용여부(Y/N)")
 
     # 옵션·속성 제어
     opt_type: int = Field(default=2, description="옵션수정여부(2·9)")
@@ -117,3 +118,6 @@ class ProductRawDataDto(BaseModel):
     detail_img_url: Optional[str] = Field(None, description="상세이미지 확인 URL")
     no_word: Optional[int] = Field(None, description="글자수")
     no_keyword: Optional[int] = Field(None, description="키워드")
+
+    created_at: Optional[datetime] = Field(None, description="생성일시")
+    updated_at: Optional[datetime] = Field(None, description="수정일시")

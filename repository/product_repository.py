@@ -15,6 +15,10 @@ class ProductRepository:
     def to_dict(self, obj) -> dict:
         return {c.key: getattr(obj, c.key) for c in inspect(obj).mapper.column_attrs}
     
+    async def get_products(self, page: int) -> list[ProductRawData]:
+        query = select(ProductRawData).offset((page - 1) * 20).limit(20).order_by(ProductRawData.created_at.desc())
+        result = await self.session.execute(query)
+        return result.scalars().all()
 
     async def product_raw_data_create(self, product_data: list[dict]) -> list[int]:
         """
