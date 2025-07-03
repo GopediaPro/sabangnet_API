@@ -13,6 +13,7 @@ from repository.product_registration_repository import ProductRegistrationReposi
 from repository.product_repository import ProductRepository
 from core.db import get_async_session
 from models.product.product_registration_data import ProductRegistrationRawData
+from repository.product_mycategory_repository import ProductMyCategoryRepository
 
 logger = get_logger(__name__)
 
@@ -22,6 +23,20 @@ class ProductCodeIntegratedService:
         """서비스 초기화 및 의존성 주입"""
         self.reg_repo = None
         self.prod_repo = None 
+
+    async def get_class_cd_dict(self, product_mycategory_repo, reg_dict) -> dict:
+        """
+        reg_dict에서 class_nm1~4를 꺼내 product_mycategory_repo로 class_cd1~4를 조회해 dict로 반환
+        """
+        class_cd_dict = {}
+        for level in [1, 2, 3, 4]:
+            class_nm = reg_dict.get(f'class_nm{level}')
+            if class_nm:
+                class_cd = await product_mycategory_repo.get_class_cd_from_nm(level, class_nm)
+                class_cd_dict[f'class_cd{level}'] = class_cd
+            else:
+                class_cd_dict[f'class_cd{level}'] = None
+        return class_cd_dict
 
     async def generate_and_save_all_product_code_data(self, limit: int = None, offset: int = None) -> Dict[str, Any]:
         """
@@ -38,19 +53,23 @@ class ProductCodeIntegratedService:
             # repository 인스턴스는 세션이 필요하므로 여기서 할당
             self.reg_repo = ProductRegistrationRepository(session)
             self.prod_repo = ProductRepository(session)
+            product_mycategory_repo = ProductMyCategoryRepository(session)
             
             # 1. Fetch all registration data
             registration_data_list: List[ProductRegistrationRawData] = await self.reg_repo.get_all(limit=limit, offset=offset)
             success, failed = [], []
             product_raw_data_list = []
-            logger.info(f"registration_data_list log value: {registration_data_list}")
+            # logger.info(f"registration_data_list log value: {registration_data_list}")
             for reg in registration_data_list:
                 reg_dict = reg.to_dict() if hasattr(reg, 'to_dict') else dict(reg.__dict__)
                 logger.debug(f"모든 컬럼 값: {reg_dict}")
-                product_nm = reg_dict.get('product_nm') or reg_dict.get('product_nm')
-                for gubun in ["마스터","전문몰","1+1"]:
+                product_nm = reg_dict.get('product_nm')
+                # 여기서 메서드 호출
+                class_cd_dict = await self.get_class_cd_dict(product_mycategory_repo, reg_dict)
+                # logger.info(f"class_cd_dict for product_nm={product_nm}: {class_cd_dict}")
+                for gubun in ["마스터", "전문몰", "1+1"]:
                     try:
-                        service = ProductCodeRegistrationService(reg_dict)
+                        service = ProductCodeRegistrationService(reg_dict, class_cd_dict)
                         code_data = service.generate_product_code_data(product_nm, gubun)
                         product_raw_data_list.append(code_data)
                         success.append({'product_nm': product_nm, 'gubun': gubun})

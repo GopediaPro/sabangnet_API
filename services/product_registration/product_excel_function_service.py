@@ -6,18 +6,21 @@
 from typing import Dict, Any, Optional, List
 import math
 from utils.sabangnet_logger import get_logger
+from repository.product_mycategory_repository import ProductMyCategoryRepository
 
 logger = get_logger(__name__)
 
 class ProductCodeRegistrationService:
     """품번코드대량등록툴 Excel 수식 변환 서비스"""
     
-    def __init__(self, product_registration_raw_data: Dict[str, Any]):
+    def __init__(self, product_registration_raw_data: Dict[str, Any], class_cd_dict: Dict[str, str]):
         """
         Args:
             product_registration_data: 상품등록 테이블의 데이터 (K열~AH열에 해당하는 데이터)
+            class_cd_dict: 카테고리 코드 딕셔너리
         """
         self.source_data = product_registration_raw_data
+        self.class_cd_dict = class_cd_dict
     
     def generate_product_code_data(self, product_nm: str, gubun: str) -> Dict[str, Any]:
         """
@@ -212,6 +215,11 @@ class ProductCodeRegistrationService:
             
             # 나머지 필드들은 기본값 또는 빈 값으로 설정
             # result.update(self._get_remaining_fields(product_nm))
+            ## 카테고리 관련 추가
+            result['class_cd1'] = self._get_category_code_from_class_nm(1)
+            result['class_cd2'] = self._get_category_code_from_class_nm(2)
+            result['class_cd3'] = self._get_category_code_from_class_nm(3)
+            result['class_cd4'] = self._get_category_code_from_class_nm(4)
             
             return result
         except Exception as e:
@@ -482,7 +490,10 @@ class ProductCodeRegistrationService:
             return "해당사항없음"
         else:
             return "상세페이지참조"
-    
+    def _get_category_code_from_class_nm(self, level: int) -> str:
+        """카테고리코드 조회"""
+        return self.class_cd_dict.get(f'class_cd{level}', '')
+
     def _get_remaining_fields(self, product_nm: str) -> Dict[str, str]:
         """나머지 필드들의 기본값"""
         remaining = {}
@@ -490,7 +501,8 @@ class ProductCodeRegistrationService:
         return remaining
 
 def create_bulk_product_code_data(source_data_list: List[Dict[str, Any]], 
-                                  product_nms_with_gubun: List[tuple]) -> List[Dict[str, Any]]:
+                                  product_nms_with_gubun: List[tuple],
+                                  class_cd_dict: Dict[str, str]) -> List[Dict[str, Any]]:
     """
     여러 상품에 대한 품번코드대량등록툴 데이터를 일괄 생성
     
@@ -515,7 +527,7 @@ def create_bulk_product_code_data(source_data_list: List[Dict[str, Any]],
         for product_nm, gubun in product_nms_with_gubun:
             source_data = source_data_dict.get(product_nm, {})
             
-            service = ProductCodeRegistrationService(source_data)
+            service = ProductCodeRegistrationService(source_data, class_cd_dict)
             result = service.generate_product_code_data(product_nm, gubun)
             results.append(result)
         

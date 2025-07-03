@@ -106,6 +106,20 @@ class ProductRegistrationRawData(Base):
         String(100), comment="1+1옵션상세"
     )
 
+    # 카테고리 정보
+    class_nm1: Mapped[Optional[str]] = mapped_column(
+        String(50), comment="대분류_분류명"
+    )
+    class_nm2: Mapped[Optional[str]] = mapped_column(
+        String(50), comment="중분류_분류명"
+    )
+    class_nm3: Mapped[Optional[str]] = mapped_column(
+        String(50), comment="소분류_분류명"
+    )
+    class_nm4: Mapped[Optional[str]] = mapped_column(
+        String(50), comment="세분류_분류명"
+    )
+
     def __repr__(self) -> str:
         return f"<ProductRegistrationRawData(id={self.id}, product_nm='{self.product_nm}', char_1_nm='{self.char_1_nm}')>"
 
@@ -137,6 +151,10 @@ class ProductRegistrationRawData(Base):
             'goods_remarks_url': self.goods_remarks_url,
             'delv_one_plus_one': self.delv_one_plus_one,
             'delv_one_plus_one_detail': self.delv_one_plus_one_detail,
+            'class_nm1': self.class_nm1,
+            'class_nm2': self.class_nm2,
+            'class_nm3': self.class_nm3,
+            'class_nm4': self.class_nm4,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
