@@ -32,17 +32,27 @@ class OneOnePriceService:
 
     async def calculate_and_save_one_one_prices(
             self,
-            product_registration_raw_data_id: int,
+            test_product_raw_data_id: int,
+            compayny_goods_cd: str,
             product_nm: str,
             standard_price: Decimal,
             ) -> OneOnePriceDto:
         """전체 프로세스 실행"""
+
         # 1. 어떤 제품의 기준 가격 조회
-        if await self.one_one_price_repository.find_one_one_price_data_by_product_registration_raw_data_id(product_registration_raw_data_id) is not None:
-            raise ValueError(f"상품명 {product_nm}에 대한 가격 정보가 이미 존재합니다. (product_registration_raw_data_id: {product_registration_raw_data_id})")
+        if await self.one_one_price_repository.find_one_one_price_data_by_test_product_raw_data_id(test_product_raw_data_id) is not None:
+            raise ValueError(f"상품명 {product_nm}에 대한 가격 정보가 이미 존재합니다. (test_product_raw_data_id: {test_product_raw_data_id})")
 
         # 2. 그 제품의 1+1 가격 계산
         one_one_price = self.calculate_one_one_price(standard_price)
+
+        base_data = {
+            'test_product_raw_data_id': test_product_raw_data_id,
+            'compayny_goods_cd': compayny_goods_cd,
+            'product_nm': product_nm,
+            'standard_price': standard_price,
+            'one_one_price': one_one_price,
+        }
 
         # 3. 각 그룹별 가격 계산
         shop_prices = {}
@@ -71,10 +81,7 @@ class OneOnePriceService:
 
         # 4. DTO 생성
         one_one_price_dto = OneOnePriceDto(
-            product_registration_raw_data_id=product_registration_raw_data_id,
-            product_nm=product_nm,
-            standard_price=standard_price,
-            one_one_price=one_one_price,
+            **base_data,
             **shop_prices
         )
 

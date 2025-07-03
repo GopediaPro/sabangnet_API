@@ -194,6 +194,75 @@ class ProductRepository:
         await self.session.commit()
         return res.scalar_one()
 
+    async def get_product_raw_data_all(self) -> list[ProductRawData]:
+        """
+        test_product_raw_data 테이블의 모든 데이터 조회
+        Returns:
+            ProductRawData 리스트
+        """
+        query = select(ProductRawData).order_by(ProductRawData.id)
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
+    async def get_product_raw_data_by_gubun(self, gubun: str) -> list[ProductRawData]:
+        """
+        gubun 조건으로 test_product_raw_data 테이블 데이터 조회
+        Args:
+            gubun: 몰구분 (마스터, 전문몰, 1+1)
+        Returns:
+            ProductRawData 리스트
+        """
+        query = select(ProductRawData).where(ProductRawData.gubun == gubun).order_by(ProductRawData.id)
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
+    async def get_product_raw_data_by_ids(self, ids: list[int]) -> list[ProductRawData]:
+        """
+        ID 리스트로 test_product_raw_data 테이블 데이터 조회
+        Args:
+            ids: 조회할 ID 리스트
+        Returns:
+            ProductRawData 리스트
+        """
+        query = select(ProductRawData).where(ProductRawData.id.in_(ids)).order_by(ProductRawData.id)
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
+    async def get_product_raw_data_by_product_nm(self, product_nm: str) -> list[ProductRawData]:
+        """
+        상품명으로 test_product_raw_data 테이블 데이터 조회
+        Args:
+            product_nm: 상품명
+        Returns:
+            ProductRawData 리스트
+        """
+        query = select(ProductRawData).where(ProductRawData.product_nm.like(f"%{product_nm}%")).order_by(ProductRawData.id)
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
+    async def get_product_raw_data_pagination(self, skip: int = 0, limit: int = 10) -> list[ProductRawData]:
+        """
+        test_product_raw_data 테이블 데이터 페이징 조회
+        Args:
+            skip: 건너뛸 개수
+            limit: 조회할 개수
+        Returns:
+            ProductRawData 리스트
+        """
+        query = select(ProductRawData).offset(skip).limit(limit).order_by(ProductRawData.id)
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
+    async def count_product_raw_data(self) -> int:
+        """
+        test_product_raw_data 테이블 총 개수 조회
+        Returns:
+            총 개수
+        """
+        query = select(func.count(ProductRawData.id))
+        result = await self.session.execute(query)
+        return result.scalar()
+
 async def insert_product_raw_data(session: AsyncSession, data: dict) -> ProductRawData:
     obj = ProductRawData(**data)
     session.add(obj)

@@ -53,8 +53,8 @@ class OneOnePriceRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def find_one_one_price_data_by_product_registration_raw_data_id(self, product_registration_raw_data_id: int) -> OneOnePrice:
-        """product_registration_raw_data_id로 쇼핑몰별 가격 데이터 조회"""
-        query = select(OneOnePrice).where(OneOnePrice.product_registration_raw_data_id == product_registration_raw_data_id)
+    async def find_one_one_price_data_by_test_product_raw_data_id(self, test_product_raw_data_id: int) -> OneOnePrice:
+        """test_product_raw_data_id로 쇼핑몰별 가격 데이터 조회"""
+        query = select(OneOnePrice).where(OneOnePrice.test_product_raw_data_id == test_product_raw_data_id)
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
