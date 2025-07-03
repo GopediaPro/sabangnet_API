@@ -1,10 +1,3 @@
-"""
-Ali 합포장 자동화
-─────────────────────────────────────────────────────────────
-• VBA <알리_합포장_자동화.bas> 1‑24단계를 Python(OpenPyXL)으로 전환
-• 코드 구조와 헬퍼 함수 네이밍을 etc_site / brandy 모듈과 맞춤
-"""
-
 from __future__ import annotations
 
 import os
@@ -12,7 +5,7 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
-import openpyxl
+from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border
 from openpyxl.utils import get_column_letter
 
@@ -31,7 +24,7 @@ DUP_QTY_RE = re.compile(r"\d+개")
 MULTI_SEP_RE = re.compile(r"[\/;]")
 
 
-def _to_num(val) -> float:
+def to_num(val) -> float:
     """'12,345원' → 12345.0 (실패 시 0)."""
     try:
         return float(re.sub(r"[^\d.-]", "", str(val))) if str(val).strip() else 0.0
@@ -39,7 +32,7 @@ def _to_num(val) -> float:
         return 0.0
 
 
-def _fmt_phone(val: str | None) -> str:
+def fmt_phone(val: str | None) -> str:
     """전화번호 01012345678 → 010-1234-5678."""
     if not val:
         return ""
@@ -49,7 +42,7 @@ def _fmt_phone(val: str | None) -> str:
     return f"{digits[:3]}-{digits[3:7]}-{digits[7:]}" if len(digits) == 11 else digits
 
 
-def _clean_item(txt: str) -> str:
+def clean_item(txt: str) -> str:
     """F셀 문자열 정리"""
     if txt is None:
         return ""
@@ -64,17 +57,16 @@ def _clean_item(txt: str) -> str:
     return txt
 
 
-# ──────────────────────────────────────────────
 def ali_merge_packaging(input_path: str) -> str:
     """
     실행 진입점
     """
-    # ╭─ 0. 엑셀 로드
-    wb = openpyxl.load_workbook(input_path)
+    # 0: 엑셀 로드
+    wb = load_workbook(input_path)
     ws = wb.active
     last_row, last_col = ws.max_row, ws.max_column
 
-    # ╭─ 1. 기본 서식
+    # 1: 기본 서식
     for row in ws.iter_rows():
         for cell in row:
             cell.font = FONT_MALGUN
@@ -83,7 +75,7 @@ def ali_merge_packaging(input_path: str) -> str:
     for cell in ws[1]:
         cell.fill = HDR_FILL
 
-    # ╭─ 2. B‧C 정렬 (openpyxl: manual sort)
+    # 2: B‧C 정렬 (openpyxl: manual sort)
     rows = [
         [ws.cell(row=r, column=c).value for c in range(1, last_col + 1)]
         for r in range(2, last_row + 1)
@@ -95,55 +87,55 @@ def ali_merge_packaging(input_path: str) -> str:
             ws.cell(row=ridx, column=cidx, value=val)
     last_row = ws.max_row
 
-    # ╭─ 3. Z → F 복사, 열너비
+    # 3: Z → F 복사, 열너비
     for r in range(2, last_row + 1):
         ws[f"F{r}"].value = ws[f"Z{r}"].value
     ws.column_dimensions["F"].width = 45
 
-    # ╭─ 4. F 문자열 정리
+    # 4: F 문자열 정리
     for r in range(2, last_row + 1):
-        ws[f"F{r}"].value = _clean_item(ws[f"F{r}"].value)
+        ws[f"F{r}"].value = clean_item(ws[f"F{r}"].value)
 
-    # ╭─ 5. 배경색 제거
+    # 5: 배경색 제거
     for row in ws.iter_rows(min_row=2, max_row=last_row, max_col=last_col):
         for cell in row:
             cell.fill = PatternFill(fill_type=None)
 
-    # ╭─ 6. 수량 중복 행 파란색
+    # 6: 수량 중복 행 파란색
     for r in range(2, last_row + 1):
         txt = str(ws[f"F{r}"].value or "")
         parts = [p.strip() for p in txt.split("+")]
         if sum(1 for p in parts if DUP_QTY_RE.search(p)) >= 2:
             ws[f"F{r}"].fill = BLUE_FILL
 
-    # ╭─ 7. I 전화번호 포맷 & 8. I → H 복사
+    # 7: I 전화번호 포맷 & 8. I → H 복사
     for r in range(2, last_row + 1):
-        phone = _fmt_phone(ws[f"I{r}"].value)
+        phone = fmt_phone(ws[f"I{r}"].value)
         ws[f"I{r}"].value = phone
         ws[f"H{r}"].value = phone
     ws.column_dimensions["H"].width = ws.column_dimensions["I"].width
 
-    # ╭─ 9. F 열 삽입 + LEFT(E,16)
+    # 9: F 열 삽입 + LEFT(E,16)
     ws.insert_cols(6)
     ws["F1"].value = "TrimE"
     for r in range(2, last_row + 1):
         ws[f"F{r}"].value = str(ws[f"G{r}"].value)[:16]
-    # 10. F → G(E) 복사 후 F 삭제
+    # 10: F → G(E) 복사 후 F 삭제
     for r in range(2, last_row + 1):
         ws[f"G{r}"].value = ws[f"F{r}"].value
     ws.delete_cols(6)
     last_col = ws.max_column
 
-    # ╭─ 12. D = U + V
+    # 12: D = U + V
     for r in range(2, last_row + 1):
-        ws[f"D{r}"].value = _to_num(
-            ws[f"U{r}"].value) + _to_num(ws[f"V{r}"].value)
+        ws[f"D{r}"].value = to_num(
+            ws[f"U{r}"].value) + to_num(ws[f"V{r}"].value)
 
-    # ╭─ 13. A 순번
+    # 13: A 순번
     for r in range(2, last_row + 1):
         ws[f"A{r}"].value = r - 1
 
-    # ╭─ 14. 서식 정렬
+    # 14: 서식 정렬
     center = Alignment(horizontal="center")
     right = Alignment(horizontal="right")
     for col in ("A", "B"):
@@ -159,9 +151,9 @@ def ali_merge_packaging(input_path: str) -> str:
         for cell in row:
             cell.border = NO_BORDER
 
-    # ╭─ 18. 다시 B,C 정렬 보증 (이미 정렬됨)
+    # 18: 다시 B,C 정렬 보증 (이미 정렬됨)
 
-    # ╭─ 19. 제주 처리
+    # 19: 제주 처리
     for r in range(2, last_row + 1):
         if "제주" in str(ws[f"J{r}"].value or ""):
             ws[f"J{r}"].font = Font(color="FF0000", bold=True)
@@ -169,7 +161,7 @@ def ali_merge_packaging(input_path: str) -> str:
                 ws[f"F{r}"].value = f"{ws[f'F{r}'].value} [3000원 환불처리]"
             ws[f"F{r}"].fill = JEJU_FILL
 
-    # ╭─ 21. VLOOKUP(F, Sheet1!A:B) → 다음 열(S)
+    # 21: VLOOKUP(F, Sheet1!A:B) → 다음 열(S)
     if "Sheet1" in wb.sheetnames:
         lookup_ws = wb["Sheet1"]
         vmap = {
@@ -183,7 +175,7 @@ def ali_merge_packaging(input_path: str) -> str:
             ws[f"{col_s}{r}"].value = vmap.get(str(ws[f"F{r}"].value), "S")
         last_col += 1
 
-    # ╭─ 22. 사이트별 시트 분리
+    # 22: 사이트별 시트 분리
     site_rows = defaultdict(list)
     for r in range(2, last_row + 1):
         text = str(ws[f"B{r}"].value or "")
@@ -211,13 +203,13 @@ def ali_merge_packaging(input_path: str) -> str:
         for idx, w in enumerate(col_widths, start=1):
             sheet.column_dimensions[get_column_letter(idx)].width = w
 
-    # ╭─ 24. 시트 순서
+    # 24: 시트 순서
     desired = ["알리합포장", "OK", "IY", "Sheet1"]
     for name in reversed(desired):
         if name in wb.sheetnames:
             wb._sheets.insert(0, wb._sheets.pop(wb.sheetnames.index(name)))
 
-    # ╭─ 저장
+    # 저장
     output_path = str(Path(input_path).with_name("알리_합포장_자동화_" + Path(input_path).name))
     wb.save(output_path)
     wb.close()
@@ -225,7 +217,6 @@ def ali_merge_packaging(input_path: str) -> str:
     return output_path
 
 
-# ──────────────────────────────────────────────
 if __name__ == "__main__":
     test_file = "/Users/smith/Documents/github/OKMart/sabangnet_API/files/test-[기본양식]-합포장용.xlsx"
     ali_merge_packaging(test_file)

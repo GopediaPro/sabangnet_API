@@ -1,14 +1,11 @@
 import re
 from pathlib import Path
 
-import openpyxl
+from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border
 from openpyxl.utils import get_column_letter
 
 
-# ──────────────────────────────────────────────
-# Helper
-# ──────────────────────────────────────────────
 FONT_MALGUN = Font(name="맑은 고딕", size=9)
 HDR_FILL = PatternFill(start_color="006100", end_color="006100", fill_type="solid")
 BLUE_FILL = PatternFill(start_color="CCE8FF", end_color="CCE8FF", fill_type="solid")
@@ -18,14 +15,14 @@ STAR_QTY_RE = re.compile(r"\* ?(\d+)")
 MULTI_SEP_RE = re.compile(r"[\/;]")
 
 
-def _to_num(val) -> float:
+def to_num(val) -> float:
     try:
         return float(re.sub(r"[^\d.-]", "", str(val))) if str(val).strip() else 0.0
     except ValueError:
         return 0.0
 
 
-def _clean_f_text(txt: str) -> str:
+def clean_f_text(txt: str) -> str:
     """
     F열 문자열 정리:
     • '/' ';' → ' + '
@@ -39,7 +36,7 @@ def _clean_f_text(txt: str) -> str:
     return txt.replace(" 1개", "").strip()
 
 
-def _format_lookup(ws_lookup) -> dict[str, str]:
+def format_lookup(ws_lookup) -> dict[str, str]:
     """Sheet1 A:B → dict"""
     return {
         str(r[0].value): r[1].value
@@ -48,13 +45,12 @@ def _format_lookup(ws_lookup) -> dict[str, str]:
     }
 
 
-# ──────────────────────────────────────────────
 def zigzag_merge_packaging(file_path: str) -> str:
-    wb = openpyxl.load_workbook(file_path)
+    wb = load_workbook(file_path)
     ws = wb.active
     last_row, last_col = ws.max_row, ws.max_column
 
-    # 1. 서식 & 헤더
+    # 1: 서식 & 헤더
     for row in ws.iter_rows():
         for cell in row:
             cell.font = FONT_MALGUN
@@ -64,41 +60,41 @@ def zigzag_merge_packaging(file_path: str) -> str:
         cell.fill = HDR_FILL
         cell.alignment = Alignment(horizontal="center")
 
-    # 2. M열 숫자화
+    # 2: M열 숫자화
     for r in range(2, last_row + 1):
         try:
             ws[f"M{r}"].value = int(float(ws[f"M{r}"].value))
         except (ValueError, TypeError):
             ws[f"M{r}"].value = 0
 
-    # 3. VLOOKUP(M, Sheet1!A:B) → V열
+    # 3: VLOOKUP(M, Sheet1!A:B) → V열
     if "Sheet1" in wb.sheetnames:
-        vmap = _format_lookup(wb["Sheet1"])
+        vmap = format_lookup(wb["Sheet1"])
         for r in range(2, last_row + 1):
             ws[f"V{r}"].value = vmap.get(str(ws[f"M{r}"].value), "")
 
-    # 4. D = U + V
+    # 4: D = U + V
     for r in range(2, last_row + 1):
-        ws[f"D{r}"].value = _to_num(ws[f"U{r}"].value) + _to_num(ws[f"V{r}"].value)
+        ws[f"D{r}"].value = to_num(ws[f"U{r}"].value) + to_num(ws[f"V{r}"].value)
 
-    # 5. 테두리 & 배경 제거
+    # 5: 테두리 & 배경 제거
     for row in ws.iter_rows(min_row=2, max_row=last_row, max_col=last_col):
         for cell in row:
             cell.border = NO_BORDER
             cell.fill = PatternFill(fill_type=None)
 
-    # 6. F열 문자열 정리 + 파란색 강조(수량 2개 이상)
+    # 6: F열 문자열 정리 + 파란색 강조(수량 2개 이상)
     for r in range(2, last_row + 1):
-        ftxt = _clean_f_text(ws[f"F{r}"].value)
+        ftxt = clean_f_text(ws[f"F{r}"].value)
         ws[f"F{r}"].value = ftxt
         if ftxt.count("개") >= 2:
             ws[f"F{r}"].fill = BLUE_FILL
 
-    # 7. A열 순번
+    # 7: A열 순번
     for r in range(2, last_row + 1):
         ws[f"A{r}"].value = r - 1
 
-    # 8. 열 정렬
+    # 8: 열 정렬
     center = Alignment(horizontal="center")
     right = Alignment(horizontal="right")
     for col in ("A", "B"):
@@ -109,7 +105,7 @@ def zigzag_merge_packaging(file_path: str) -> str:
             for cell in ws[col]:
                 cell.alignment = right
 
-    # 9. C → B 정렬
+    # 9: C → B 정렬
     rows = [
         [ws.cell(row=r, column=c).value for c in range(1, last_col + 1)]
         for r in range(2, last_row + 1)
@@ -121,10 +117,10 @@ def zigzag_merge_packaging(file_path: str) -> str:
             ws.cell(row=ridx, column=cidx, value=val)
     last_row = ws.max_row
 
-    # 10. 시트 분리(OK, IY)
+    # 10: 시트 분리(OK, IY)
     col_widths = [ws.column_dimensions[get_column_letter(c)].width for c in range(1, last_col + 1)]
 
-    def _copy_rows(dst_ws, rows_idx):
+    def copy_rows(dst_ws, rows_idx):
         for c in range(1, last_col + 1):
             dst_ws.cell(row=1, column=c, value=ws.cell(row=1, column=c).value)
         for idx, r in enumerate(rows_idx, start=2):
@@ -146,12 +142,12 @@ def zigzag_merge_packaging(file_path: str) -> str:
 
     if ok_rows:
         ws_ok = wb.create_sheet("OK")
-        _copy_rows(ws_ok, ok_rows)
+        copy_rows(ws_ok, ok_rows)
         for idx, w in enumerate(col_widths, start=1):
             ws_ok.column_dimensions[get_column_letter(idx)].width = w
     if iy_rows:
         ws_iy = wb.create_sheet("IY")
-        _copy_rows(ws_iy, iy_rows)
+        copy_rows(ws_iy, iy_rows)
         for idx, w in enumerate(col_widths, start=1):
             ws_iy.column_dimensions[get_column_letter(idx)].width = w
 
