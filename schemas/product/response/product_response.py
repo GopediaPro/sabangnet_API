@@ -49,3 +49,16 @@ class ProductResponse(BaseModel):
             char_2_val=dto.char_2_val,
             created_at=dto.created_at
         )
+    
+class ProductPageResponse(BaseModel):
+    products: list[ProductResponse] = Field(description="상품 목록")
+    current_page: int = Field(description="현재 페이지")
+    page_size: int = Field(description="페이지 크기")
+
+    @classmethod
+    def builder(cls, products: list[ProductResponse], current_page: int, page_size: int) -> "ProductPageResponse":
+        return cls(
+            products=products,
+            current_page=current_page,
+            page_size=page_size
+        )
