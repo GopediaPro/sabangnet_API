@@ -181,6 +181,7 @@ class ModifiedProductData(Base):
                    name="test_product_raw_data", ondelete="CASCADE"),
         nullable=False
     )
+    product_id: Mapped[int] = mapped_column(Integer)
     rev: Mapped[int | None] = mapped_column(SmallInteger)
 
     raw = relationship("ProductRawData",
