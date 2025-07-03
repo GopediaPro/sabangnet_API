@@ -173,6 +173,7 @@ class ProductRawData(Base):
     no_word: Mapped[int] = mapped_column(Integer)
     no_keyword: Mapped[int] = mapped_column(Integer)
 
+    product_id: Mapped[int] = mapped_column(Integer)
     # 1:N 관계 설정
     modified_entries = relationship("ModifiedProductData",
                                     back_populates="raw", cascade="all, delete-orphan")

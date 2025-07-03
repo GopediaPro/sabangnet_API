@@ -20,5 +20,6 @@ async def mall_price_setting(
     product_mall_price_usecase: ProductMallPriceUsecase = Depends(get_product_mall_price_usecase)
 ):
     return SettingMallPriceResponse.from_dto(await product_mall_price_usecase.setting_mall_price(
+        gubun=request.gubun,
         product_nm=request.product_nm,
     ))

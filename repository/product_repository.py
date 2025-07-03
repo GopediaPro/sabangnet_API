@@ -15,6 +15,11 @@ class ProductRepository:
     def to_dict(self, obj) -> dict:
         return {c.key: getattr(obj, c.key) for c in inspect(obj).mapper.column_attrs}
     
+    async def find_product_raw_data_by_product_nm_and_gubun(self, product_nm: str, gubun: str) -> ProductRawData:
+        query = select(ProductRawData).where(ProductRawData.product_nm == product_nm, ProductRawData.gubun == gubun)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
     async def get_products(self, page: int) -> list[ProductRawData]:
         query = select(ProductRawData).offset((page - 1) * 20).limit(20).order_by(ProductRawData.created_at.desc())
         result = await self.session.execute(query)
@@ -147,7 +152,7 @@ class ProductRepository:
         return product_raw_data.scalar_one_or_none()
     
 
-    async def find_product_raw_data_by_product_nm_and_gubun(self, product_nm: str, gubun: str) -> Optional[int]:
+    async def find_product_id_raw_data_by_product_nm_and_gubun(self, product_nm: str, gubun: str) -> Optional[int]:
         """상품명과 구분으로 test_product_raw_data의 ID 조회"""
         # SELECT id FROM test_product_raw_data WHERE product_nm = ? AND gubun = ?
         query = select(ProductRawData.id).where(

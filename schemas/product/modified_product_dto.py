@@ -164,3 +164,5 @@ class ModifiedProductDataDto(BaseModel):
     detail_img_url: Optional[str] = Field(None)
     no_word: Optional[int] = Field(None)
     no_keyword: Optional[int] = Field(None)
+
+    product_id: Optional[int] = Field(None, description="상품 ID")

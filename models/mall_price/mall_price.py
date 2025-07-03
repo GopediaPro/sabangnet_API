@@ -8,10 +8,12 @@ class MallPrice(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     product_nm: Mapped[str] = mapped_column(String(100), nullable=False)
     standard_price: Mapped[int] = mapped_column(Integer)
-    
-    product_registration_raw_data_id: Mapped[int] = mapped_column(
-        ForeignKey("product_registration_raw_data.id",
-                   name="product_registration_raw_data", ondelete="CASCADE"),
+
+    compayny_goods_cd: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    test_product_raw_data_id: Mapped[int] = mapped_column(
+        ForeignKey("test_product_raw_data.id",
+                   name="test_product_raw_data", ondelete="CASCADE"),
         nullable=False
     )
 
@@ -59,7 +61,7 @@ class MallPrice(Base):
     shop0387: Mapped[int] = mapped_column(Integer)
 
     @classmethod
-    def builder(cls, product_registration_raw_data_id: int, standard_price: int, product_nm: str) -> "MallPrice":
+    def builder(cls, product_raw_data_id: int, standard_price: int, product_nm: str, compayny_goods_cd: str) -> "MallPrice":
         # 1. 기본판매가 계산
         shop0007 = int(cls.__round_up(standard_price * 115 // 100) - 100 + 3000)
         shop0042 = int(cls.__round_up(standard_price * 115 // 100) - 100 + 3000)
@@ -99,9 +101,10 @@ class MallPrice(Base):
         shop0387 = int(standard_price)
 
         return cls(
-            product_registration_raw_data_id=product_registration_raw_data_id,
+            test_product_raw_data_id=product_raw_data_id,
             standard_price=standard_price,
             product_nm=product_nm,
+            compayny_goods_cd=compayny_goods_cd,
             shop0007=shop0007,
             shop0042=shop0042,
             shop0087=shop0087,
