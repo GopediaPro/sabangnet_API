@@ -119,5 +119,7 @@ class ProductRawDataDto(BaseModel):
     no_word: Optional[int] = Field(None, description="글자수")
     no_keyword: Optional[int] = Field(None, description="키워드")
 
+    product_id: Optional[int] = Field(None, description="상품 ID")
+
     created_at: Optional[datetime] = Field(None, description="생성일시")
     updated_at: Optional[datetime] = Field(None, description="수정일시")
