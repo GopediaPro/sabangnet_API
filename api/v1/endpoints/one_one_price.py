@@ -20,5 +20,5 @@ async def one_one_price_setting(
     product_one_one_price_usecase: ProductOneOnePriceUsecase = Depends(get_product_one_one_price_usecase)
 ):
     return OneOnePriceResponse.from_dto(await product_one_one_price_usecase.calculate_and_save_one_one_prices(
-        products_nm=request.products_nm,
+        product_nm=request.product_nm,
     ))

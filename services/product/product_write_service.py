@@ -1,4 +1,5 @@
 from schemas.product.modified_product_dto import ModifiedProductDataDto
+from schemas.product.product_raw_data_dto import ProductRawDataDto
 from schemas.product.response.product_response import ProductNameResponse
 from repository.product_repository import ProductRepository
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,4 +24,9 @@ class ProductWriteService:
         
         dto = ModifiedProductDataDto.model_validate(result)
         return dto
+    
+    async def get_products(self, page: int) -> list[ProductRawDataDto]:
+        products = await self.product_repository.get_products(page=page)
+        dtos = [ProductRawDataDto.model_validate(product) for product in products]
+        return dtos
     

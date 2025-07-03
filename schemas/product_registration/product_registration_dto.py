@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field, validator
 class ProductRegistrationCreateDto(BaseModel):
     """상품 등록 데이터 생성용 DTO"""
     
-    products_nm: Optional[str] = Field(None, max_length=255, description="제품명")
+    product_nm: Optional[str] = Field(None, max_length=255, description="제품명")
     goods_nm: Optional[str] = Field(None, max_length=255, description="상품명")
     detail_path_img: Optional[str] = Field(None, description="상세페이지경로(이미지폴더)")
     delv_cost: Optional[Decimal] = Field(None, ge=0, description="배송비")
