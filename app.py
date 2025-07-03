@@ -43,7 +43,29 @@ MINIO_PORT = SETTINGS.MINIO_PORT
 
 # Logging configuration
 logger = get_logger(__name__)
+@app.command(help="쇼핑몰 별 상품가격 등록 XML 생성")
+def create_mall_price_registration_xml():
+    from utils.make_xml.mall_price_registration_xml import MallPriceRegistrationXml
+    from core.db import AsyncSessionLocal
+    from schemas.mall_price.mall_price_dto import MallPriceDto
 
+    async def _create_mall_price_registration_xml():
+        try:
+            mall_price_registration_xml = MallPriceRegistrationXml()
+            mock_mall_price_dto = MallPriceDto(
+                compayny_goods_cd="[OMT]F-002",
+                shop0007=9900,
+                shop00100=6900,
+                shop0381=9000,
+                shop0055=6100,
+                shop0075=6000,
+            )
+            mall_price_registration_xml.make_mall_price_dto_registration_xml(mock_mall_price_dto)
+        except Exception as e:
+            logger.error(f"쇼핑몰 별 상품가격 등록 XML 생성 중 오류 발생: {e}")
+            handle_error(e)
+            
+    asyncio.run(_create_mall_price_registration_xml())
 
 @app.command(help="쇼핑몰 목록을 조회합니다")
 def mall_list():
