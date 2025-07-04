@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete, func
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.inspection import inspect
-from typing import Optional
+from typing import List,Optional
 from models.product.product_raw_data import ProductRawData
 from models.product.modified_product_data import ModifiedProductData
 
@@ -77,7 +77,37 @@ class ProductRepository:
         if raw_data is None:
             raise ValueError(f"ID {product_raw_id}에 해당하는 상품을 찾을 수 없습니다.")
         return raw_data
-    
+
+    async def get_product_raw_data_all(self) -> list[ProductRawData]:
+        """
+        test_product_raw_data 테이블의 모든 데이터 조회
+        Returns:
+            ProductRawData 리스트
+        """
+        query = select(ProductRawData).order_by(ProductRawData.id)
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
+    async def count_product_raw_data(self) -> int:
+        """
+        test_product_raw_data 테이블 총 개수 조회
+        Returns:
+            총 개수
+        """
+        query = select(func.count(ProductRawData.id))
+        result = await self.session.execute(query)
+        return result.scalar()
+
+    async def insert_product_ids(self, product_ids: List[int]):
+        """
+        product_id 리스트를 DB에 저장
+        (예시: ProductRegistrationRawData 테이블에 product_id만 저장)
+        """
+        for pid in product_ids:
+            obj = ProductRawData(product_id=pid)
+            self.session.add(obj)
+        await self.session.commit()
+
     async def modified_product_data_create(self, new_raw_dict: dict, returning) -> dict:
         query = insert(ModifiedProductData).returning(returning)
         result = await self.session.execute(query, new_raw_dict)
@@ -193,6 +223,18 @@ class ProductRepository:
         res = await self.session.execute(query)
         await self.session.commit()
         return res.scalar_one()
+
+    async def update_product_id_by_compayny_goods_cd(self, compayny_goods_cd: str, product_id: int) -> None:
+        """
+        compayny_goods_cd가 일치하는 ProductRawData의 product_id를 업데이트
+        """
+        query = (
+            update(ProductRawData)
+            .where(ProductRawData.compayny_goods_cd == compayny_goods_cd)
+            .values(product_id=product_id)
+        )
+        await self.session.execute(query)
+        await self.session.commit()
 
 async def insert_product_raw_data(session: AsyncSession, data: dict) -> ProductRawData:
     obj = ProductRawData(**data)
