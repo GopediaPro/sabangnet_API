@@ -47,7 +47,17 @@ pip3 install -r requirements.txt
 
 ## CLI 명령어
 
-이 프로그램은 Typer를 사용한 CLI 인터페이스를 제공합니다:
+### FastAPI 활용
+```bash
+uvicorn main:app --reload
+
+# web에서 
+http://localhost:8000/docs
+
+# 실행하고 싶은 엔드포인트 ->  Try it out → Execute (request 값 필요 시 입력)
+```
+
+### 이 프로그램은 Typer를 사용한 CLI 인터페이스를 제공합니다:
 
 ```bash
 # 도움말 보기

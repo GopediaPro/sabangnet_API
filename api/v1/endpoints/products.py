@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import Request, Query
 
 from core.settings import SETTINGS
-from core.db import get_async_session
+from core.db import get_async_session, AsyncSessionLocal
 
 from repository.product_repository import ProductRepository
 
@@ -18,9 +18,11 @@ from services.product.product_create_service import ProductCreateService
 from services.product.product_write_service import ProductWriteService
 from schemas.product.request.product_form import ModifyProductNameForm
 from schemas.product.response.product_response import ProductNameResponse, ProductResponse, ProductPageResponse
-
+from schemas.product.db_xml_dto import DbToXmlResponse
+from services.product.product_db_xml_service import ProductDbXmlService
 from utils.sabangnet_logger import get_logger
-
+from file_server_handler import upload_to_file_server, get_file_server_url
+from utils.make_xml.product_registration_xml import ProductRegistrationXml
 
 logger = get_logger(__name__)
 
@@ -39,6 +41,40 @@ def get_product_crud(session: AsyncSession = Depends(get_async_session)) -> Prod
 def get_product_write_service(session: AsyncSession = Depends(get_async_session)) -> ProductWriteService:
     return ProductWriteService(session=session)
 
+@router.post("/db-to-xml-all", response_model=DbToXmlResponse)
+async def db_to_xml_all():
+    """
+    test_product_raw_data 테이블의 모든 데이터를 XML로 변환
+    """
+    try:
+        # DB to XML 파일 로컬 저장
+        xml_file_path = await ProductDbXmlService.db_to_xml_file_all()
+        total_count = await ProductDbXmlService.get_product_raw_data_count()
+        # 파일 서버 업로드
+        object_name = upload_to_file_server(xml_file_path)
+        logger.info(f"파일 서버에 업로드된 XML 파일 이름: {object_name}")
+        xml_url = get_file_server_url(object_name)
+        logger.info(f"파일 서버에 업로드된 XML URL: {xml_url}")
+
+        # 해당 파일을 사방넷 상품등록 요청 후 결과 값 중 PRODUCT_ID 값 db 에 저장.
+        response_xml = ProductCreateService.request_product_create_via_url(xml_url)
+        logger.info(f"사방넷 상품등록 결과: {response_xml}")
+        async with AsyncSessionLocal() as session:
+            await ProductRegistrationXml().input_product_id_to_db(response_xml, session)
+
+        return DbToXmlResponse(
+            success=True,
+            message="모든 상품 데이터를 XML로 변환했습니다.",
+            xml_file_path=xml_url,
+            processed_count=total_count
+        )
+    
+    except ValueError as e:
+        logger.warning(f"DB to XML 변환 실패 (데이터 없음): {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"DB to XML 변환 중 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"DB to XML 변환 중 오류가 발생했습니다: {str(e)}")
 
 @router.post("/excel-to-xml-n8n-test", response_model=dict)
 async def excel_to_xml_n8n_test(request: Request):
