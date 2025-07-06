@@ -1,11 +1,11 @@
 PRODUCT_CREATE_FIELD_MAPPING = {
-    # "순번": "", -> 디자인업무일지 O 명세서 X
-    # "대표이미지확인": "", -> 디자인업무일지 O 명세서 X
-    # "상세이미지확인": "", -> 디자인업무일지 O 명세서 X
-    # "글자수": "", -> 디자인업무일지 O 명세서 X
-    # "키워드": "", -> 디자인업무일지 O 명세서 X
-    # "모델명": "", -> 디자인업무일지 O 명세서 X
-    # "구분": "", -> 디자인업무일지 O 명세서 X
+    "순번": "NO_PRODUCT", # -> 디자인업무일지 O 명세서 X
+    # "대표이미지확인": "", # -> 디자인업무일지 O 명세서 X
+    "상세이미지확인": "DETAIL_IMG_URL", # -> 디자인업무일지 O 명세서 X
+    "글자수": "NO_WORD", # -> 디자인업무일지 O 명세서 X
+    "키워드": "NO_KEYWORD", # -> 디자인업무일지 O 명세서 X
+    "모델명": "PRODUCT_NM", # -> 디자인업무일지 O 명세서 X
+    "구분": "GUBUN", # -> 디자인업무일지 O 명세서 X
 
     # 기본 상품 정보
     "상품명": "GOODS_NM",
@@ -17,9 +17,11 @@ PRODUCT_CREATE_FIELD_MAPPING = {
     "사이트검색어": "GOODS_SEARCH",
 
     # 분류·구분 코드
-    # "표준카테고리": "", -> 디자인업무일지 O 명세서 X
+    # "표준카테고리": "", # -> 디자인업무일지 O 명세서 X
+    "표준카테고리": "STD_CATEGORY",
     "상품구분": "GOODS_GUBUN",
-    "마이카테고리": ("CLASS_CD1", "CLASS_CD2", "CLASS_CD3", "CLASS_CD4"), # -> 디자인업무일지 O 명세서 X, 그러나 분리되서 들어가짐
+    # "마이카테고리": ("CLASS_CD1", "CLASS_CD2", "CLASS_CD3", "CLASS_CD4"), # -> 디자인업무일지 O 명세서 X, 그러나 분리되서 들어가짐
+    "마이카테고리": "MY_CATEGORY",
 
     # 거래처
     "매입처ID": "PARTNER_ID",
@@ -47,7 +49,6 @@ PRODUCT_CREATE_FIELD_MAPPING = {
     "원가": "GOODS_COST",
     "판매가": "GOODS_PRICE",
     "TAG가": "GOODS_CONSUMER_PRICE",
-
 
     # 옵션
     "옵션제목(1)": "CHAR_1_NM",
@@ -85,12 +86,13 @@ PRODUCT_CREATE_FIELD_MAPPING = {
     "식품 재료/원산지": "MATERIAL",
     "원가2": "GOODS_COST2",
 
+    # 이미지
     "부가이미지11": "IMG_PATH11",
     "부가이미지12": "IMG_PATH12",
     "부가이미지13": "IMG_PATH13",
 
     "합포시 제외 여부": "SUPPLY_SAVE_YN",
-    
+
     "부가이미지14": "IMG_PATH14",
     "부가이미지15": "IMG_PATH15",
     "부가이미지16": "IMG_PATH16",
@@ -100,7 +102,7 @@ PRODUCT_CREATE_FIELD_MAPPING = {
     "부가이미지20": "IMG_PATH20",
     "부가이미지21": "IMG_PATH21",
     "부가이미지22": "IMG_PATH22",
-    
+
     # 기타
     "관리자메모": "DESCRITION",
     "옵션수정여부": "OPT_TYPE",
@@ -108,7 +110,7 @@ PRODUCT_CREATE_FIELD_MAPPING = {
     "영문 상품명": "GOODS_NM_EN",
     "출력 상품명": "GOODS_NM_PR",
     "인증서이미지": "IMG_PATH23",
-
+    
     # 옵션·속성 제어
     "추가 상품상세설명_1": "GOODS_REMARKS2",
     "추가 상품상세설명_2": "GOODS_REMARKS3",
@@ -117,7 +119,7 @@ PRODUCT_CREATE_FIELD_MAPPING = {
     "수입신고번호": "IMPORTNO",
     "수입면장이미지": "IMG_PATH24",
     "속성분류코드": "PROP1_CD",
-    
+
     # 속성값 1 – 33
     "속성값1": "PROP_VAL1",
     "속성값2": "PROP_VAL2",
@@ -152,9 +154,9 @@ PRODUCT_CREATE_FIELD_MAPPING = {
     "속성값31": "PROP_VAL31",
     "속성값32": "PROP_VAL32",
     "속성값33": "PROP_VAL33",
-    # "속성값34": "PROP_VAL34", -> 디자인업무일지 O 명세서 X
-    # "속성값35": "PROP_VAL35", -> 디자인업무일지 O 명세서 X
-    # "속성값36": "PROP_VAL36", -> 디자인업무일지 O 명세서 X
-    # "속성값37": "PROP_VAL37", -> 디자인업무일지 O 명세서 X
-    # "속성값38": "PROP_VAL38", -> 디자인업무일지 O 명세서 X
+    "속성값34": "PROP_VAL34", # -> 디자인업무일지 O 명세서 X
+    "속성값35": "PROP_VAL35", # -> 디자인업무일지 O 명세서 X
+    "속성값36": "PROP_VAL36", # -> 디자인업무일지 O 명세서 X
+    "속성값37": "PROP_VAL37", # -> 디자인업무일지 O 명세서 X
+    "속성값38": "PROP_VAL38", # -> 디자인업무일지 O 명세서 X
 }

@@ -2,7 +2,7 @@ from pathlib import Path
 import pandas as pd
 from lxml import etree as ET
 from utils.excel_reader import ExcelReader
-from utils.product_create_field_mapping_to_xml import PRODUCT_CREATE_FIELD_MAPPING
+from utils.product_create_field_mapping_xml import PRODUCT_CREATE_FIELD_MAPPING
 from utils.sabangnet_path_utils import SabangNetPathUtils
 from utils.product_create.template_renderer import TemplateRenderer
 from core.settings import SETTINGS
