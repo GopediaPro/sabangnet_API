@@ -1,7 +1,9 @@
 import math
+from typing import List
 from decimal import Decimal
 from utils.sabangnet_logger import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
+from models.one_one_price.one_one_price import OneOnePrice
 from schemas.one_one_price.one_one_price_dto import OneOnePriceDto
 from repository.one_one_price_repository import OneOnePriceRepository
 
@@ -30,14 +32,13 @@ class OneOnePriceService:
     def __init__(self, session: AsyncSession):
         self.one_one_price_repository = OneOnePriceRepository(session)
 
-    async def calculate_and_save_one_one_prices(
+    async def make_one_one_price_dto(
             self,
             test_product_raw_data_id: int,
             compayny_goods_cd: str,
             product_nm: str,
             standard_price: Decimal,
             ) -> OneOnePriceDto:
-        """전체 프로세스 실행"""
 
         # 1. 어떤 제품의 기준 가격 조회
         if await self.one_one_price_repository.find_one_one_price_data_by_test_product_raw_data_id(test_product_raw_data_id) is not None:
@@ -84,12 +85,7 @@ class OneOnePriceService:
             **base_data,
             **shop_prices
         )
-
-        # 5. 저장
-        created_model = await self.one_one_price_repository.create_one_one_price_data(one_one_price_dto)
-        
-        # 6. DB 모델을 DTO로 변환해서 반환
-        return OneOnePriceDto.model_validate(created_model)
+        return one_one_price_dto
 
     def roundup_to_thousands(self, value: Decimal) -> Decimal:
         """천의 자리에서 올림 (roundup) - 엑셀 ROUNDUP과 동일한 동작"""
@@ -128,3 +124,7 @@ class OneOnePriceService:
         """1+1가격 + 100 적용 샵들"""
         # 1+1가격 + 100
         return one_one_price + 100
+    
+    async def save_one_one_price_dto(self, one_one_price_dto: OneOnePriceDto) -> OneOnePriceDto:
+        """1+1 가격 저장"""
+        return OneOnePriceDto.model_validate(await self.one_one_price_repository.create_one_one_price_data(one_one_price_dto))

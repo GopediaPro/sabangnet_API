@@ -1,24 +1,30 @@
-import requests
-
-from pathlib import Path
-
-from fastapi import Request, Query
-
+# core
 from core.settings import SETTINGS
 from core.db import get_async_session
 
+# fastapi
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+
+# python
+import requests
+from pathlib import Path
+
+# repository
 from repository.product_repository import ProductRepository
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from fastapi import APIRouter, Depends, HTTPException
-
+# services
+from services.product.product_read_service import ProductReadService
+from services.product.product_write_service import ProductWriteService
 from services.product.product_create_service import ProductCreateService
 
-from services.product.product_write_service import ProductWriteService
+# schemas
 from schemas.product.request.product_form import ModifyProductNameForm
 from schemas.product.response.product_response import ProductNameResponse, ProductResponse, ProductPageResponse
 
+# sqlalchemy
+from sqlalchemy.ext.asyncio import AsyncSession
+
+# utils
 from utils.sabangnet_logger import get_logger
 
 
@@ -31,13 +37,12 @@ router = APIRouter(
 )
 
 
-# 의존성 주입을 통해 ProductCRUD 인스턴스 생성
-def get_product_crud(session: AsyncSession = Depends(get_async_session)) -> ProductRepository:
-    return ProductRepository(session=session)
-
-
 def get_product_write_service(session: AsyncSession = Depends(get_async_session)) -> ProductWriteService:
     return ProductWriteService(session=session)
+
+
+def get_product_read_service(session: AsyncSession = Depends(get_async_session)) -> ProductReadService:
+    return ProductReadService(session=session)
 
 
 @router.post("/excel-to-xml-n8n-test", response_model=dict)
@@ -91,3 +96,13 @@ async def get_products(
         current_page=page,
         page_size=20
     )
+
+
+@router.get("/bulk-register-db-to-excel")
+async def bulk_register_db_to_excel(product_service: ProductReadService = Depends(get_product_read_service)):
+    return await product_service.get_bulk_register_db_to_excel()
+
+
+@router.get("/bulk-register-excel-to-db")
+async def bulk_register_excel_to_db(product_service: ProductReadService = Depends(get_product_read_service)):
+    return await product_service.get_bulk_register_excel_to_db()

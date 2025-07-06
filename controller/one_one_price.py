@@ -26,7 +26,7 @@ async def test_one_one_price_calculation(product_nm: str, gubun: str):
         async with AsyncSessionLocal() as session:
             product_one_one_price_usecase = ProductOneOnePriceUsecase(session=session)
             
-            result: OneOnePriceDto = await product_one_one_price_usecase.calculate_and_save_one_one_prices(product_nm=product_nm, gubun=gubun)
+            result: OneOnePriceDto = await product_one_one_price_usecase.calculate_and_save_one_one_price(product_nm=product_nm, gubun=gubun)
             logger.info(f"✅ 성공! 1+1 가격 계산 및 저장 완료")
             logger.info(f"📊 결과: {result.model_dump_json()}")
             

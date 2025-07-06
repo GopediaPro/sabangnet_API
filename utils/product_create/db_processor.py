@@ -4,7 +4,6 @@ from lxml import etree as ET
 from datetime import datetime
 
 from models.product.product_raw_data import ProductRawData
-from utils.product_create_field_mapping import PRODUCT_CREATE_FIELD_MAPPING
 from utils.sabangnet_path_utils import SabangNetPathUtils
 from utils.product_create.template_renderer import TemplateRenderer
 from core.settings import SETTINGS

@@ -3,7 +3,7 @@
 """
 
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, Field
 
 
@@ -64,6 +64,20 @@ class OneOnePriceDto(BaseModel):
     shop0068: Optional[Decimal] = Field(..., description="ESM지마켓")
     shop0273: Optional[Decimal] = Field(..., description="카카오톡스토어")
     shop0464: Optional[Decimal] = Field(..., description="11번가")
+
+    class Config:
+        from_attributes = True
+        json_encoders = {
+            Decimal: lambda v: float(v) if v is not None else None
+        }
+
+
+class OneOnePriceBulkDto(BaseModel):
+    success_count: int = Field(..., description="성공 건수")
+    error_count: int = Field(..., description="실패 건수")
+    created_product_nm: List[int] = Field(..., description="성공 상품명")
+    errors: List[str] = Field(..., description="실패 에러")
+    success_data: List[OneOnePriceDto] = Field(..., description="성공 데이터")
 
     class Config:
         from_attributes = True
