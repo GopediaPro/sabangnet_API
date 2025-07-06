@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete, func
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.inspection import inspect
-from typing import Optional
+from typing import List,Optional
 from models.product.product_raw_data import ProductRawData
 from models.product.modified_product_data import ModifiedProductData
 
@@ -77,7 +77,37 @@ class ProductRepository:
         if raw_data is None:
             raise ValueError(f"ID {product_raw_id}에 해당하는 상품을 찾을 수 없습니다.")
         return raw_data
-    
+
+    async def get_product_raw_data_all(self) -> list[ProductRawData]:
+        """
+        test_product_raw_data 테이블의 모든 데이터 조회
+        Returns:
+            ProductRawData 리스트
+        """
+        query = select(ProductRawData).order_by(ProductRawData.id)
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
+    async def count_product_raw_data(self) -> int:
+        """
+        test_product_raw_data 테이블 총 개수 조회
+        Returns:
+            총 개수
+        """
+        query = select(func.count(ProductRawData.id))
+        result = await self.session.execute(query)
+        return result.scalar()
+
+    async def insert_product_ids(self, product_ids: List[int]):
+        """
+        product_id 리스트를 DB에 저장
+        (예시: ProductRegistrationRawData 테이블에 product_id만 저장)
+        """
+        for pid in product_ids:
+            obj = ProductRawData(product_id=pid)
+            self.session.add(obj)
+        await self.session.commit()
+
     async def modified_product_data_create(self, new_raw_dict: dict, returning) -> dict:
         query = insert(ModifiedProductData).returning(returning)
         result = await self.session.execute(query, new_raw_dict)
@@ -145,12 +175,10 @@ class ProductRepository:
         raw_data: list[dict] = [row.__dict__ for row in result.scalars().all()]
         return raw_data
 
-
     async def find_product_raw_data_by_company_goods_cd(self, company_goods_cd: str) -> ProductRawData:
         query = select(ProductRawData).where(ProductRawData.compayny_goods_cd == company_goods_cd).limit(1)
         product_raw_data = await self.session.execute(query)
         return product_raw_data.scalar_one_or_none()
-    
 
     async def find_product_id_raw_data_by_product_nm_and_gubun(self, product_nm: str, gubun: str) -> Optional[int]:
         """상품명과 구분으로 test_product_raw_data의 ID 조회"""
@@ -162,14 +190,12 @@ class ProductRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-
     async def find_modified_product_data_by_product_raw_data_id(self, product_raw_data_id: int) -> ModifiedProductData:
         query = select(ModifiedProductData).\
             where(ModifiedProductData.test_product_raw_data_id == product_raw_data_id).order_by(ModifiedProductData.rev.desc()).limit(1)
         modified_product_data = await self.session.execute(query)
         return modified_product_data.scalar_one_or_none()
-        
-    
+
     async def save_modified_product_name(self, product_raw_data: ProductRawData, rev: int, product_name: str) -> ModifiedProductData:
         # 1. Get all column names from the model
         columns = [c.key for c in inspect(ModifiedProductData).mapper.column_attrs
@@ -262,6 +288,18 @@ class ProductRepository:
         query = select(func.count(ProductRawData.id))
         result = await self.session.execute(query)
         return result.scalar()
+
+    async def update_product_id_by_compayny_goods_cd(self, compayny_goods_cd: str, product_id: int) -> None:
+        """
+        compayny_goods_cd가 일치하는 ProductRawData의 product_id를 업데이트
+        """
+        query = (
+            update(ProductRawData)
+            .where(ProductRawData.compayny_goods_cd == compayny_goods_cd)
+            .values(product_id=product_id)
+        )
+        await self.session.execute(query)
+        await self.session.commit()
 
 async def insert_product_raw_data(session: AsyncSession, data: dict) -> ProductRawData:
     obj = ProductRawData(**data)
