@@ -43,7 +43,57 @@ MINIO_PORT = SETTINGS.MINIO_PORT
 
 # Logging configuration
 logger = get_logger(__name__)
+@app.command(help="쇼핑몰 별 상품가격 등록 XML 생성")
+def create_mall_price_registration_xml():
+    from utils.make_xml.mall_price_registration_xml import MallPriceRegistrationXml
+    from schemas.mall_price.mall_price_dto import MallPriceDto
 
+    async def _create_mall_price_registration_xml():
+        try:
+            mall_price_registration_xml = MallPriceRegistrationXml()
+            mock_mall_price_dto = MallPriceDto(
+                product_nm="[TEST]SBN-129848",
+                product_raw_data_id=1,
+                compayny_goods_cd="[TEST]SBN-129848",
+                standard_price=10000,
+                shop0007=14800,
+                shop0042=14800,
+                shop0087=14800,
+                shop0094=14800,
+                shop0121=14800,
+                shop0129=14800,
+                shop0154=14800,
+                shop0650=14800,
+                shop0029=10800,
+                shop0189=10800,
+                shop0322=10800,
+                shop0444=10800,
+                shop0100=10500,
+                shop0298=10500,
+                shop0372=10500,
+                shop0381=13000,
+                shop0416=13000,
+                shop0449=13000,
+                shop0498=13000,
+                shop0583=13000,
+                shop0587=13000,
+                shop0661=13000,
+                shop0055=10100,
+                shop0067=10100,
+                shop0068=10100,
+                shop0273=10100,
+                shop0464=10100,
+                shop0075=10000,
+                shop0319=10000,
+                shop0365=10000,
+                shop0387=10000,
+            )
+            mall_price_registration_xml.make_mall_price_dto_registration_xml(mock_mall_price_dto)
+        except Exception as e:
+            logger.error(f"쇼핑몰 별 상품가격 등록 XML 생성 중 오류 발생: {e}")
+            handle_error(e)
+            
+    asyncio.run(_create_mall_price_registration_xml())
 
 @app.command(help="쇼핑몰 목록을 조회합니다")
 def mall_list():
@@ -225,8 +275,8 @@ def generate_product_code_data():
 
 
 @app.command(help="1+1 가격 계산")
-def calculate_one_one_price(product_nm: str = typer.Argument(..., help="상품명")):
-    asyncio.run(test_one_one_price_calculation(product_nm))
+def calculate_one_one_price(product_nm: str = typer.Argument(..., help="상품명"), gubun: str = typer.Argument(..., help="구분")):
+    asyncio.run(test_one_one_price_calculation(product_nm, gubun))
     return
 
 

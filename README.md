@@ -47,7 +47,17 @@ pip3 install -r requirements.txt
 
 ## CLI 명령어
 
-이 프로그램은 Typer를 사용한 CLI 인터페이스를 제공합니다:
+### FastAPI 활용
+```bash
+uvicorn main:app --reload
+
+# web에서 
+http://localhost:8000/docs
+
+# 실행하고 싶은 엔드포인트 ->  Try it out → Execute (request 값 필요 시 입력)
+```
+
+### 이 프로그램은 Typer를 사용한 CLI 인터페이스를 제공합니다:
 
 ```bash
 # 도움말 보기
@@ -182,19 +192,19 @@ logger.critical(내용)
   python app.py import-product-registration-excel "./경로/파일.xlsx" --sheet-name "Sheet1"
 
 - 주문 목록을 엑셀로 변환:
-  python app.py create_order_xlsx
+  python app.py create-order-xlsx
 
 - 테스트 ERP 매크로 실행:
-  python app.py test_erp_macro
+  python app.py test-erp-macro
 
 - 상품 등록 Data 기반으로 excel 수식 To Method 상품 등록 대량 등록 To DB:
   python app.py generate-product-code-data
 
 - 특정 상품 쇼핑몰별 1+1 가격 계산:
-  python app.py calculate_one_one_price 상품원본모델명
+  python app.py calculate-one-one-price 상품원본모델명
 
 - FastAPI 서버 실행:
-  python app.py start_server
+  python app.py start-server
 
 ```bash
 # .env file
@@ -202,7 +212,7 @@ logger.critical(내용)
 SABANG_COMPANY_ID=
 SABANG_AUTH_KEY=
 SABANG_ADMIN_URL=
-
+# MINIO 연결
 MINIO_ROOT_USER=
 MINIO_ROOT_PASSWORD=
 MINIO_ACCESS_KEY=
@@ -211,7 +221,7 @@ MINIO_ENDPOINT=
 MINIO_BUCKET_NAME=
 MINIO_USE_SSL=
 MINIO_PORT=
-
+# DB 연결
 DB_HOST=
 DB_PORT=
 DB_NAME=
@@ -220,13 +230,12 @@ DB_PASSWORD=
 DB_SSLMODE=
 DB_TEST_COLUMN=
 DB_TEST_TABLE=
-
+# uvicorn
 FASTAPI_HOST=
 FASTAPI_PORT=
-
-N8N_TEST=
+# n8n 웹훅 테스트 URI
 N8N_WEBHOOK_BASE_URL=
 N8N_WEBHOOK_PATH=
-
-TEST_MODE=
+# 엑셀 테스트 환경
+CONPANY_GOODS_CD_TEST_MODE=
 ```

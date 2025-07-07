@@ -12,8 +12,8 @@ class MallPriceRepository:
         await self.session.commit()
         return mall_price
     
-    async def exist_mall_price_by_product_registration_raw_data_id(self, product_registration_raw_data_id: int) -> bool:
+    async def exist_mall_price_by_product_raw_data_id(self, product_raw_data_id: int) -> bool:
         result = await self.session.execute(
-            select(MallPrice).where(MallPrice.product_registration_raw_data_id == product_registration_raw_data_id)
+            select(MallPrice).where(MallPrice.test_product_raw_data_id == product_raw_data_id)
         )
         return result.scalar_one_or_none() is not None

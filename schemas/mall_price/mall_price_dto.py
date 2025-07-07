@@ -7,7 +7,8 @@ class MallPriceDto(BaseModel):
         from_attributes = True
 
     product_nm: str = Field(..., description="상품코드")
-    product_registration_raw_data_id: int = Field(..., description="product_registration_raw_data ID (fk)")
+    product_raw_data_id: int = Field(alias="test_product_raw_data_id", description="product_raw_data ID (fk)")
+    compayny_goods_cd: str = Field(..., description="자체 상품 코드")
     standard_price: int = Field(..., description="기준 가격")
 
     # ((기본판매가 + (기본판매가 * 0.15)) 1000자리에서 반올림 후 - 100) + 3000
@@ -25,8 +26,8 @@ class MallPriceDto(BaseModel):
     shop0189: int = Field(..., description="오늘의집 가격")
     shop0322: int = Field(..., description="브랜디 가격")
     shop0444: int = Field(..., description="카카오스타일 가격")
+
     # ((기본판매가 + (기본판매가 * 0.05)) 1000자리에서 반올림 후 - 100)
-    
     shop0100: int = Field(..., description="신세계몰(신) 가격")
     shop0298: int = Field(..., description="cafe24(신) 가격")
     shop0372: int = Field(..., description="롯데온 가격")

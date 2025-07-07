@@ -2,7 +2,7 @@ from pathlib import Path
 import pandas as pd
 from lxml import etree as ET
 from utils.excel_reader import ExcelReader
-from utils.product_create_field_mapping import PRODUCT_CREATE_FIELD_MAPPING
+from utils.product_create_field_mapping_xml import PRODUCT_CREATE_FIELD_MAPPING
 from utils.sabangnet_path_utils import SabangNetPathUtils
 from utils.product_create.template_renderer import TemplateRenderer
 from core.settings import SETTINGS
@@ -46,7 +46,7 @@ class ExcelProcessor:
 
         # 4. XML 파일 저장
         xml_file_path = SabangNetPathUtils.get_xml_file_path() / "product_create_request.xml"
-        if SETTINGS.TEST_MODE:
+        if SETTINGS.CONPANY_GOODS_CD_TEST_MODE:
             xml_file_path = SabangNetPathUtils.get_xml_file_path() / "product_create_request_n8n_test.xml"
         TemplateRenderer.render_to_xml_template(
             xml_element_list,
@@ -89,7 +89,7 @@ class ExcelProcessor:
             if xml_tag_name:
                 if column_idx < 7:
                     continue
-                elif SETTINGS.TEST_MODE:
+                elif SETTINGS.CONPANY_GOODS_CD_TEST_MODE:
                     cls.__make_test_xml_element(xml_tag_name, excel_header, excel_value, data_element, row_idx)
                 else:
                     if isinstance(xml_tag_name, tuple):
