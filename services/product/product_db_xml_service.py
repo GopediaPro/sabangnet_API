@@ -36,7 +36,7 @@ class ProductDbXmlService:
                 logger.info(f"전체 상품 데이터 확인용: {product_data_list}")
                 logger.debug(f"전체 상품 데이터 상세 내용:\n{pformat(product_data_list)}")
                 count_repo = CountExecutingRepository(session)
-                product_create_db_count = await count_repo.get_and_increment(CountExecuting, "product_create_db", id_value=1)
+                product_create_db_count = await count_repo.get_and_increment(CountExecuting, "product_create_db")
                 xml_generator = ProductRegistrationXml()
                 xml_file_path = xml_generator.make_product_registration_xml(product_data_list, product_create_db_count)
                 return xml_file_path
