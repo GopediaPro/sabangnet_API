@@ -48,7 +48,7 @@ class ReceiveOrderRepository:
         finally:
             await self.session.close()
             
-    async def get_orders_pagination(self, page: int, page_size: int = 20) -> list[ReceiveOrder]:
+    async def get_orders_pagination(self, page: int = 1, page_size: int = 20) -> list[ReceiveOrder]:
         """
         주문 데이터 페이징 조회
         Args:

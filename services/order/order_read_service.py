@@ -26,7 +26,7 @@ class OrderReadService:
             try:
                 order_dto = OrderDto.model_validate(order)
                 success_count += 1
-                success_idx.append(order_dto.order_id)
+                success_idx.append(order_dto.idx)
                 success_data.append(order_dto)
             except Exception as e:
                 error_count += 1
@@ -40,19 +40,19 @@ class OrderReadService:
             success_data=success_data,
         )
 
-    async def get_orders_pagination(self, page: int, page_size: int) -> OrderBulkDto:
+    async def get_orders_pagination(self, page: int = 1, page_size: int = 20) -> OrderBulkDto:
         success_count: int = 0
         error_count: int = 0
         success_idx: list[str] = []
         errors: list[str] = []
         success_data: list[OrderDto] = []
 
-        orders = await self.receive_order_repository.get_orders_pagination(page, page_size)
+        orders = await self.receive_order_repository.get_orders_pagination(page=page, page_size=page_size)
         for order in orders:
             try:
                 order_dto = OrderDto.model_validate(order)
                 success_count += 1
-                success_idx.append(order_dto.order_id)
+                success_idx.append(order_dto.idx)
                 success_data.append(order_dto)
             except Exception as e:
                 error_count += 1
