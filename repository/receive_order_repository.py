@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.receive_order.receive_order import ReceiveOrder
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 class ReceiveOrderRepository:
     def __init__(self, session: AsyncSession):
@@ -67,3 +68,15 @@ class ReceiveOrderRepository:
         finally:
             await self.session.close()
     
+    async def query_create(self, obj_in: dict) -> dict:
+        try:
+            query = pg_insert(ReceiveOrder).values(obj_in)
+            query = query.on_conflict_do_update(index_elements=['idx'], set_=obj_in)
+            await self.session.execute(query)
+            await self.session.commit()
+            return obj_in
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+        finally:
+            await self.session.close()

@@ -134,7 +134,7 @@ class OrderListFetchService:
             'total_cost', 'pay_cost', 'sale_cost', 'mall_won_cost', 'won_cost', 'delv_cost'
         ]
         int_fields = [
-            'sale_cnt', 'box_ea', 'p_ea', 'mall_order_seq', 'acnt_regs_srno'
+            'sale_cnt', 'box_ea', 'p_ea', 'acnt_regs_srno'
         ]
         date_fields = ['order_date']
 
@@ -190,7 +190,9 @@ class OrderListFetchService:
             for order_data in order_list:
                 try:
                     order_model = ReceiveOrder(**order_data)
-                    await inserter.create(obj_in=order_model)
+                    data_dict = order_model.__dict__.copy()
+                    data_dict.pop('_sa_instance_state', None)
+                    await inserter.query_create(obj_in=data_dict)
                     inserted += 1
                 except Exception as e:
                     write_log(f"DB 저장 실패: {e} (data: {order_data})")
