@@ -1,6 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.receive_order.receive_order import ReceiveOrder
+from models.order.receive_order import ReceiveOrder
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 class ReceiveOrderRepository:

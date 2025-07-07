@@ -11,14 +11,14 @@ legacy_ssl_handler.fix_legacy_ssl_config()
 from core.settings import SETTINGS
 from controller.product import run_generate_and_save_all_product_code_data
 from core.db import AsyncSessionLocal
-from models.receive_order.receive_order import ReceiveOrder
+from models.order.receive_order import ReceiveOrder
 from sqlalchemy import select
 import asyncio
 from core.db import get_db_pool
 from controller import fetch_mall_list, fetch_order_list, test_one_one_price_calculation, request_product_create as request_product_create_controller
 from dotenv import load_dotenv
 import typer
-from services.order.order_list_write import OrderListWriteService
+from services.order.order_create_service import OrderListCreateService
 from core.initialization import initialize_program
 from utils.sabangnet_logger import get_logger
 from core.db import test_db_write
@@ -174,7 +174,7 @@ def test_receive_order():
 @app.command(help="수집된 주문 DB에 담기")
 def create_order():
     try:
-        order_create_service = OrderListWriteService()
+        order_create_service = OrderListCreateService()
         asyncio.run(order_create_service.create_orders())
     except Exception as e:
         logger.error(f"쓰기 작업 중 오류 발생: {e}")

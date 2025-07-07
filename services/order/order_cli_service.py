@@ -111,7 +111,7 @@ class OrderListFetchService:
         Returns the number of inserted records.
         """
         from repository.receive_order_repository import ReceiveOrderRepository
-        from models.receive_order.receive_order import ReceiveOrder
+        from models.order.receive_order import ReceiveOrder
         from decimal import Decimal
         import re
         from datetime import datetime, date

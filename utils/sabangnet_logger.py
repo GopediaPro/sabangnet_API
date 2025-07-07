@@ -2,10 +2,13 @@
 설명:
     로거 모아놓은 파일입니다.
     비즈니스 로직에는 get_logger 함수를 사용하고,
-    HTTP 로깅에는 get_http_logger 함수를 사용합니다.
-    근데 HTTP 로거는 서버 시작할 때 자동으로 미들웨어로 등록되기 때문에,
-    실제로 쓸 때는 따로 선언할 필요가 없습니다.
-    그리고 두 함수 모두 파일명을 파라미터로 받아서 로거를 생성합니다.
+    HTTP 로깅에는 get_http_cli_logger와 get_http_file_logger를 사용합니다.
+    근데 get_http_cli_logger는 서버 시작할 때 자동으로 미들웨어로 등록되기 때문에 딱히 별도로 불러올 필요가 없을 것 같음.
+    get_http_file_logger는 따로 불러와서 필요한 곳에서(except 문 안에서) 사용합니다.
+    왜냐하면 get_http_cli_logger는 콘솔에만 로그가 찍히기 때문에 디테일한 에러 정보가 휘발됩니다.
+    자세하게 확인하려면 get_http_file_logger를 사용해서 파일로 저장해야 합니다.
+    
+    각 함수 모두 파일명을 파라미터로 받아서 로거를 생성합니다.
 
 사용법:
     파일명은 __name__ 을 사용하면 되고,
@@ -23,7 +26,6 @@
 import os
 import sys
 import time
-import json
 import socket
 import inspect
 import logging

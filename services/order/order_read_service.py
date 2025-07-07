@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from schemas.order.order_dto import OrderDto, OrderBulkDto
-from models.receive_order.receive_order import ReceiveOrder
+from models.order.receive_order import ReceiveOrder
 from repository.receive_order_repository import ReceiveOrderRepository
 
 

@@ -14,8 +14,8 @@ from pathlib import Path
 from services.product.product_read_service import ProductReadService
 from services.product.product_write_service import ProductWriteService
 from services.product.product_db_xml_service import ProductDbXmlService
-from services.product.product_create_service import ProductCreateService
-from services.usecase.product_create_db_to_excel_usecase import ProductCreateDbToExcelUsecase
+from services.product.product_cli_service import ProductCreateService
+from services.usecase.product_db_excel_usecase import ProductDbExcelUsecase
 
 # schemas
 from schemas.product.db_xml_dto import DbToXmlResponse
@@ -83,8 +83,8 @@ def get_product_read_service(session: AsyncSession = Depends(get_async_session))
 
 def get_product_create_db_to_excel_usecase(
     product_read_service: ProductReadService = Depends(get_product_read_service)
-) -> ProductCreateDbToExcelUsecase:
-    return ProductCreateDbToExcelUsecase(product_read_service=product_read_service)
+) -> ProductDbExcelUsecase:
+    return ProductDbExcelUsecase(product_read_service=product_read_service)
 
 
 @router.post("/excel-to-xml-n8n-test", response_model=dict)
@@ -143,6 +143,6 @@ async def get_products(
 
 @router.get("/bulk-register-db-to-excel", response_class=StreamingResponse)
 async def bulk_register_db_to_excel(
-    product_create_db_to_excel_usecase: ProductCreateDbToExcelUsecase = Depends(get_product_create_db_to_excel_usecase)
+    product_create_db_to_excel_usecase: ProductDbExcelUsecase = Depends(get_product_create_db_to_excel_usecase)
 ) -> StreamingResponse:
     return await product_create_db_to_excel_usecase.convert_db_to_excel()

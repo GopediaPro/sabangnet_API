@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 
 class ProductCreateService:
 
-    # 상품 등록 요청
+    # CLI 상품 등록 요청
     @staticmethod
     def request_product_create_via_url(xml_url: str) -> str:
         try:
