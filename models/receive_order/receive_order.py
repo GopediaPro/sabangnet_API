@@ -20,7 +20,7 @@ class ReceiveOrder(Base):
     # 기본 정보
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     receive_dt: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=False))
-    idx: Mapped[str | None] = mapped_column(String(50))
+    idx: Mapped[str | None] = mapped_column(String(50), unique=True)
     order_id: Mapped[str | None] = mapped_column(String(100))
     mall_id: Mapped[str | None] = mapped_column(String(100))
     mall_user_id: Mapped[str | None] = mapped_column(String(100))
@@ -98,7 +98,7 @@ class ReceiveOrder(Base):
 
     # 기타 처리 정보
     jung_chk_yn: Mapped[str | None] = mapped_column(String(2))
-    mall_order_seq: Mapped[int | None] = mapped_column(BigInteger)
+    mall_order_seq: Mapped[str | None] = mapped_column(String(20))
     mall_order_id: Mapped[str | None] = mapped_column(String(100))
     etc_field3: Mapped[str | None] = mapped_column(Text)
     ord_field2: Mapped[str | None] = mapped_column(String(10))
