@@ -2,6 +2,8 @@ from utils.make_xml.sabangnet_xml import SabangnetXml
 from schemas.mall_price.mall_price_dto import MallPriceDto
 import xml.etree.ElementTree as ET
 from datetime import datetime
+from pathlib import Path
+from utils.make_xml.file_name_for_xml import sanitize_filename
 
 class MallPriceRegistrationXml(SabangnetXml):
 
@@ -50,17 +52,15 @@ class MallPriceRegistrationXml(SabangnetXml):
 
         return data
         
-    def make_mall_price_dto_registration_xml(self, mall_price_dto: MallPriceDto, mall_stock_rate: int=None, file_name=None):
+    def make_mall_price_dto_registration_xml(self, mall_price_dto: MallPriceDto, count_rev: int, mall_stock_rate: int=None, file_name=None):
         if file_name is None:
-            file_name = f"{self._PATH}/{mall_price_dto.compayny_goods_cd}_mall_price_registration_{datetime.now().strftime('%Y%m%d')}.xml"
+            raw_name = f"{mall_price_dto.compayny_goods_cd}_mall_price_registration_{datetime.now().strftime('%Y%m%d')}_{count_rev}.xml"
+            file_name = f"{self._PATH}/" + sanitize_filename(raw_name)
 
         root = ET.Element("SABANGNET_GOODS_REGI")
-
         self._create_header(root=root)
-        
         for shop_code in self.SHOP_CODE:
             price = getattr(mall_price_dto, shop_code, None)
-            
             self.create_body(
                 root=root,
                 shop_code=shop_code,
@@ -68,14 +68,17 @@ class MallPriceRegistrationXml(SabangnetXml):
                 price=price,
                 mall_stock_rate=mall_stock_rate,
             )
-        
         tree = ET.ElementTree(root)
         ET.indent(tree, space="\t", level=0)
 
-        with open(file_name, "wb") as f:
-            f.write('<?xml version="1.0" endoding="EUC-KR"?>\n'.encode("euc-kr"))
-            tree.write(f, encoding='euc-kr', xml_declaration=False)
-        
+        # 파일 경로 객체 생성 및 디렉토리 생성
+        file_path = Path(file_name)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(file_path, "wb") as f:
+            f.write('<?xml version="1.0" encoding="euc-kr"?>\n'.encode("EUC-KR"))
+            tree.write(f, encoding='EUC-KR', xml_declaration=False)
+
         return file_name
 
 
