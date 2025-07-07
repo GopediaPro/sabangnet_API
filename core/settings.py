@@ -4,9 +4,6 @@ from typing import Optional
 
 class Settings(BaseSettings):
 
-    # Test Mode
-    TEST_MODE: Optional[bool] = True
-
     # SabangNet
     SABANG_COMPANY_ID: Optional[str] = None
     SABANG_AUTH_KEY: Optional[str] = None
@@ -41,6 +38,9 @@ class Settings(BaseSettings):
     # FastAPI
     FASTAPI_HOST: Optional[str] = None
     FASTAPI_PORT: Optional[int] = None
+
+    # Test Mode
+    CONPANY_GOODS_CD_TEST_MODE: Optional[bool] = True
 
     class Config:
         env_file = ".env"

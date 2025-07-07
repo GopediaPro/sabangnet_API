@@ -7,7 +7,7 @@ from datetime import datetime
 from core.settings import SETTINGS
 from typing import Iterator, Tuple, Any
 from utils.sabangnet_path_utils import SabangNetPathUtils
-from utils.product_create_field_mapping import PRODUCT_CREATE_FIELD_MAPPING
+from utils.product_create_field_mapping_xml import PRODUCT_CREATE_FIELD_MAPPING
 
 
 class SabangNetFormatter:

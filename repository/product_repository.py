@@ -175,12 +175,10 @@ class ProductRepository:
         raw_data: list[dict] = [row.__dict__ for row in result.scalars().all()]
         return raw_data
 
-
     async def find_product_raw_data_by_company_goods_cd(self, company_goods_cd: str) -> ProductRawData:
         query = select(ProductRawData).where(ProductRawData.compayny_goods_cd == company_goods_cd).limit(1)
         product_raw_data = await self.session.execute(query)
         return product_raw_data.scalar_one_or_none()
-    
 
     async def find_product_id_raw_data_by_product_nm_and_gubun(self, product_nm: str, gubun: str) -> Optional[int]:
         """상품명과 구분으로 test_product_raw_data의 ID 조회"""
@@ -192,14 +190,12 @@ class ProductRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-
     async def find_modified_product_data_by_product_raw_data_id(self, product_raw_data_id: int) -> ModifiedProductData:
         query = select(ModifiedProductData).\
             where(ModifiedProductData.test_product_raw_data_id == product_raw_data_id).order_by(ModifiedProductData.rev.desc()).limit(1)
         modified_product_data = await self.session.execute(query)
         return modified_product_data.scalar_one_or_none()
-        
-    
+
     async def save_modified_product_name(self, product_raw_data: ProductRawData, rev: int, product_name: str) -> ModifiedProductData:
         # 1. Get all column names from the model
         columns = [c.key for c in inspect(ModifiedProductData).mapper.column_attrs
@@ -223,6 +219,75 @@ class ProductRepository:
         res = await self.session.execute(query)
         await self.session.commit()
         return res.scalar_one()
+
+    async def get_product_raw_data_all(self) -> list[ProductRawData]:
+        """
+        test_product_raw_data 테이블의 모든 데이터 조회
+        Returns:
+            ProductRawData 리스트
+        """
+        query = select(ProductRawData).order_by(ProductRawData.id)
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
+    async def get_product_raw_data_by_gubun(self, gubun: str) -> list[ProductRawData]:
+        """
+        gubun 조건으로 test_product_raw_data 테이블 데이터 조회
+        Args:
+            gubun: 몰구분 (마스터, 전문몰, 1+1)
+        Returns:
+            ProductRawData 리스트
+        """
+        query = select(ProductRawData).where(ProductRawData.gubun == gubun).order_by(ProductRawData.id)
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
+    async def get_product_raw_data_by_ids(self, ids: list[int]) -> list[ProductRawData]:
+        """
+        ID 리스트로 test_product_raw_data 테이블 데이터 조회
+        Args:
+            ids: 조회할 ID 리스트
+        Returns:
+            ProductRawData 리스트
+        """
+        query = select(ProductRawData).where(ProductRawData.id.in_(ids)).order_by(ProductRawData.id)
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
+    async def get_product_raw_data_by_product_nm(self, product_nm: str) -> list[ProductRawData]:
+        """
+        상품명으로 test_product_raw_data 테이블 데이터 조회
+        Args:
+            product_nm: 상품명
+        Returns:
+            ProductRawData 리스트
+        """
+        query = select(ProductRawData).where(ProductRawData.product_nm.like(f"%{product_nm}%")).order_by(ProductRawData.id)
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
+    async def get_product_raw_data_pagination(self, skip: int = 0, limit: int = 10) -> list[ProductRawData]:
+        """
+        test_product_raw_data 테이블 데이터 페이징 조회
+        Args:
+            skip: 건너뛸 개수
+            limit: 조회할 개수
+        Returns:
+            ProductRawData 리스트
+        """
+        query = select(ProductRawData).offset(skip).limit(limit).order_by(ProductRawData.id)
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
+    async def count_product_raw_data(self) -> int:
+        """
+        test_product_raw_data 테이블 총 개수 조회
+        Returns:
+            총 개수
+        """
+        query = select(func.count(ProductRawData.id))
+        result = await self.session.execute(query)
+        return result.scalar()
 
     async def update_product_id_by_compayny_goods_cd(self, compayny_goods_cd: str, product_id: int) -> None:
         """

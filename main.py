@@ -18,6 +18,7 @@ from api.v1.endpoints.products import router as products_router
 from api.v1.endpoints.mall_price import router as mall_price_router
 from utils.sabangnet_logger import get_logger, HTTPLoggingMiddleware
 from api.v1.endpoints.one_one_price import router as one_one_price_router
+from api.v1.endpoints.db_xml import router as db_xml_router
 from api.product_registration_api import router as product_registration_router
 
 
@@ -53,6 +54,7 @@ app = FastAPI(
 master_router.include_router(products_router)
 master_router.include_router(mall_price_router)
 master_router.include_router(one_one_price_router)
+master_router.include_router(db_xml_router)
 
 
 app.include_router(master_router)
