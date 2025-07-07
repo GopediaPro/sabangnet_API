@@ -20,16 +20,25 @@
     ...
     logger.info("로그 메시지")
 """
-
-
+import os
 import sys
 import time
+import json
+import socket
+import inspect
 import logging
+import traceback
+from pathlib import Path
 from typing import Callable
 from datetime import datetime
 from fastapi import Request, Response
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from utils.sabangnet_path_utils import SabangNetPathUtils
+
+
+# 서버 이름 추출
+SERVER_ID = socket.gethostname()
 
 
 # 이미 설정된 로거들 추적 (중복 설정 방지)
@@ -45,7 +54,7 @@ RESET = '\033[0m'
 
 
 class ColoredFormatter(logging.Formatter):
-    """색깔 포맷터 -> 실제 로그 레벨에 따라 색깔 적용"""
+    """콘솔용 색깔 포맷터 -> 실제 로그 레벨에 따라 색깔 적용"""
 
     LEVEL_COLORS = {
         'DEBUG': BLUE,
@@ -65,7 +74,6 @@ class ColoredFormatter(logging.Formatter):
 
         # 전체 경로를 프로젝트 루트 기준 상대 경로로 변환
         try:
-            from pathlib import Path
             full_path = Path(record.pathname)
             project_root = SabangNetPathUtils.get_project_root()
             relative_path = full_path.relative_to(project_root)
@@ -75,10 +83,10 @@ class ColoredFormatter(logging.Formatter):
             pass
 
         # 색깔이 적용된 포맷
-        if self.log_type == "business_logic":
-            colored_format = f"{YELLOW}%(asctime)s | 경로: %(pathname)s | 함수: %(funcName)s() | %(lineno)d번째 줄...{RESET}\n└─{level_color}%(levelname)s{RESET} %(message)s"
-        elif self.log_type == "http_requests":
-            colored_format = f"{YELLOW}%(asctime)s{RESET} | {level_color}%(levelname)s{RESET} %(message)s"
+        if self.log_type == "business":
+            colored_format = f"{YELLOW}%(asctime)s | 경로: %(pathname)s | 함수: %(funcName)s() | %(lineno)d번째 줄...{RESET}\n└─{level_color}%(levelname)-5s{RESET} %(message)s"
+        else:
+            colored_format = f"{YELLOW}%(asctime)s{RESET} | {level_color}%(levelname)-5s{RESET} %(message)s"
 
         # 임시 포맷터로 포맷팅
         temp_formatter = logging.Formatter(
@@ -88,12 +96,11 @@ class ColoredFormatter(logging.Formatter):
 
 # 파일용 포맷터 (색깔 없음, 깔끔한 텍스트) - 커스텀 클래스로 변경
 class PlainFormatter(logging.Formatter):
-    """파일용 포맷터 -> 색깔 없이 상대 경로만 표시"""
+    """파일용 무색 포맷터 -> 색깔 없이 상대 경로만 표시"""
 
     def format(self, record):
         # 전체 경로를 프로젝트 루트 기준 상대 경로로 변환
         try:
-            from pathlib import Path
             full_path = Path(record.pathname)
             project_root = SabangNetPathUtils.get_project_root()
             relative_path = full_path.relative_to(project_root)
@@ -103,22 +110,6 @@ class PlainFormatter(logging.Formatter):
             pass
 
         return super().format(record)
-
-
-class EnhancedLogger(logging.Logger):
-    """스택트레이스 자동 추가 로거"""
-
-    def error(self, message, *args, **kwargs):
-        """ERROR 레벨에서 자동으로 stack_info 추가"""
-        if 'stack_info' not in kwargs:
-            kwargs['stack_info'] = True
-        super().error(message, *args, **kwargs)
-
-    def critical(self, message, *args, **kwargs):
-        """CRITICAL 레벨에서 자동으로 stack_info 추가"""
-        if 'stack_info' not in kwargs:
-            kwargs['stack_info'] = True
-        super().critical(message, *args, **kwargs)
 
 
 class HTTPLoggingMiddleware(BaseHTTPMiddleware):
@@ -132,28 +123,62 @@ class HTTPLoggingMiddleware(BaseHTTPMiddleware):
         client_ip = self.get_client_ip(request)
 
         # 요청 로깅
-        http_logger.info(
-            f"사용자 {client_ip} -> 요청 "
-            f"🔵 {request.method} {request.url.path}"
+        http_cli_logger.info(
+            f"사용자 {client_ip} ▷▷▷ 서버 {SERVER_ID} "
+            f"🟡 {request.method} {request.url.path}"
+            f"{f'?{request.url.query}' if request.url.query else ''}"
+        )
+        http_file_logger.info(
+            f"사용자 {client_ip} ▷▷▷ 서버 {SERVER_ID} "
+            f"🟡 {request.method} {request.url.path}"
             f"{f'?{request.url.query}' if request.url.query else ''}"
         )
 
-        # 실제 요청 처리
-        response = await call_next(request)
+        try:
+            # 실제 요청 처리
+            response = await call_next(request)
+            # 처리 시간 계산
+            process_time = time.time() - start_time
+            # 응답 로깅 (상태코드와 처리시간 포함)
+            status_emoji = self.get_status_emoji(response.status_code)
+            http_cli_logger.info(
+                f"사용자 {client_ip} ◁◁◁ 서버 {SERVER_ID} "
+                f"{status_emoji} {response.status_code} "
+                f"{request.method} {request.url.path} "
+                f"({process_time:.3f}s)"
+            )
+            http_file_logger.info(
+                f"사용자 {client_ip} ◁◁◁ 서버 {SERVER_ID} "
+                f"{status_emoji} {response.status_code} "
+                f"{request.method} {request.url.path} "
+                f"({process_time:.3f}s)"
+            )
+            return response
 
-        # 처리 시간 계산
-        process_time = time.time() - start_time
+        except Exception as exc:
+            # 서버 측 에러 발생 시 처리 (정상적인 Response가 불가능한 상황)
+            process_time = time.time() - start_time
+            # 콘솔에는 간단한 에러 로그만
+            http_cli_logger.error(
+                f"사용자 {client_ip} ◁◁◁ 서버 {SERVER_ID} "
+                f"🔴 500 "
+                f"{request.method} {request.url.path} "
+                f"({process_time:.3f}s)"
+            )
+            # 파일에는 자세하게 (실제 위치 포함)
+            http_file_logger.error(
+                f"사용자 {client_ip} ◁◁◁ 서버 {SERVER_ID} "
+                f"🔴 500 "
+                f"{request.method} {request.url.path} "
+                f"({process_time:.3f}s)",
+                exc
+            )
 
-        # 응답 로깅 (상태코드와 처리시간 포함)
-        status_emoji = self.get_status_emoji(response.status_code)
-        http_logger.info(
-            f"사용자 {client_ip} <- 응답 "
-            f"{status_emoji} {response.status_code} "
-            f"{request.method} {request.url.path} "
-            f"({process_time:.3f}s)"
-        )
-
-        return response
+            # 에러 응답 직접 반환 (스택트레이스 출력 방지)
+            return JSONResponse(
+                status_code=500,
+                content={"error": str(exc)}
+            )
 
     def get_client_ip(self, request: Request) -> str:
         """클라이언트 IP 주소 추출"""
@@ -180,14 +205,14 @@ class HTTPLoggingMiddleware(BaseHTTPMiddleware):
         elif 300 <= status_code < 400:
             return "🔵"  # 리다이렉트
         elif 400 <= status_code < 500:
-            return "🟡"   # 클라이언트 에러
+            return "🟠"  # 클라이언트 에러
         elif 500 <= status_code < 600:
             return "🔴"  # 서버 에러
         else:
-            return "❔"  # 알 수 없음
+            return "⚪"  # 알 수 없음
 
 
-def get_logger(file_name: str, level: str = "INFO") -> EnhancedLogger:
+def get_logger_base(file_name: str):
     """
     지정된 이름으로 로거를 가져옵니다.
     사용법: get_logger(__name__)  # __name__ 사용 강제
@@ -200,24 +225,18 @@ def get_logger(file_name: str, level: str = "INFO") -> EnhancedLogger:
     """
     # __main__인 경우 실제 파일명으로 변환
     if file_name == "__main__":
-        import inspect
         frame = inspect.currentframe().f_back  # 이 __name__ 이라고 호출한 실제 파일 이름
         if frame and frame.f_globals.get('__file__'):
-            import os
             actual_file_name: str = os.path.basename(
                 frame.f_globals['__file__'])
             file_name = actual_file_name.replace(
                 '.py', '')  # app.py → app 같이 파일명만 남기고 확장자 없앰
-
-    # EnhancedLogger 클래스를 기본으로 설정
-    logging.setLoggerClass(EnhancedLogger)
 
     # 이미 설정된 로거는 재설정하지 않음 (단, 핸들러가 있는 경우만)
     existing_logger = logging.getLogger(file_name)
     if file_name in _setup_loggers and existing_logger.handlers:
         return existing_logger
 
-    # 로거 생성 (EnhancedLogger 사용)
     logger = logging.getLogger(file_name)
 
     # 기존 핸들러 제거 (중복 방지)
@@ -227,17 +246,18 @@ def get_logger(file_name: str, level: str = "INFO") -> EnhancedLogger:
     # 로거 전파 비활성화 (부모 로거로 전파 방지 -> 중복 로그 방지 -> 활성화 하면 부모 로거에서 또 로그 찍혀서 두 번씩 나오는 것 처럼 보임)
     logger.propagate = False
 
+    return logger
+
+
+def get_logger(file_name: str, level: str = "INFO") -> logging.Logger:
     # 로깅 레벨 설정 (파라미터로 받은 레벨 우선하고, info 같이 들어와도 무조건 대문자로 바꿔주고 없으면 기본 INFO)
+    logger = get_logger_base(file_name)
+
     log_level = getattr(logging, level.upper(), logging.INFO)
     logger.setLevel(log_level)
 
-    # 색깔 있는 콘솔용 포맷터
-    console_formatter = ColoredFormatter("business_logic")
-
-    file_format = "%(asctime)s | 경로: %(pathname)s | 함수: %(funcName)s() | %(lineno)d번째 줄... \n└─%(levelname)s: %(message)s"
-    file_formatter = PlainFormatter(file_format, datefmt='%Y-%m-%d %H:%M:%S')
-
     # 콘솔 핸들러 추가
+    console_formatter = ColoredFormatter("business")
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(log_level)
     console_handler.setFormatter(console_formatter)
@@ -250,6 +270,8 @@ def get_logger(file_name: str, level: str = "INFO") -> EnhancedLogger:
         f"{safe_file_name}.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
+    file_format = "%(asctime)s | 경로: %(pathname)s | 함수: %(funcName)s() | %(lineno)d번째 줄... \n└─%(levelname)-5s: %(message)s"
+    file_formatter = PlainFormatter(file_format, datefmt='%Y-%m-%d %H:%M:%S')
     file_handler = logging.FileHandler(log_path, delay=True, encoding='utf-8')
     file_handler.setLevel(log_level)
     file_handler.setFormatter(file_formatter)
@@ -261,28 +283,71 @@ def get_logger(file_name: str, level: str = "INFO") -> EnhancedLogger:
     return logger
 
 
-# HTTP 로깅 전용 간단한 로거 생성
-def get_http_logger():
-    """HTTP 요청/응답 전용 간단한 로거 (경로/함수 정보 없음)"""
-    # EnhancedLogger 클래스를 기본으로 설정 (일관성)
-    logging.setLoggerClass(EnhancedLogger)
+# HTTP 로깅 전용 로거 생성
+def get_http_cli_logger(level: str = "INFO"):
+    """HTTP 요청/응답 전용 커맨드라인 로거"""
+    logger = get_logger_base("http_cli_logger")
 
-    logger = logging.getLogger("http_requests")
+    log_level = getattr(logging, level.upper(), logging.INFO)
+    logger.setLevel(log_level)
 
     # 이미 설정된 경우 재사용
     if logger.handlers:
         return logger
 
-    logger.setLevel(logging.INFO)
-    logger.propagate = False
-
     # 색깔 있는 콘솔용 포맷터
-    console_formatter = ColoredFormatter("http_requests")
+    console_formatter = ColoredFormatter("http")
     console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(log_level)
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
 
     return logger
 
 
-http_logger = get_http_logger()
+def get_http_file_logger(level: str = "INFO"):
+    """HTTP 요청/응답 전용 파일 로거"""
+    logger = get_logger_base("http_file_logger")
+
+    log_level = getattr(logging, level.upper(), logging.INFO)
+    logger.setLevel(log_level)
+
+    # 이미 설정된 경우 재사용
+    if logger.handlers:
+        return logger
+
+    # 파일 핸들러 추가 (색깔 없음)
+    date_folder = datetime.now().strftime('%Y%m%d')
+    log_path = SabangNetPathUtils.get_log_file_path() / date_folder / "server.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    file_format = "%(asctime)s | 경로: %(pathname)s | 함수: %(funcName)s() | %(lineno)d번째 줄... \n└─%(levelname)-5s: %(message)s"
+    file_formatter = PlainFormatter(file_format, datefmt='%Y-%m-%d %H:%M:%S')
+    file_handler = logging.FileHandler(log_path, delay=True, encoding='utf-8')
+    file_handler.setLevel(log_level)
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
+
+    # 에러 전용 메서드 추가
+    def log_error_with_location(msg: str, exc: Exception):
+        """실제 에러 발생 위치로 로그 기록"""
+        tb = traceback.extract_tb(exc.__traceback__)
+        if tb:
+            last_trace = tb[-1] # 여기가 실제 위치임
+            record = logging.LogRecord(
+                name=logger.name, level=logging.ERROR,
+                pathname=last_trace.filename, lineno=last_trace.lineno,
+                msg=f"{msg}\n{str(exc)}",
+                args=(), exc_info=None, func=last_trace.name
+            )
+            logger.handle(record)
+        else:
+            logger.error(f"{msg}\n{str(exc)}")
+    
+    # 몽키패칭
+    logger.error = log_error_with_location
+
+    return logger
+
+http_cli_logger = get_http_cli_logger()
+http_file_logger = get_http_file_logger()

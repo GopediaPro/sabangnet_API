@@ -15,3 +15,7 @@ class ProductReadService:
         if res is None:
             raise ValueError(f"Product raw data not found: {product_nm}")
         return ProductRawDataDto.model_validate(res)
+    
+    async def get_product_raw_data_all(self) -> list[ProductRawDataDto]:
+        objects = await self.product_repository.get_product_raw_data_all()
+        return [ProductRawDataDto.model_validate(obj) for obj in objects]

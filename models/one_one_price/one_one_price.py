@@ -6,7 +6,7 @@ One One Price Data 모델
 from __future__ import annotations
 from decimal import Decimal
 from typing import Optional
-from sqlalchemy import BigInteger, Numeric, ForeignKey, String
+from sqlalchemy import BigInteger, Numeric, ForeignKey, String, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 from models.base_model import Base
 
@@ -18,25 +18,23 @@ class OneOnePrice(Base):
     __tablename__ = "one_one_price"
 
     # 기본 정보
-    id: Mapped[int] = mapped_column(
-        BigInteger,
-        primary_key=True,
-        autoincrement=True,
-        comment="고유 식별자")
-
-    # 상품등록 FK
-    product_registration_raw_data_id: Mapped[int] = mapped_column(
-        ForeignKey(
-            "product_registration_raw_data.id",
-            name="product_registration_raw_data_id",
-            ondelete="CASCADE"),
-        nullable=False,
-        comment="상품등록 FK")
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     
-    product_nm: Mapped[Optional[str]] = mapped_column(String(100), nullable=False)
+    # 품번코드대량등록툴 FK
+    test_product_raw_data_id: Mapped[int] = mapped_column(
+        ForeignKey("test_product_raw_data.id",
+                    name="test_product_raw_data", ondelete="CASCADE"),
+        nullable=False
+    )
 
-    # 기준가격(전문몰 가격)
-    standard_price: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 0), nullable=True, comment="기준가격")
+    # 상품명
+    product_nm: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    # 자체상품코드
+    compayny_goods_cd: Mapped[str] = mapped_column(String(100), nullable=False)
+    
+    # 기준가
+    standard_price: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # 1+1가격, if(기준가 + 100 < 10000, roundup(기준가 * 2 + 2000, -3) - 100, roundup(기준가 * 2 + 1000, -3) - 100)
     one_one_price: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 0), nullable=True, comment="1+1가격")
@@ -81,14 +79,15 @@ class OneOnePrice(Base):
     shop0464: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 0), nullable=True, comment="11번가")
 
     def __repr__(self) -> str:
-        return f"<OneOnePrice(id={self.id}), ProductRegistrationRawData(id={self.product_registration_raw_data_id})>"
+        return f"<OneOnePrice(id={self.id}), TestProductRawData(id={self.test_product_raw_data_id})>"
 
     def to_dict(self) -> dict:
         """모델을 딕셔너리로 변환"""
         return {
             'id': self.id,
-            'product_registration_raw_data_id': self.product_registration_raw_data_id,
+            'test_product_raw_data_id': self.test_product_raw_data_id,
             'product_nm': self.product_nm,
+            'compayny_goods_cd': self.compayny_goods_cd,
             'standard_price': self.standard_price,
             'one_one_price': self.one_one_price,
             'shop0007': self.shop0007,

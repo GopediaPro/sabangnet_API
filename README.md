@@ -177,7 +177,7 @@ logger.critical(내용)
   python app.py test-db-connection
 
 - DB Write 테스트:  
-  python app.py test-db-write "테스트값"
+  python app.py test-db-write-command "테스트값"
 
 - ReceiveOrder 모델 조회 테스트:  
   python app.py test-receive-order
@@ -186,13 +186,25 @@ logger.critical(내용)
   python app.py create-order
 
 - 상품 등록:  
-  python app.py create-product
+  python app.py request-product-create 엑셀파일이름 엑셀시트이름
 
 - Excel 파일에서 상품 등록 데이터 가져오기:  
   python app.py import-product-registration-excel "./경로/파일.xlsx" --sheet-name "Sheet1"
 
-- 상품 등록 Data 기반으로 excel 수식 To Method 상품 등록 대량 등록 To DB
+- 주문 목록을 엑셀로 변환:
+  python app.py create-order-xlsx
+
+- 테스트 ERP 매크로 실행:
+  python app.py test-erp-macro
+
+- 상품 등록 Data 기반으로 excel 수식 To Method 상품 등록 대량 등록 To DB:
   python app.py generate-product-code-data
+
+- 특정 상품 쇼핑몰별 1+1 가격 계산:
+  python app.py calculate-one-one-price 상품원본모델명
+
+- FastAPI 서버 실행:
+  python app.py start-server
 
 ```bash
 # .env file

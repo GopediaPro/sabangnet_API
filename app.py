@@ -275,8 +275,8 @@ def generate_product_code_data():
 
 
 @app.command(help="1+1 가격 계산")
-def calculate_one_one_price(product_nm: str = typer.Argument(..., help="상품명")):
-    asyncio.run(test_one_one_price_calculation(product_nm))
+def calculate_one_one_price(product_nm: str = typer.Argument(..., help="상품명"), gubun: str = typer.Argument(..., help="구분")):
+    asyncio.run(test_one_one_price_calculation(product_nm, gubun))
     return
 
 
