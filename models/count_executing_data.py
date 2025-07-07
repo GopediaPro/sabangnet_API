@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    BigInteger, SmallInteger, String, Text, Numeric, CHAR, Integer
+    BigInteger, SmallInteger, String, Text, Numeric, CHAR, Integer, DateTime, func
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -16,5 +16,11 @@ class CountExecuting(Base):
     # 기본 정보
     id: Mapped[int] = mapped_column(
         BigInteger, primary_key=True, autoincrement=True)
-    product_create_db: Mapped[int] = mapped_column(Integer)
+    count_nm: Mapped[str] = mapped_column(String(50))
+    count_rev: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    
+
     

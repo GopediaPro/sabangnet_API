@@ -7,6 +7,7 @@ from pathlib import Path
 from core.settings import SETTINGS
 from utils.sabangnet_path_utils import SabangNetPathUtils
 from utils.product_create_field_eng_mapping import get_db_to_xml_mapping
+from utils.make_xml.file_name_for_xml import sanitize_filename
 
 class ProductRegistrationXml(SabangnetXml):
 
@@ -52,7 +53,7 @@ class ProductRegistrationXml(SabangnetXml):
             base_name = f"product_create_request_db_{now_str}_{product_create_db_count}.xml"
             if SETTINGS.TEST_MODE:
                 base_name = f"product_create_request_db_test_{now_str}_{product_create_db_count}.xml"
-            file_name = f"{self._PATH}/{base_name}"
+            file_name = f"{self._PATH}/" + sanitize_filename(base_name)
 
         # XML 루트 엘리먼트 생성
         root = ET.Element("SABANGNET_GOODS_REGI")

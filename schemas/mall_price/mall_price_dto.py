@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Optional
 
 
 class MallPriceDto(BaseModel):
@@ -6,10 +7,10 @@ class MallPriceDto(BaseModel):
     class Config:
         from_attributes = True
 
-    product_nm: str = Field(..., description="상품코드")
+    product_nm: Optional[str] = Field(None, description="상품코드")
     product_raw_data_id: int = Field(alias="test_product_raw_data_id", description="product_raw_data ID (fk)")
     compayny_goods_cd: str = Field(..., description="자체 상품 코드")
-    standard_price: int = Field(..., description="기준 가격")
+    standard_price: Optional[int] = Field(None, description="기준 가격")
 
     # ((기본판매가 + (기본판매가 * 0.15)) 1000자리에서 반올림 후 - 100) + 3000
     shop0007: int = Field(..., description="gs shop 가격")
