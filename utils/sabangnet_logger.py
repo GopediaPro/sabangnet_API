@@ -338,11 +338,11 @@ def get_http_file_logger(level: str = "INFO"):
                 name=logger.name, level=logging.ERROR,
                 pathname=last_trace.filename, lineno=last_trace.lineno,
                 msg=f"{msg}\n{str(exc)}",
-                args=(), exc_info=None, func=last_trace.name
+                args=(), exc_info=(type(exc), exc, exc.__traceback__), func=last_trace.name
             )
             logger.handle(record)
         else:
-            logger.error(f"{msg}\n{str(exc)}")
+            logger.error(f"{msg}\n{str(exc)}", exc_info=(type(exc), exc, exc.__traceback__))
     
     # 몽키패칭
     logger.error = log_error_with_location

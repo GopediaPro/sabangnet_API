@@ -18,7 +18,7 @@ from core.db import get_db_pool
 from controller import fetch_mall_list, fetch_order_list, test_one_one_price_calculation, request_product_create as request_product_create_controller
 from dotenv import load_dotenv
 import typer
-from services.order_list.order_list_write import OrderListWriteService
+from services.order.order_list_write import OrderListWriteService
 from core.initialization import initialize_program
 from utils.sabangnet_logger import get_logger
 from core.db import test_db_write
@@ -245,10 +245,10 @@ def import_product_registration_excel(
 
 @app.command(help="주문 목록을 엑셀로 변환")
 def create_order_xlsx():
-    from repository.receive_order_repository import CreateReceiveOrder
+    from repository.receive_order_repository import ReceiveOrderRepository
     from utils.convert_xlsx import ConvertXlsx
     from utils.order_basic_erp_excel_field_mapping import ORDER_BASIC_ERP_EXCEL_FIELD_MAPPING
-    inserter = CreateReceiveOrder()
+    inserter = ReceiveOrderRepository()
     convert_xlsx = ConvertXlsx()
     try:
         orders = asyncio.run(inserter.read_all())
