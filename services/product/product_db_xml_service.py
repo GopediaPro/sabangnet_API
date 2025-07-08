@@ -3,7 +3,7 @@ from pathlib import Path
 
 from core.db import AsyncSessionLocal
 from utils.sabangnet_logger import get_logger
-from models.count_executing_data import CountExecuting
+from models.count_executing_data.count_executing_data import CountExecuting
 from repository.product_repository import ProductRepository
 from repository.count_executing_repository import CountExecutingRepository
 from utils.make_xml.product_registration_xml import ProductRegistrationXml
