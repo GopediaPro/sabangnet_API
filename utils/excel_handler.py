@@ -174,6 +174,47 @@ class ExcelHandler:
         except ValueError:
             return 0.0
 
+    def convert_numeric_strings(self, start_row: int = 2, end_row: int | None = None, cols: tuple[str, ...] | None = None) -> None:
+        """
+        워크시트의 문자열 숫자를 숫자 타입(int/float)으로 변환합니다.
+
+        Args:
+            start_row: 변환을 시작할 데이터 행 (헤더가 1행이라고 가정).
+            end_row: 변환을 끝낼 행. None이면 마지막 행까지 처리.
+            cols: 변환할 열 머리글(예: ("E","M","Q","W")). None이면 모든 열을 대상.
+
+        사용 예시:
+            # 1) 모든 열 대상
+            ex.convert_numeric_strings()
+
+            # 2) 특정 열만
+            ex.convert_numeric_strings(cols=("E", "M", "Q", "W"))
+        """
+        if end_row is None:
+            end_row = self.ws.max_row
+
+        # 변환 대상 열 결정
+        if cols:
+            target_cols = cols
+        else:
+            # 1행 헤더를 기준으로 모든 실제 열 레터를 수집
+            target_cols = tuple(cell.column_letter for cell in self.ws[1] if cell.value is not None)
+
+        for row in range(start_row, end_row + 1):
+            for col in target_cols:
+                cell = self.ws[f"{col}{row}"]
+                if cell.value is None:
+                    continue
+                if isinstance(cell.value, str):
+                    raw = cell.value.strip()
+                    # 숫자(0-9), 쉼표, 마침표 외 다른 문자가 섞여 있으면 변환하지 않음
+                    if re.fullmatch(r"[0-9,\.]+", raw):
+                        num_val = self.to_num(raw)
+                        # 0 도 유효 숫자로 인정
+                        if raw not in {"", ".", ","}:
+                            cell.value = num_val
+                            cell.number_format = "General"
+
     # 정렬 및 레이아웃 Method
 
     def set_column_alignment(self, ws=None):
