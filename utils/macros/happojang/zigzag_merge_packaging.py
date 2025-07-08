@@ -1,115 +1,188 @@
-import pandas as pd
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border
 import re
+from pathlib import Path
 
-def zigzag_merge_packaging(file_path):
-    wb = openpyxl.load_workbook(file_path)
+from openpyxl import load_workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border
+from openpyxl.utils import get_column_letter
+
+
+FONT_MALGUN = Font(name="맑은 고딕", size=9)
+HDR_FILL = PatternFill(start_color="006100", end_color="006100", fill_type="solid")
+BLUE_FILL = PatternFill(start_color="CCE8FF", end_color="CCE8FF", fill_type="solid")
+NO_BORDER = Border()
+
+STAR_QTY_RE = re.compile(r"\* ?(\d+)")
+MULTI_SEP_RE = re.compile(r"[\/;]")
+
+
+def to_num(val) -> float:
+    try:
+        return float(re.sub(r"[^\d.-]", "", str(val))) if str(val).strip() else 0.0
+    except ValueError:
+        return 0.0
+
+
+def clean_f_text(txt: str) -> str:
+    """
+    F열 문자열 정리:
+    • '/' ';' → ' + '
+    • '*n'  → '' 또는 ' n개'
+    • ' 1개' 제거
+    """
+    if txt is None:
+        return ""
+    txt = MULTI_SEP_RE.sub(" + ", str(txt))
+    txt = STAR_QTY_RE.sub(lambda m: "" if m.group(1) == "1" else f" {m.group(1)}개", txt)
+    return txt.replace(" 1개", "").strip()
+
+
+def format_lookup(ws_lookup) -> dict[str, str]:
+    """Sheet1 A:B → dict"""
+    return {
+        str(r[0].value): r[1].value
+        for r in ws_lookup.iter_rows(min_row=2, max_col=2, values_only=True)
+        if r[0] is not None
+    }
+
+
+def zigzag_merge_packaging(file_path: str) -> str:
+    wb = load_workbook(file_path)
     ws = wb.active
+    last_row, last_col = ws.max_row, ws.max_column
 
-    headers = [cell.value for cell in ws[1]]
-    data = []
-    for row in ws.iter_rows(min_row=2, values_only=True):
-        data.append(list(row))
-    df = pd.DataFrame(data, columns=headers)
-
-    # 2. A열 번호 매기기 (수식 대신 값)
-    df.iloc[:, 0] = range(1, len(df) + 1)
-
-    # 3. M열 정수 변환
-    if 'M' in df.columns:
-        df['M'] = pd.to_numeric(df['M'], errors='coerce').fillna(0).astype(int)
-
-    # 4. VLOOKUP(M열 → Sheet1!A:B) → V열
-    if 'Sheet1' in wb.sheetnames and 'M' in df.columns:
-        ws_lookup = wb['Sheet1']
-        lookup_data = {
-            str(row[0].value): row[1].value
-            for row in ws_lookup.iter_rows(min_row=2, min_col=1, max_col=2)
-            if row[0].value is not None
-        }
-        df['V'] = df['M'].astype(str).map(lookup_data).fillna('')
-
-    # 5. D열 수식 = U + V
-    if 'D' in df.columns and 'U' in df.columns and 'V' in df.columns:
-        df['D'] = df['U'].fillna(0).astype(float) + df['V'].fillna(0).astype(float)
-
-    # 6. F열 " 1개" 제거
-    if 'F' in df.columns:
-        df['F'] = df['F'].astype(str).str.replace(' 1개', '')
-
-    # 7. 정렬: C → B 기준 오름차순
-    if 'C' in df.columns and 'B' in df.columns:
-        df.sort_values(by=['C', 'B'], inplace=True)
-
-    # 8. DataFrame → 엑셀 반영
-    for row in ws['A2':f'{openpyxl.utils.get_column_letter(ws.max_column)}{ws.max_row}']:
-        for cell in row:
-            cell.value = None
-    for r_idx, row in enumerate(df.itertuples(index=False), 2):
-        for c_idx, value in enumerate(row, 1):
-            ws.cell(row=r_idx, column=c_idx, value=value)
-
-    # 9. 서식 적용
-    font = Font(name='맑은 고딕', size=9)
-    green_fill = PatternFill(start_color="006100", end_color="006100", fill_type="solid")
+    # 1: 서식 & 헤더
     for row in ws.iter_rows():
         for cell in row:
-            cell.font = font
-            cell.border = Border()  # 5단계: 테두리 제거
-            cell.fill = PatternFill(fill_type=None)  # 5단계: 배경색 제거
-        ws.row_dimensions[cell.row].height = 15
+            cell.font = FONT_MALGUN
+            cell.alignment = Alignment(wrap_text=False)
+        ws.row_dimensions[row[0].row].height = 15
     for cell in ws[1]:
-        cell.fill = green_fill
-        cell.alignment = Alignment(horizontal='center')
+        cell.fill = HDR_FILL
+        cell.alignment = Alignment(horizontal="center")
 
-    # 조건부 서식: F열 강조
-    blue_fill = PatternFill(start_color="CCE8FF", end_color="CCE8FF", fill_type="solid")
-    regex_exact = re.compile(r'^\d+개?$', re.IGNORECASE)
-    regex_repeat = re.compile(r'(\d+개\s*){2,}', re.IGNORECASE)
-    if 'F' in df.columns:
-        f_col = df.columns.get_loc('F') + 1
-        for i in range(2, ws.max_row+1):
-            f_val = str(ws.cell(row=i, column=f_col).value)
-            if regex_exact.match(f_val) or regex_repeat.search(f_val):
-                ws.cell(row=i, column=f_col).fill = blue_fill
+    # 2: M열 숫자화
+    for r in range(2, last_row + 1):
+        try:
+            ws[f"M{r}"].value = int(float(ws[f"M{r}"].value))
+        except (ValueError, TypeError):
+            ws[f"M{r}"].value = 0
 
-    # 정렬 적용
-    center_alignment = Alignment(horizontal='center')
-    right_alignment = Alignment(horizontal='right')
-    for col in ['A', 'B']:
+    # 3: VLOOKUP(M, Sheet1!A:B) → V열
+    if "Sheet1" in wb.sheetnames:
+        vmap = format_lookup(wb["Sheet1"])
+        for r in range(2, last_row + 1):
+            ws[f"V{r}"].value = vmap.get(str(ws[f"M{r}"].value), "")
+
+    # 4: D = U + V
+    for r in range(2, last_row + 1):
+        ws[f"D{r}"].value = f"=U{r}+V{r}"
+
+    # 5: 테두리 & 배경 제거
+    for row in ws.iter_rows(min_row=2, max_row=last_row, max_col=last_col):
+        for cell in row:
+            cell.border = NO_BORDER
+            cell.fill = PatternFill(fill_type=None)
+
+    # 6: F열 문자열 정리 + 파란색 강조(수량 2개 이상)
+    for r in range(2, last_row + 1):
+        ftxt = clean_f_text(ws[f"F{r}"].value)
+        ws[f"F{r}"].value = ftxt
+        if ftxt.count("개") >= 2:
+            ws[f"F{r}"].fill = BLUE_FILL
+
+    # 7: A열 순번
+    for r in range(2, last_row + 1):
+        ws[f"A{r}"].value = "=ROW()-1"
+
+    # 8: 열 정렬
+    center = Alignment(horizontal="center")
+    right = Alignment(horizontal="right")
+    for col in ("A", "B"):
         for cell in ws[col]:
-            cell.alignment = center_alignment
-    for col in ['D', 'E', 'G']:
-        for cell in ws[col]:
-            cell.alignment = right_alignment
+            cell.alignment = center
+    for col in ("D", "E", "G"):
+        if col in ws:
+            for cell in ws[col]:
+                cell.alignment = right
 
-    # 10. 시트 분할 (OK / IY)
-    for sheet_name in ['OK', 'IY']:
-        if sheet_name in wb.sheetnames:
-            del wb[sheet_name]
-    ws_ok = wb.create_sheet('OK')
-    ws_iy = wb.create_sheet('IY')
+    # 9: C → B 정렬
+    rows = [
+        [ws.cell(row=r, column=c).value for c in range(1, last_col + 1)]
+        for r in range(2, last_row + 1)
+    ]
+    rows.sort(key=lambda x: (str(x[2]), str(x[1])))  # C, B 기준
+    ws.delete_rows(2, last_row - 1)
+    for ridx, row in enumerate(rows, start=2):
+        for cidx, val in enumerate(row, start=1):
+            ws.cell(row=ridx, column=cidx, value=val)
+    last_row = ws.max_row
 
-    def extract_brand(value):
-        match = re.search(r'\[(.*?)\]', str(value))
-        return match.group(1) if match else ''
+    #P열 “/” 금액 합산  → P 갱신
+    for r in range(2, last_row + 1):
+        p_raw = str(ws[f"P{r}"].value or "")
+        if "/" in p_raw:
+            nums = [float(n) for n in p_raw.split("/") if n.strip().isdigit()]
+            ws[f"P{r}"].value = sum(nums) if nums else 0
+        else:
+            ws[f"P{r}"].value = to_num(p_raw)
+    
+    # E, Q, W 열 String숫자 to 숫자 변환
+    for r in range(2, last_row + 1):
+        for col in ("E", "Q", "W"):
+            cell = ws[f"{col}{r}"]
+            val = str(cell.value).strip()
 
-    for ws_dest, brand in [(ws_ok, '오케이마트'), (ws_iy, '아이예스')]:
-        brand_rows = df[df['사이트'].astype(str).str.contains(rf'\[{brand}\]')]
-        for col_idx, col in enumerate(df.columns, 1):
-            ws_dest.cell(row=1, column=col_idx, value=col)
-        for r_idx, row in enumerate(brand_rows.itertuples(index=False), 2):
-            for c_idx, value in enumerate(row, 1):
-                ws_dest.cell(row=r_idx, column=c_idx, value=value)
+            if not val or any(op in val for op in ["/", "+", "-", "="]):
+                # 변환하지 않고 기존 값 유지 (또는 cell.value = 0으로 초기화 가능)
+                continue
+            else:
+                num_str = re.sub(r"\D", "", val)
+                cell.value = int(num_str) if num_str else 0
+
+            cell.number_format = "General"
+
+    # 10: 시트 분리(OK, IY)
+    col_widths = [ws.column_dimensions[get_column_letter(c)].width for c in range(1, last_col + 1)]
+
+    def copy_rows(dst_ws, rows_idx):
+        for c in range(1, last_col + 1):
+            dst_ws.cell(row=1, column=c, value=ws.cell(row=1, column=c).value)
+        for idx, r in enumerate(rows_idx, start=2):
+            for c in range(1, last_col + 1):
+                dst_ws.cell(row=idx, column=c, value=ws.cell(row=r, column=c).value)
+            dst_ws[f"A{idx}"].value = idx - 1
+
+    for name in ("OK", "IY"):
+        if name in wb.sheetnames:
+            del wb[name]
+
+    ok_rows, iy_rows = [], []
+    for r in range(2, last_row + 1):
+        btxt = str(ws[f"B{r}"].value or "")
+        if "[오케이마트]" in btxt:
+            ok_rows.append(r)
+        elif "[아이예스]" in btxt:
+            iy_rows.append(r)
+
+    if ok_rows:
+        ws_ok = wb.create_sheet("OK")
+        copy_rows(ws_ok, ok_rows)
+        for idx, w in enumerate(col_widths, start=1):
+            ws_ok.column_dimensions[get_column_letter(idx)].width = w
+    if iy_rows:
+        ws_iy = wb.create_sheet("IY")
+        copy_rows(ws_iy, iy_rows)
+        for idx, w in enumerate(col_widths, start=1):
+            ws_iy.column_dimensions[get_column_letter(idx)].width = w
 
     # 저장
-    output_path = file_path.replace('.xlsx', '_processed.xlsx')
+    output_path = str(Path(file_path).with_name("지그재그_합포장_자동화_" + Path(file_path).name))
     wb.save(output_path)
     print(f"지그재그 합포장 자동화 완료! 처리된 파일: {output_path}")
     return output_path
 
+
 if __name__ == "__main__":
-    excel_file_path = "/Users/smith/Documents/github/OKMart/sabangnet_API/files/test-[기본양식]-합포장용.xlsx"
-    processed_file = zigzag_merge_packaging(excel_file_path)
+    test_xlsx = "/Users/smith/Documents/github/OKMart/sabangnet_API/files/test-[기본양식]-합포장용.xlsx"
+    zigzag_merge_packaging(test_xlsx)
     print("모든 처리가 완료되었습니다!")

@@ -1,148 +1,141 @@
-import pandas as pd
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment
+from __future__ import annotations
+
 import re
 from collections import defaultdict
+from pathlib import Path
 
-def gok_merge_packaging(file_path):
-    # 1. 엑셀 파일 로드 및 DataFrame 변환
-    wb = openpyxl.load_workbook(file_path)
-    ws = wb.active
-    headers = [cell.value for cell in ws[1]]
-    data = []
-    for row in ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True):
-        data.append(list(row))
-    df = pd.DataFrame(data, columns=headers)
-    # 2. A열 번호 매기기
-    df.iloc[:, 0] = range(1, len(df) + 1)
-    # 3. P열 '/' 분할 후 합산
-    if 'P' in df.columns:
-        def sum_split(val):
-            if pd.isna(val): return val
-            parts = [float(x) for x in str(val).split('/') if x.strip().isdigit()]
-            return sum(parts) if parts else val
-        df['P'] = df['P'].apply(sum_split)
-    # 4. V열 '/' 분할 후 모두 같으면 첫 값, 다르면 0
-    if 'V' in df.columns:
-        def unify_split(val):
-            if pd.isna(val): return val
-            parts = [int(x) for x in str(val).split('/') if x.strip().isdigit() and int(x)!=0]
-            if not parts:
-                return 0
-            elif len(set(parts)) == 1:
-                return parts[0]
-            else:
-                return parts[0]
-        df['V'] = df['V'].apply(unify_split)
-    # 5. F열 '/'를 '+'로, ' 1개' 제거
-    if 'F' in df.columns:
-        df['F'] = df['F'].astype(str).str.replace('/', ' + ').str.replace(' 1개', '')
-    # 6. F열 LEFT(E,10)로 대체
-    if 'E' in df.columns and 'F' in df.columns:
-        df['F'] = df['E'].astype(str).str[:10]
-    # 7. D열 수식 적용 (예: D = U + V)
-    if 'D' in df.columns and 'U' in df.columns and 'V' in df.columns:
-        df['D'] = df['U'].fillna(0).astype(float) + df['V'].fillna(0).astype(float)
-    # 8. DataFrame을 엑셀에 다시 기록
-    for row in ws['A2':f'{openpyxl.utils.get_column_letter(ws.max_column)}{ws.max_row}']:
-        for cell in row:
-            cell.value = None
-    for r_idx, row in enumerate(df.itertuples(index=False), 2):
-        for c_idx, value in enumerate(row, 1):
-            ws.cell(row=r_idx, column=c_idx, value=value)
-    # 9. 서식 및 조건부 서식 적용
-    font = Font(name='맑은 고딕', size=9)
-    green_fill = PatternFill(start_color="00B050", end_color="00B050", fill_type="solid")
-    for row in ws.iter_rows():
-        for cell in row:
-            cell.font = font
-        ws.row_dimensions[cell.row].height = 15
-    for cell in ws[1]:
-        cell.fill = green_fill
-    blue_fill = PatternFill(start_color="CCE8FF", end_color="CCE8FF", fill_type="solid")
-    regex_exact = re.compile(r'^\d+개?$', re.IGNORECASE)
-    regex_repeat = re.compile(r'(\d+개\s*){2,}', re.IGNORECASE)
-    if 'F' in df.columns:
-        f_col = df.columns.get_loc('F') + 1
-        for i in range(2, ws.max_row+1):
-            f_val = str(ws.cell(row=i, column=f_col).value)
-            if regex_exact.match(f_val) or regex_repeat.search(f_val):
-                ws.cell(row=i, column=f_col).fill = blue_fill
-    center_alignment = Alignment(horizontal='center')
-    right_alignment = Alignment(horizontal='right')
-    for col in ['A', 'B']:
-        for cell in ws[col]:
-            cell.alignment = center_alignment
-    for col in ['D', 'E', 'G']:
-        for cell in ws[col]:
-            cell.alignment = right_alignment
-    for cell in ws[1]:
-        cell.alignment = center_alignment
+from openpyxl.utils import get_column_letter
 
-    # 9. A열 순번 수식 (=ROW()-1)
-    for i in range(2, ws.max_row + 1):
-        ws.cell(row=i, column=1).value = f"=ROW()-1"
+from utils.excel_handler import ExcelHandler
 
-    # 10. 정렬: C → B 기준
-    if 'C' in df.columns and 'B' in df.columns:
-        df.sort_values(by=['C', 'B'], inplace=True)
-        df.reset_index(drop=True, inplace=True)
+MULTI_SEP_RE = re.compile(r"[\/;]")
 
-    # DataFrame을 다시 엑셀에 반영 (정렬 후)
-    for row in ws['A2':f'{openpyxl.utils.get_column_letter(ws.max_column)}{ws.max_row}']:
-        for cell in row:
-            cell.value = None
-    for r_idx, row in enumerate(df.itertuples(index=False), 2):
-        for c_idx, value in enumerate(row, 1):
-            ws.cell(row=r_idx, column=c_idx, value=value)
 
-    # 11. 셀 배경색 및 테두리 제거
-    from openpyxl.styles import Border
-    for row in ws.iter_rows():
-        for cell in row:
-            cell.fill = PatternFill(fill_type=None)
-            cell.border = Border()
+def clean_f_text(txt: str | None) -> str:
+    """
+    모델(F열) 문자열 정리:
+    - '/' 또는 ';' 구분자는 ' + ' 로 치환
+    - ' 1개' 꼬리 텍스트 제거
+    """
+    if txt is None:
+        return ""
+    txt = MULTI_SEP_RE.sub(" + ", str(txt))
+    return txt.replace(" 1개", "").strip()
 
-    # 12. L열 내용 삭제
-    if 'L' in df.columns:
-        l_col = df.columns.get_loc('L') + 1
-        for i in range(2, ws.max_row + 1):
-            ws.cell(row=i, column=l_col).value = None
 
-    # 13. 계정명 기준 시트 분리
-    def extract_account_name(text):
-        match = re.search(r'\[(.*?)\]', str(text))
-        return match.group(1) if match else ''
+def bracket_text(text: str | None) -> str:
+    """
+    문자열 '[계정]' 형식에서 계정명만 추출
+    """
+    m = re.search(r"\[(.*?)\]", str(text or ""))
+    return m.group(1) if m else ""
 
-    site_groups = {
-        'OK,CL,BB': ['오케이마트', '클로버프', '베이지베이글'],
-        'IY': ['아이예스']
+def gok_merge_packaging(file_path: str) -> str:
+    ex = ExcelHandler.from_file(file_path)
+    ws, wb = ex.ws, ex.wb
+    last_row, last_col = ws.max_row, ws.max_column
+
+    # 1) 기본 서식
+    ex.set_basic_format()
+
+    # 2) P열 “/” 금액 합산
+    ex.sum_prow_with_slash()
+
+    # 3) V열 “/” 정제
+    for r in range(2, last_row + 1):
+        v_raw = str(ws[f"V{r}"].value or "").strip()
+        if "/" in v_raw:
+            nums = [
+                int(n)
+                for n in v_raw.split("/")
+                if n.strip().isdigit() and int(n) != 0
+            ]
+            ws[f"V{r}"].value = 0 if not nums else nums[0]
+
+    # 4) F열 문자열 정리
+    for r in range(2, last_row + 1):
+        ws[f"F{r}"].value = clean_f_text(ws[f"F{r}"].value)
+
+    # 5) E열 주문번호 10글자 자르기
+    for r in range(2, last_row + 1):
+        ws[f"E{r}"].value = str(ws[f"E{r}"].value)[:10]
+        ws[f"E{r}"].number_format = "General"
+
+    # 6) 정렬·A열 순번
+    ex.set_column_alignment()
+    ex.set_row_number()
+
+    # 7) D열 수식: =O+P+V
+    ex.autofill_d_column(formula="=O{row}+P{row}+V{row}")
+
+    # 8) E, M, Q, W 열 문자열 숫자 → 숫자
+    ex.convert_numeric_strings(cols=("E", "M", "Q", "W"))
+
+    # 9) C → B 2단계 정렬
+    data = [
+        [ws.cell(row=r, column=c).value for c in range(1, last_col + 1)]
+        for r in range(2, last_row + 1)
+    ]
+    data.sort(key=lambda x: (str(x[2]), str(x[1])))
+    ws.delete_rows(2, last_row - 1)
+    for ridx, row in enumerate(data, start=2):
+        for cidx, val in enumerate(row, start=1):
+            ws.cell(row=ridx, column=cidx, value=val)
+    last_row = ws.max_row
+
+    # 10) 배경·테두리 제거, L열 비우기
+    ex.clear_fills_from_second_row()
+    ex.clear_borders()
+    for col_idx in range(1, last_col + 1):
+        if str(ws.cell(row=1, column=col_idx).value).strip().upper() == "L":
+            for r in range(2, last_row + 1):
+                ws.cell(row=r, column=col_idx).value = None
+            break
+
+    # 11) 시트 분리 (OK,CL,BB / IY)
+    mapping = {
+        "OK,CL,BB": ["오케이마트", "클로버프", "베이지베이글"],
+        "IY": ["아이예스"],
     }
+    col_widths = [
+        ws.column_dimensions[get_column_letter(c)].width
+        for c in range(1, last_col + 1)
+    ]
+    rows_by_sheet = defaultdict(list)
+    for r in range(2, last_row + 1):
+        account = bracket_text(ws[f"B{r}"].value)
+        for sh, names in mapping.items():
+            if account in names:
+                rows_by_sheet[sh].append(r)
 
-    for sheet_name, names in site_groups.items():
-        if sheet_name in wb.sheetnames:
-            del wb[sheet_name]
-        ws_new = wb.create_sheet(title=sheet_name)
-        for col_idx, col in enumerate(df.columns, 1):
-            ws_new.cell(row=1, column=col_idx, value=col)
+    def copy_to(new_ws, src_rows):
+        # 헤더 / 열 너비 복사
+        for c in range(1, last_col + 1):
+            new_ws.cell(row=1, column=c, value=ws.cell(row=1, column=c).value)
+            new_ws.column_dimensions[get_column_letter(c)].width = col_widths[c - 1]
+        # 데이터 복사
+        for idx, r in enumerate(src_rows, start=2):
+            for c in range(1, last_col + 1):
+                new_ws.cell(row=idx, column=c, value=ws.cell(row=r, column=c).value)
+            new_ws[f"A{idx}"].value = "=ROW()-1"
 
-        filtered_rows = df[df['사이트'].apply(lambda x: extract_account_name(x) in names)]
-        for r_idx, row in enumerate(filtered_rows.itertuples(index=False), 2):
-            for c_idx, value in enumerate(row, 1):
-                ws_new.cell(row=r_idx, column=c_idx, value=value)
+    for sh in mapping.keys():
+        if sh in wb.sheetnames:
+            del wb[sh]
+        if rows_by_sheet[sh]:
+            copy_to(wb.create_sheet(sh), rows_by_sheet[sh])
 
-        for c in range(1, ws.max_column + 1):
-            col_letter = openpyxl.utils.get_column_letter(c)
-            ws_new.column_dimensions[col_letter].width = ws.column_dimensions[col_letter].width
-
-    output_path = file_path.replace('.xlsx', '_processed.xlsx')
+    # 12) 저장
+    output_path = str(
+        Path(file_path).with_name("G옥_합포장_자동화_" + Path(file_path).name)
+    )
     wb.save(output_path)
-    print(f"G옥 합포장 자동화 완료! 처리된 파일: {output_path}")
+    wb.close()
+    print(f"G·옥 합포장 자동화 완료! 처리된 파일: {output_path}")
     return output_path
 
-# 사용 예시 (other_site_macro.py 스타일)
+
 if __name__ == "__main__":
-    # 파일 경로를 지정하세요
-    excel_file_path = "/Users/smith/Documents/github/OKMart/sabangnet_API/files/test-[기본양식]-합포장용.xlsx"
-    processed_file = gok_merge_packaging(excel_file_path)
+    test_file = "/Users/smith/Documents/github/OKMart/sabangnet_API/files/test-[기본양식]-합포장용.xlsx"
+    gok_merge_packaging(test_file)
     print("모든 처리가 완료되었습니다!")
