@@ -32,7 +32,7 @@ class OneOnePriceService:
     def __init__(self, session: AsyncSession):
         self.one_one_price_repository = OneOnePriceRepository(session)
 
-    async def make_one_one_price_dto(
+    async def calculate_and_save_one_one_price(
             self,
             test_product_raw_data_id: int,
             compayny_goods_cd: str,
@@ -85,7 +85,8 @@ class OneOnePriceService:
             **base_data,
             **shop_prices
         )
-        return one_one_price_dto
+
+        return OneOnePriceDto.model_validate(await self.one_one_price_repository.create_one_one_price_data(one_one_price_dto))
 
     def roundup_to_thousands(self, value: Decimal) -> Decimal:
         """천의 자리에서 올림 (roundup) - 엑셀 ROUNDUP과 동일한 동작"""
@@ -124,7 +125,3 @@ class OneOnePriceService:
         """1+1가격 + 100 적용 샵들"""
         # 1+1가격 + 100
         return one_one_price + 100
-    
-    async def save_one_one_price_dto(self, one_one_price_dto: OneOnePriceDto) -> OneOnePriceDto:
-        """1+1 가격 저장"""
-        return OneOnePriceDto.model_validate(await self.one_one_price_repository.create_one_one_price_data(one_one_price_dto))

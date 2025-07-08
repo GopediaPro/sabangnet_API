@@ -5,7 +5,7 @@ import urllib.parse
 from fastapi.responses import StreamingResponse
 
 from utils.sabangnet_logger import get_logger
-from utils.product_create_field_mapping_db import PRODUCT_CREATE_FIELD_MAPPING
+from utils.product_create_field_db_mapping import PRODUCT_CREATE_FIELD_MAPPING
 
 from schemas.product.product_raw_data_dto import ProductRawDataDto
 
@@ -13,7 +13,7 @@ from schemas.product.product_raw_data_dto import ProductRawDataDto
 logger = get_logger(__name__)
 
 
-class ProductCreateDbToExcelService:
+class ProductDbExcelService:
 
     @staticmethod
     def convert_db_to_excel(dto_list: list[ProductRawDataDto]) -> StreamingResponse:
