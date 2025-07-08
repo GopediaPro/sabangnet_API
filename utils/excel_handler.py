@@ -31,6 +31,19 @@ class ExcelHandler:
         wb = openpyxl.load_workbook(file_path)
         ws = wb.worksheets[sheet_index]
         return cls(ws, wb)
+    
+    def save_file(self, file_path):
+        """
+        엑셀 파일 저장
+        예시:
+            ex.save_file('file.xlsx')
+        """
+        if file_path.endswith('_매크로_완료.xlsx'):
+            output_path = file_path
+        else:
+            output_path = file_path.replace('.xlsx', '_매크로_완료.xlsx')
+        self.wb.save(output_path)
+        return output_path
 
     # 기본 서식 설정 Method
     def set_basic_format(self, header_rgb="006100"):
@@ -54,7 +67,6 @@ class ExcelHandler:
             cell.alignment = Alignment(horizontal='center')
 
     # 수식 처리 Method
-
     def autofill_d_column(self, start_row=2, end_row=None, formula=None):
         """
         D열 수식 활성화 및 복사 (금액 계산)
@@ -81,7 +93,7 @@ class ExcelHandler:
             else:
                 self.ws[f'D{row}'].value = formula
 
-    def set_row_number(self, start_row=2, end_row=None):
+    def set_row_number(self,ws, start_row=2, end_row=None):
         """
         A열 순번 자동 생성 (=ROW()-1)
         예시:
@@ -89,9 +101,11 @@ class ExcelHandler:
         """
         if not end_row:
             end_row = self.last_row
+        if ws is None:
+            ws = self.ws
         for row in range(start_row, end_row + 1):
-            self.ws[f'A{row}'].number_format = 'General'
-            self.ws[f"A{row}"].value = "=ROW()-1"
+            ws[f'A{row}'].number_format = 'General'
+            ws[f"A{row}"].value = "=ROW()-1"
 
     def convert_formula_to_value(self):
         """
@@ -387,3 +401,11 @@ class ExcelHandler:
             ws_cell.fill = fill
             ws_cell.font = font
             ws_cell.alignment = alignment
+
+    def convert_to_number(self, cell_value):
+        """
+        문자열을 숫자로 변환
+        예시:
+            convert_to_number(ws['M2'].value)
+        """
+        return float(cell_value) if '.' in str(cell_value) else int(float(cell_value))
