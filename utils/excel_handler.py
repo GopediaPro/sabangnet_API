@@ -12,196 +12,293 @@ import re
 """
 
 
-# 기본 서식 설정 Method
-def set_basic_format(ws, header_rgb="006100"):
-    """
-    폰트, 행높이, 첫 행 배경색, 줄바꿈 해제 등 기본 서식 적용
-    예시:
-        wb = openpyxl.load_workbook('file.xlsx')
-        ws = wb.active
-        set_basic_format(ws)
-    """
-    font = Font(name='맑은 고딕', size=9)
-    green_fill = PatternFill(start_color=header_rgb, end_color=header_rgb, fill_type="solid")
-    for row in ws.iter_rows():
-        for cell in row:
-            cell.font = font
-            cell.alignment = Alignment(wrap_text=False)
-        ws.row_dimensions[row[0].row].height = 15
-    for cell in ws[1]:
-        cell.fill = green_fill
-        cell.alignment = Alignment(horizontal='center')
+class ExcelHandler:
+    def __init__(self, ws, wb=None):
+        self.ws = ws
+        self.wb = wb
+        self.last_row = ws.max_row
 
-# 수식 처리 Method
-def autofill_d_column(ws, start_row=2, end_row=None, formula=None):
-    """
-    D열 수식 활성화 및 복사 (금액 계산)
-    예시:
-        autofill_d_column(ws, 2, last_row, "=U{row}+V{row}")
-    - formula에 "{row}"를 포함하면 각 행 번호로 치환하여 적용
-    """
-    if not end_row:
-        end_row = ws.max_row
-    if not formula:
-        formula = ws['D2'].value
-    for row in range(start_row, end_row + 1):
-        if isinstance(formula, str) and '{row}' in formula:
-            ws[f'D{row}'].value = formula.format(row=row)
-        elif isinstance(formula, str) and '=' in formula:
-            ws[f'D{row}'].value = formula.replace('2', str(row))
-        else:
-            ws[f'D{row}'].value = formula
+    @classmethod
+    def from_file(cls, file_path, sheet_index=0):
+        """
+        파일 경로로 부터 엑셀 파일 로드
+        예시:
+            ex = ExcelHandler.from_file(file_path)
+            ws = ex.ws
+            wb = ex.wb
+        """
+        wb = openpyxl.load_workbook(file_path)
+        ws = wb.worksheets[sheet_index]
+        return cls(ws, wb)
 
-def set_row_number(ws, start_row=2, end_row=None):
-    """
-    A열 순번 자동 생성 (=ROW()-1)
-    예시:
-        set_row_number(ws)
-    """
-    if not end_row:
-        end_row = ws.max_row
-    for row in range(start_row, end_row + 1):
-        ws[f"A{row}"].value = "=ROW()-1"
+    # 기본 서식 설정 Method
+    def set_basic_format(self, header_rgb="006100"):
+        """
+        폰트, 행높이, 첫 행 배경색, 줄바꿈 해제 등 기본 서식 적용
+        예시:
+            wb = openpyxl.load_workbook('file.xlsx')
+            ws = wb.active
+            set_basic_format(ws)
+        """
+        font = Font(name='맑은 고딕', size=9)
+        green_fill = PatternFill(start_color=header_rgb,
+                                 end_color=header_rgb, fill_type="solid")
+        for row in self.ws.iter_rows():
+            for cell in row:
+                cell.font = font
+                cell.alignment = Alignment(wrap_text=False)
+            self.ws.row_dimensions[row[0].row].height = 15
+        for cell in self.ws[1]:
+            cell.fill = green_fill
+            cell.alignment = Alignment(horizontal='center')
 
-def convert_formula_to_value(ws):
-    """
-    수식 → 값 변환 처리 (모든 시트)
-    (openpyxl은 수식 결과값을 계산하지 않으므로, 실제 값 변환은 Excel에서 복사-값붙여넣기로 처리)
-    예시:
-        convert_formula_to_value(ws)
-    """
-    for row in ws.iter_rows():
-        for cell in row:
-            if cell.value and isinstance(cell.value, str) and cell.value.startswith('='):
-                # 실제 계산은 Excel에서, 여기선 수식 문자열만 제거
-                cell.value = cell.value
+    # 수식 처리 Method
 
-# 데이터 정리 Method
-def clear_borders(ws):
-    """
-    테두리 제거
-    예시:
-        clear_borders(ws)
-    """
-    for row in ws.iter_rows():
-        for cell in row:
-            cell.border = Border()
+    def autofill_d_column(self, start_row=2, end_row=None, formula=None):
+        """
+        D열 수식 활성화 및 복사 (금액 계산)
+        예시:
+            autofill_d_column(ws, 2, last_row, "=U{row}+V{row}")
+        - formula에 "{row}"를 포함하면 각 행 번호로 치환하여 적용
+        """
+        if not end_row:
+            end_row = self.last_row
+        if not formula:
+            formula = self.ws['D2'].value
+        for row in range(start_row, end_row + 1):
+            if self.ws[f'D{row}'].value is None:
+                continue
 
-def clear_fills(ws):
-    """
-    배경색 제거
-    예시:
-        clear_fills(ws)
-    """
-    for row in ws.iter_rows():
-        for cell in row:
-            cell.fill = PatternFill(fill_type=None)
+            # D열 숫자 포맷 초기화
+            self.ws[f'D{row}'].number_format = 'General'
 
-def format_phone_number(val):
-    """
-    전화번호 11자리 → 010-0000-0000 형식
-    예시:
-        ws['H2'].value = format_phone_number(ws['H2'].value)
-    """
-    val = str(val or '').replace('-', '').strip()
-    if len(val) == 11 and val.startswith('010') and val.isdigit():
-        return f"{val[:3]}-{val[3:7]}-{val[7:]}"
-    return val
+            # 수식 적용
+            if isinstance(formula, str) and '{row}' in formula:
+                self.ws[f'D{row}'].value = formula.format(row=row)
+            elif isinstance(formula, str) and '=' in formula:
+                self.ws[f'D{row}'].value = formula.replace('2', str(row))
+            else:
+                self.ws[f'D{row}'].value = formula
 
-def clean_model_name(val):
-    """
-    모델명에서 ' 1개' 텍스트 제거
-    예시:
-        ws['F2'].value = clean_model_name(ws['F2'].value)
-    """
-    return str(val).replace(' 1개', '') if val else val
+    def set_row_number(self, start_row=2, end_row=None):
+        """
+        A열 순번 자동 생성 (=ROW()-1)
+        예시:
+            set_row_number(ws)
+        """
+        if not end_row:
+            end_row = self.last_row
+        for row in range(start_row, end_row + 1):
+            self.ws[f'A{row}'].number_format = 'General'
+            self.ws[f"A{row}"].value = "=ROW()-1"
 
-def sum_prow_with_slash(ws):
-    """
-    P열 "/" 금액 합산
-    예시:
-        sum_prow_with_slash(ws)
-    """
-    last_row = ws.max_row
-    for r in range(2, last_row + 1):
-        p_raw = str(ws[f"P{r}"].value or "")
-        if "/" in p_raw:
-            nums = [float(n) for n in p_raw.split("/") if n.strip().isdigit()]
-            ws[f"P{r}"].value = sum(nums) if nums else 0
-        else:
-            ws[f"P{r}"].value = to_num(p_raw)
+    def convert_formula_to_value(self):
+        """
+        수식 → 값 변환 처리 (모든 시트)
+        (openpyxl은 수식 결과값을 계산하지 않으므로, 실제 값 변환은 Excel에서 복사-값붙여넣기로 처리)
+        예시:
+            convert_formula_to_value(ws)
+        """
+        for row in self.ws.iter_rows():
+            for cell in row:
+                if cell.value and isinstance(cell.value, str) and cell.value.startswith('='):
+                    # 실제 계산은 Excel에서, 여기선 수식 문자열만 제거
+                    cell.value = cell.value
 
-def to_num(val) -> float:
-    """
-    '12,345원' → 12345.0 (실패 시 0)
-    예시:
-        num = to_num("12,345원")
-    """
-    try:
-        return float(re.sub(r"[^\d.-]", "", str(val))) if str(val).strip() else 0.0
-    except ValueError:
-        return 0.0
+    # 데이터 정리 Method
 
-# 정렬 및 레이아웃 Method
-def set_column_alignment(ws):
-    """
-    A,B(가운데), D,E,G(오른쪽), 첫 행 가운데 정렬
-    예시:
-        set_column_alignment(ws)
-    """
-    center = Alignment(horizontal='center')
-    right = Alignment(horizontal='right')
-    for cell in ws['A']:
-        cell.alignment = center
-    for cell in ws['B']:
-        cell.alignment = center
-    for cell in ws['D']:
-        cell.alignment = right
-    for cell in ws['E']:
-        cell.alignment = right
-    for cell in ws['G']:
-        cell.alignment = right
-    for cell in ws[1]:
-        cell.alignment = center
+    def clear_borders(self):
+        """
+        테두리 제거
+        예시:
+            clear_borders(ws)
+        """
+        for row in self.ws.iter_rows():
+            for cell in row:
+                cell.border = Border()
 
-def sort_dataframe_by_c_b(df):
-    """
-    DataFrame을 C열 → B열 순서로 오름차순 정렬
-    예시:
-        df = sort_dataframe_by_c_b(df)
-    """
-    if 'C' in df.columns and 'B' in df.columns:
-        return df.sort_values(by=['C', 'B']).reset_index(drop=True)
-    return df
+    def clear_fills_from_second_row(self):
+        """
+        배경색 제거
+        예시:
+            clear_fills_from_second_row(ws)
+        - 두번째 행부터 모든 셀의 배경색을 제거합니다.
+        """
+        for row in self.ws.iter_rows(min_row=2):
+            for cell in row:
+                cell.fill = PatternFill(fill_type=None)
 
-# 특수 처리 Method
-def process_jeju_address(ws, row, f_col='F', j_col='J'):
-    """
-    제주도 주소: '[3000원 연락해야함]' 추가, 연한 파란색 배경 및 빨간 글씨 적용
-    예시:
-        process_jeju_address(ws, row=5)
-    """
-    red_font = Font(color="FF0000", bold=True)
-    # RGB(204,255,255) → hex: "CCFFFF"
-    light_blue_fill = PatternFill(start_color="CCFFFF", end_color="CCFFFF", fill_type="solid")
-    # F열 안내문 추가
-    f_val = ws[f'{f_col}{row}'].value
-    if f_val and "[3000원 연락해야함]" not in str(f_val):
-        ws[f'{f_col}{row}'].value = str(f_val) + " [3000원 연락해야함]"
-    # J열 빨간 글씨
-    ws[f'{j_col}{row}'].font = red_font
-    # F열 연한 파란색 배경
-    ws[f'{f_col}{row}'].fill = light_blue_fill
+    def format_phone_number(self, val):
+        """
+        전화번호 11자리 → 010-0000-0000 형식
+        예시:
+            ws['H2'].value = format_phone_number(ws['H2'].value)
+        """
+        val = str(val or '').replace('-', '').strip()
+        if len(val) == 11 and val.startswith('010') and val.isdigit():
+            return f"{val[:3]}-{val[3:7]}-{val[7:]}"
+        return val
 
-def process_l_column(ws, row, l_col='L'):
-    """
-    L열 결제방식: '신용' 삭제, '착불' 빨간 글씨
-    예시:
-        process_l_column(ws, row=7)
-    """
-    red_font = Font(color="FF0000", bold=True)
-    l_val = ws[f'{l_col}{row}'].value
-    if l_val == "신용":
-        ws[f'{l_col}{row}'].value = ""
-    elif l_val == "착불":
-        ws[f'{l_col}{row}'].font = red_font
+    def clean_model_name(self, val):
+        """
+        모델명에서 ' 1개' 텍스트 제거
+        예시:
+            ws['F2'].value = clean_model_name(ws['F2'].value)
+        """
+        return str(val).replace(' 1개', '') if val else val
+
+    def sum_prow_with_slash(self):
+        """
+        P열 "/" 금액 합산
+        예시:
+            sum_prow_with_slash(ws)
+        """
+        last_row = self.ws.max_row
+        for r in range(2, last_row + 1):
+            p_raw = str(self.ws[f"P{r}"].value or "")
+            if "/" in p_raw:
+                nums = [float(n)
+                        for n in p_raw.split("/") if n.strip().isdigit()]
+                self.ws[f"P{r}"].value = sum(nums) if nums else 0
+            else:
+                self.ws[f"P{r}"].value = self.to_num(p_raw)
+
+    def to_num(self, val) -> float:
+        """
+        '12,345원' → 12345.0 (실패 시 0)
+        예시:
+            num = to_num("12,345원")
+        """
+        try:
+            return float(re.sub(r"[^\d.-]", "", str(val))) if str(val).strip() else 0.0
+        except ValueError:
+            return 0.0
+
+    # 정렬 및 레이아웃 Method
+
+    def set_column_alignment(self, ws=None):
+        """
+        A,B(가운데), D,E,G(오른쪽), 첫 행 가운데 정렬
+        예시:
+            set_column_alignment(ws)
+        """
+        center = Alignment(horizontal='center')
+        right = Alignment(horizontal='right')
+
+        align_map = {
+            'center': {'A', 'B'},
+            'right': {'D', 'E', 'G'}
+        }
+        if ws is None:
+            ws = self.ws
+        for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+            for cell in row:
+                col_letter = cell.column_letter
+                if col_letter in align_map['center']:
+                    cell.alignment = center
+                elif col_letter in align_map['right']:
+                    cell.alignment = right
+
+        # 1행: 모든 셀 가운데 정렬
+        for cell in self.ws[1]:
+            cell.alignment = center
+
+    def sort_dataframe_by_c_b(self, df):
+        """
+        DataFrame을 C열 → B열 순서로 오름차순 정렬
+        예시:
+            df = sort_dataframe_by_c_b(df)
+        """
+        if 'C' in df.columns and 'B' in df.columns:
+            return df.sort_values(by=['C', 'B']).reset_index(drop=True)
+        return df
+
+    # 특수 처리 Method
+
+    def process_jeju_address(self, row, f_col='F', j_col='J'):
+        """
+        제주도 주소: '[3000원 연락해야함]' 추가, 연한 파란색 배경 및 빨간 글씨 적용
+        예시:
+            process_jeju_address(ws, row=5)
+        """
+        red_font = Font(color="FF0000", bold=True)
+        # RGB(204,255,255) → hex: "CCFFFF"
+        light_blue_fill = PatternFill(
+            start_color="CCFFFF", end_color="CCFFFF", fill_type="solid")
+        # F열 안내문 추가
+        f_val = self.ws[f'{f_col}{row}'].value
+        if f_val and "[3000원 연락해야함]" not in str(f_val):
+            self.ws[f'{f_col}{row}'].value = str(f_val) + " [3000원 연락해야함]"
+        # J열 빨간 글씨
+        self.ws[f'{j_col}{row}'].font = red_font
+        # F열 연한 파란색 배경
+        self.ws[f'{f_col}{row}'].fill = light_blue_fill
+
+    def process_l_column(self, row, l_col='L'):
+        """
+        L열 결제방식: '신용' 삭제, '착불' 빨간 글씨
+        예시:
+            process_l_column(ws, row=7)
+        """
+        red_font = Font(color="FF0000", bold=True)
+        l_val = self.ws[f'{l_col}{row}'].value
+        if l_val == "신용":
+            self.ws[f'{l_col}{row}'].value = ""
+        elif l_val == "착불":
+            self.ws[f'{l_col}{row}'].font = red_font
+
+    def highlight_column(self, col: str, light_color: PatternFill, start_row: int = 2, last_row: int = None):
+        """
+        특정 열 하이라이트 처리
+        예시:
+            - F열 모르겠는 셀 색칠음영 (하늘색)
+            - highlight_column(col='F', light_color=light_blue_fill, start_row=2, last_row=last_row)
+        """
+
+        def _should_highlight(txt: str) -> bool:
+            """
+            셀 값이 다음 조건 중 하나라도 만족하면 True:
+            - 빈 문자열
+            - 'none' (대소문자 무관)
+            - 모든 문자가 '#'
+            - 순수 숫자
+            - '숫자개' 패턴 (예: '3개')
+            """
+            if not txt or txt.strip() == "":
+                return True
+            txt = txt.strip()
+            if txt.lower() == "none":
+                return True
+            if all(c == '#' for c in txt):
+                return True
+            if txt.isdigit():
+                return True
+            if txt.endswith("개") and txt[:-1].isdigit():
+                return True
+            return False
+
+        if not last_row:
+            last_row = self.last_row
+        for row in range(start_row, last_row + 1):
+            cell_value = self.ws[f'{col}{row}'].value
+            txt = str(cell_value).strip() if cell_value else ""
+
+            if cell_value is not None and _should_highlight(txt):
+                self.ws[f"{col}{row}"].fill = light_color
+
+    def set_header_style(self, ws, headers: list, fill: PatternFill, font: Font, alignment: Alignment):
+        """
+        지정한 워크시트의 헤더 행에 배경색, 폰트, 정렬을 일괄 적용
+        Args:
+            ws: openpyxl worksheet
+            headers: 헤더 리스트
+            fill: 헤더 배경색(hex)
+            font: 폰트
+            alignment: 정렬 
+        """
+        for col in range(1, len(headers) + 1):
+            header_value = headers[col-1]
+            ws_cell = ws.cell(row=1, column=col, value=header_value)
+            ws_cell.fill = fill
+            ws_cell.font = font
+            ws_cell.alignment = alignment
