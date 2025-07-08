@@ -11,8 +11,10 @@ router = APIRouter(
     tags=["one-one-price"],
 )
 
+
 def get_product_one_one_price_usecase(session: AsyncSession = Depends(get_async_session)) -> ProductOneOnePriceUsecase:
     return ProductOneOnePriceUsecase(session=session)
+
 
 @router.post("/", response_model=OneOnePriceResponse)
 async def one_one_price_setting(
