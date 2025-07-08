@@ -1,11 +1,23 @@
+"""브랜디 합포장 자동화 모듈"""
+
+from __future__ import annotations
 import re
 from collections import defaultdict
 from pathlib import Path
+from typing import Dict, List, Tuple
 
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.worksheet import Worksheet
 
+from utils.excel_handler import ExcelHandler
+
+
+# 설정 상수
+OUTPUT_DIR_NAME = "완료"
+MALL_NAME = "브랜디"
+RED_FONT = Font(color="FF0000", bold=True)
 FONT_MALGUN = Font(name="맑은 고딕", size=9)
 HDR_FILL = PatternFill(start_color="006100",
                        end_color="006100", fill_type="solid")
@@ -21,135 +33,156 @@ def to_num(val):
         return 0
 
 
-def format_phone(val: str) -> str:
-    """01012345678  →  010-1234-5678"""
-    val = re.sub(r"[^\d]", "", str(val or ""))
-    return f"{val[:3]}-{val[3:7]}-{val[7:]}" if len(val) == 11 and val.startswith("010") else val
+class ProductUtils:
+    """상품 정보 처리 유틸리티"""
+    
+    @staticmethod
+    def clean_product_text(txt: str | None) -> str:
+        """
+        🔄 ExcelHandler 후보
+        상품명 문자열 정리 (' 1개' 제거)
+        """
+        return str(txt or "").replace(" 1개", "").strip()
 
 
-def brandy_merge_packaging(file_path: str) -> str:
-    wb = load_workbook(file_path)
-    ws = wb.active
+class PhoneUtils:
+    """전화번호 처리 유틸리티"""
+    
+    @staticmethod
+    def format_phone(val: str | None) -> str:
+        """전화번호 포맷팅 (01012345678 → 010-1234-5678)"""
+        if not val:
+            return ""
+        digits = re.sub(r"\D", "", str(val))
+        if len(digits) == 11:
+            return f"{digits[:3]}-{digits[3:7]}-{digits[7:]}"
+        return str(val)
 
-    last_row = ws.max_row
-    last_col = ws.max_column
 
-    # 1: 서식 & 헤더색
-    for row in ws.iter_rows():
-        for cell in row:
-            cell.font = FONT_MALGUN
-            cell.alignment = Alignment(wrap_text=False)
-        ws.row_dimensions[row[0].row].height = 15
-    for cell in ws[1]:
-        cell.fill = HDR_FILL
-        cell.alignment = Alignment(horizontal="center")
-
-    # 2: D열 값을 P열 + V열의 합으로 계산
-    for r in range(2, last_row + 1):
-        ws[f"D{r}"].value = f"=P{r}+V{r}"
-
-    # 4~6: 그룹핑·금액합산·모델명 병합·중복 삭제
-    groups: dict[str, list[int]] = defaultdict(list)
-    for i in range(2, last_row + 1):
-        key = f"{str(ws[f'C{i}'].value).strip()}|{str(ws[f'J{i}'].value).strip()}"
-        groups[key].append(i)
-
-    rows_to_delete = []
-    for idx_list in groups.values():
-        if len(idx_list) == 1:
-            continue
-
-        total_amount = sum(to_num(ws[f"D{r}"].value) for r in idx_list)
-        ws[f"D{idx_list[0]}"].value = total_amount
-
-        models = [
-            str(ws[f"F{r}"].value).replace(" 1개", "").strip()
-            for r in idx_list
-            if ws[f"F{r}"].value not in (None, "")
-        ]
-        ws[f"F{idx_list[0]}"].value = " + ".join(models)
-        rows_to_delete.extend(idx_list[1:])
-
-    for r in sorted(rows_to_delete, reverse=True):
-        ws.delete_rows(r)
-    last_row = ws.max_row
-
-    # 7: F열 ' 1개' 제거 
-    for i in range(2, last_row + 1):
-        if ws[f"F{i}"].value:
-            ws[f"F{i}"].value = str(ws[f"F{i}"].value).replace(" 1개", "")
-
-    # 8: 배경색 제거 
-    for row in ws.iter_rows(min_row=2, max_row=last_row, max_col=last_col):
-        for cell in row:
-            cell.fill = PatternFill(fill_type=None)
-
-    # 9: 전화번호 포맷 
-    for i in range(2, last_row + 1):
-        ws[f"H{i}"].value = format_phone(ws[f"H{i}"].value)
-        ws[f"I{i}"].value = format_phone(ws[f"I{i}"].value)
-
-    # 10: A열 순번 
-    for r in range(2, last_row + 1):
-        ws[f"A{r}"].value = "=ROW()-1"
-
-    # 11: 테두리 제거 
-    border_none = Border()
-    for row in ws.iter_rows():
-        for cell in row:
-            cell.border = border_none
-
-    # 12: 제주 주소 처리 
-    for i in range(2, last_row + 1):
-        if "제주" in str(ws[f"J{i}"].value or ""):
-            if "[3000원 연락해야함]" not in str(ws[f"F{i}"].value):
-                ws[f"F{i}"].value = f"{ws[f'F{i}'].value} [3000원 연락해야함]"
-            ws[f"F{i}"].fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
-            ws[f"J{i}"].font = Font(color="FF0000", bold=True)
-
-    # 13: 열 정렬 
-    center_align = Alignment(horizontal="center")
-    right_align = Alignment(horizontal="right")
-    for col in ("A", "B"):
-        for cell in ws[col]:
-            cell.alignment = center_align
-    for col in ("D", "E", "G"):
-        for cell in ws[col]:
-            cell.alignment = right_align
-    for cell in ws[1]:
-        cell.alignment = center_align
-
-    # 14: D열 금액 오름차순 정렬 
-    rows = [
-        [ws.cell(row=r, column=c).value for c in range(1, last_col + 1)]
-        for r in range(2, last_row + 1)
-    ]
-    rows.sort(key=lambda x: to_num(x[3]))  # D열(4번째) 기준
-
-    ws.delete_rows(2, ws.max_row - 1)
-    for r_idx, row_data in enumerate(rows, start=2):
-        for c_idx, value in enumerate(row_data, start=1):
-            ws.cell(row=r_idx, column=c_idx, value=value)
-
-    # E, M, P, Q, W 열 String숫자 to 숫자 변환 (단, '/' 등 포함 시 변환하지 않음)
-    for r in range(2, last_row + 1):
-        for col in ("E", "M", "P", "Q", "W"):
-            cell = ws[f"{col}{r}"]
-            val = str(cell.value).strip()
-
-            if not val or any(op in val for op in ["/", "+", "-", "="]):
-                # 변환하지 않고 기존 값 유지 (또는 cell.value = 0으로 초기화 가능)
+class GroupMerger:
+    """주문 데이터 그룹핑 및 병합 처리"""
+    
+    def __init__(self, ws: Worksheet):
+        self.ws = ws
+        self.groups = defaultdict(list)
+        
+    def group_by_product_and_receiver(self) -> None:
+        """C열(상품번호)와 J열(수령인) 기준으로 그룹핑"""
+        for row in range(2, self.ws.max_row + 1):
+            key = (
+                f"{str(self.ws[f'C{row}'].value).strip()}"
+                f"|{str(self.ws[f'J{row}'].value).strip()}"
+            )
+            self.groups[key].append(row)
+            
+    def merge_rows(self) -> List[int]:
+        """그룹별 데이터 병합 처리"""
+        rows_to_delete = []
+        
+        for rows in self.groups.values():
+            if len(rows) == 1:  # 중복 없음
                 continue
-            else:
-                num_str = re.sub(r"\D", "", val)
-                cell.value = int(num_str) if num_str else 0
+                
+            base_row = rows[0]  # 첫 행 유지
+            
+            # D열 금액 합산
+            total = 0.0
+            for row in rows:
+                cell_val = self.ws[f"D{row}"].value
+                if isinstance(cell_val, str) and cell_val.startswith("="):
+                    # 수식이 있는 경우 O+P+V 각각 계산
+                    o_val = float(self.ws[f"O{row}"].value or 0)
+                    p_val = float(self.ws[f"P{row}"].value or 0)
+                    v_val = float(self.ws[f"V{row}"].value or 0)
+                    total += (o_val + p_val + v_val)
+                else:
+                    total += float(cell_val or 0)
+            self.ws[f"D{base_row}"].value = total
+            
+            # F열 모델명 결합
+            models = []
+            for row in rows:
+                model = self.ws[f"F{row}"].value
+                if model:
+                    clean_model = ProductUtils.clean_product_text(model)
+                    if clean_model:
+                        models.append(clean_model)
+            self.ws[f"F{base_row}"].value = " + ".join(models)
+            
+            # 나머지 행은 삭제 대상으로 표시
+            rows_to_delete.extend(rows[1:])
+            
+        return sorted(rows_to_delete, reverse=True)  # 역순 정렬(삭제용)
 
-            cell.number_format = "General"
 
+def process_phones(ws: Worksheet) -> None:
+    """전화번호 처리 (H/I열)"""
+    for row in range(2, ws.max_row + 1):
+        for col in ("H", "I"):
+            phone = PhoneUtils.format_phone(ws[f"{col}{row}"].value)
+            if phone != str(ws[f"{col}{row}"].value):
+                ws[f"{col}{row}"].value = phone
+
+
+def process_jeju_orders(ex: ExcelHandler) -> None:
+    """제주도 주문 처리"""
+    ws = ex.ws
+    for row in range(2, ws.max_row + 1):
+        if "제주" in str(ws[f"J{row}"].value or ""):
+            ws[f"J{row}"].font = RED_FONT
+            if "[3000원 환불처리]" not in str(ws[f"F{row}"].value):
+                ws[f"F{row}"].value = f"{ws[f'F{row}'].value} [3000원 환불처리]"
+            ws[f"F{row}"].fill = BLUE_FILL
+
+
+def brandy_merge_packaging(input_path: str) -> str:
+    """브랜디 주문 합포장 자동화 처리"""
+    # Excel 파일 로드
+    ex = ExcelHandler.from_file(input_path)
+    ws = ex.ws
+
+    # 1. 기본 서식 적용
+    ex.set_basic_format()
+
+    # 2. C→B 정렬
+    ex.sort_by_columns([3, 2])  # C열=3, B열=2
+    
+    # 3. 그룹핑 및 병합
+    merger = GroupMerger(ws)
+    merger.group_by_product_and_receiver()
+    rows_to_delete = merger.merge_rows()
+    
+    # 중복 행 삭제 (역순으로)
+    for row_idx in rows_to_delete:
+        ws.delete_rows(row_idx)
+    
+    # 4. D열 수식 재설정
+    ex.autofill_d_column(formula="=O{row}+P{row}+V{row}")
+    
+    # 5. A열 순번 재설정
+    ex.set_row_number()
+    
+    # 6. 전화번호 처리
+    process_phones(ws)
+    
+    # 7. 제주도 주문 처리
+    process_jeju_orders(ex)
+    
+    # 8. 열 정렬
+    ex.set_column_alignment()
+    
+    # 9. 배경·테두리 제거
+    ex.clear_fills_from_second_row()
+    ex.clear_borders()
+    
     # 저장
-    output_path = str(Path(file_path).with_name("브랜디_합포장_자동화_" + Path(file_path).name))
-    wb.save(output_path)
-    print(f"브랜디 합포장 자동화 완료! 처리된 파일: {output_path}")
+    output_dir = Path(input_path).parent / OUTPUT_DIR_NAME
+    output_dir.mkdir(exist_ok=True)
+    output_path = str(output_dir / Path(input_path).name)
+    
+    ex.wb.save(output_path)
+    print(f"◼︎ [{MALL_NAME}] 합포장 자동화 완료!")
+    
     return output_path
 
 
