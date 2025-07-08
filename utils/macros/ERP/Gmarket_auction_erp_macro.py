@@ -4,6 +4,8 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border
 from openpyxl.utils import get_column_letter
 import re
 from collections import defaultdict
+from utils.excel_handler import ExcelHandler
+
 
 def gmarket_auction_erp_1_to_8(file_path):
     """
@@ -14,8 +16,11 @@ def gmarket_auction_erp_1_to_8(file_path):
     """
     
     # Excel 파일 로드
-    workbook = openpyxl.load_workbook(file_path)
-    ws = workbook.worksheets[0]  # 첫 번째 시트
+    ex = ExcelHandler.from_file(file_path)
+    ws = ex.ws
+    wb = ex.wb
+    last_row = ex.last_row
+
     
     print("G,옥 ERP 자동화 1~8단계 처리 시작...")
     
@@ -23,16 +28,7 @@ def gmarket_auction_erp_1_to_8(file_path):
     # [1단계] 폰트 및 행 너비 설정
     # ================================
     
-    font = Font(name='맑은 고딕', size=9)
-    
-    # 모든 셀에 폰트 적용
-    for row in ws.iter_rows():
-        for cell in row:
-            cell.font = font
-    
-    # 모든 행 높이 15로 설정
-    for row in range(1, ws.max_row + 1):
-        ws.row_dimensions[row].height = 15
+    ex.set_basic_format(header_rgb="008000")  # header_rgb는 필요에 따라 지정
     
     print("1단계: 폰트 및 행 높이 설정 완료")
     
@@ -40,24 +36,8 @@ def gmarket_auction_erp_1_to_8(file_path):
     # [2단계] D열 수식 활성화 및 채우기
     # ================================
     
-    # D열 전체 숫자 포맷
-    for row in range(1, ws.max_row + 1):
-        ws[f'D{row}'].number_format = 'General'
-    
-    # B열 기준으로 마지막 행 찾기
-    last_row = ws.max_row
-    for row in range(last_row, 0, -1):
-        if ws[f'B{row}'].value is not None:
-            last_row = row
-            break
-    
-    # D2 수식을 다른 행으로 복사 (기존 수식이 있다고 가정)
-    if ws['D2'].value and isinstance(ws['D2'].value, str) and ws['D2'].value.startswith('='):
-        d2_formula = ws['D2'].value
-        for row in range(3, last_row + 1):
-            # 수식에서 행 번호 치환
-            new_formula = d2_formula.replace('2', str(row)) if '2' in d2_formula else d2_formula
-            ws[f'D{row}'].value = new_formula
+    d2_formula = ws['D2'].value
+    ex.autofill_d_column(start_row=2, end_row=last_row, formula=d2_formula)    
     
     print("2단계: D열 수식 처리 완료")
     
@@ -101,19 +81,11 @@ def gmarket_auction_erp_1_to_8(file_path):
     # [4단계] A열 순번 수식 + 색칠음영 제거
     # ================================
     
-    # A열 숫자 포맷
-    for row in range(1, ws.max_row + 1):
-        ws[f'A{row}'].number_format = 'General'
-    
     # A열에 순번 입력
-    for row in range(2, last_row + 1):
-        ws[f'A{row}'].value = row - 1
+    ex.set_row_number(start_row=2, end_row=last_row)
     
     # 색칠 음영 제거 (A2:Z까지)
-    for row in range(2, last_row + 1):
-        for col in range(1, 27):  # A~Z열
-            cell = ws.cell(row=row, column=col)
-            cell.fill = PatternFill(fill_type=None)
+    ex.clear_fills_from_second_row()
     
     print("4단계: A열 순번 입력 및 배경색 제거 완료")
     
@@ -124,16 +96,8 @@ def gmarket_auction_erp_1_to_8(file_path):
     # 정렬 설정
     center_alignment = Alignment(horizontal='center')
     right_alignment = Alignment(horizontal='right')
-    
-    # A, B열 가운데 정렬
-    for row in range(1, last_row + 1):
-        ws[f'A{row}'].alignment = center_alignment
-        ws[f'B{row}'].alignment = center_alignment
-    
-    # D, G열 오른쪽 정렬
-    for row in range(1, last_row + 1):
-        ws[f'D{row}'].alignment = right_alignment
-        ws[f'G{row}'].alignment = right_alignment
+
+    ex.set_column_alignment()
     
     # E열 숫자 변환 및 오른쪽 정렬
     e_last_row = last_row
@@ -153,17 +117,9 @@ def gmarket_auction_erp_1_to_8(file_path):
     # ================================
     # [6단계] F열에서 " 1개" 제거
     # ================================
-    
-    f_last_row = last_row
-    for row in range(last_row, 0, -1):
-        if ws[f'F{row}'].value is not None:
-            f_last_row = row
-            break
-    
-    for row in range(2, f_last_row + 1):
-        f_value = ws[f'F{row}'].value
-        if f_value and str(f_value).endswith(" 1개"):
-            ws[f'F{row}'].value = str(f_value)[:-3]  # 마지막 3글자 제거
+
+    for row in range(2, last_row + 1):
+        ws[f'F{row}'].value = ex.clean_model_name(ws[f'F{row}'].value)     
     
     print("6단계: F열 ' 1개' 제거 완료")
     
@@ -173,29 +129,7 @@ def gmarket_auction_erp_1_to_8(file_path):
     
     light_blue_fill = PatternFill(start_color="ADD8E6", end_color="ADD8E6", fill_type="solid")
     
-    for row in range(2, f_last_row + 1):
-        f_value = ws[f'F{row}'].value
-        cell_value = str(f_value).strip() if f_value else ""
-        
-        # 조건: 빈 셀, 모든 문자가 #인 경우, 숫자+개 형태
-        should_highlight = False
-        
-        # 빈 셀
-        if cell_value == "" or cell_value == "None":
-            should_highlight = True
-        
-        # 모든 문자가 #인 경우
-        elif cell_value and all(c == '#' for c in cell_value):
-            should_highlight = True
-        
-        # "숫자개" 형태인 경우
-        elif cell_value.endswith("개"):
-            number_part = cell_value[:-1]
-            if number_part.isdigit():
-                should_highlight = True
-        
-        if should_highlight:
-            ws[f'F{row}'].fill = light_blue_fill
+    ex.highlight_column(col='F', light_color=light_blue_fill, start_row=2, last_row=last_row)
     
     print("7단계: F열 조건부 하이라이트 완료")
     
@@ -206,18 +140,15 @@ def gmarket_auction_erp_1_to_8(file_path):
     # 첫 번째 행 서식
     dark_green_fill = PatternFill(start_color="008000", end_color="008000", fill_type="solid")
     white_font = Font(name='맑은 고딕', size=9, color="FFFFFF", bold=True)
-    
-    for col in range(1, ws.max_column + 1):
-        cell = ws.cell(row=1, column=col)
-        cell.alignment = center_alignment
-        cell.fill = dark_green_fill
-        cell.font = white_font
+    headers = [ws.cell(row=1, column=col).value for col in range(1, ws.max_column + 1)]
+
+    ex.set_header_style(ws, headers, dark_green_fill, white_font, center_alignment)
     
     print("8단계: 헤더 서식 완료")
     
     # 파일 저장
     output_path = file_path.replace('.xlsx', '_매크로_완료.xlsx')
-    workbook.save(output_path)
+    wb.save(output_path)
     print(f"1~8단계 처리 완료! 파일 저장: {output_path}")
     
     return output_path
@@ -231,18 +162,16 @@ def run_steps_9_to_11(file_path):
     """
     
     # Excel 파일 로드
-    workbook = openpyxl.load_workbook(file_path)
-    ws_source = workbook.worksheets[0]  # 첫 번째 시트
-    
+    ex = ExcelHandler.from_file(file_path)
+    ws_source = ex.ws
+    workbook = ex.wb
     print("G,옥 ERP 자동화 9~11단계 처리 시작...")
     
     # ================================
     # [9-1] 전체 테두리 제거
-    # ================================
+    # ================================  
     
-    for row in ws_source.iter_rows():
-        for cell in row:
-            cell.border = Border()
+    ex.clear_borders()
     
     print("9-1단계: 테두리 제거 완료")
     
@@ -276,11 +205,10 @@ def run_steps_9_to_11(file_path):
     
     # DataFrame 생성 및 정렬
     df = pd.DataFrame(data, columns=headers)
-    
+
     # C열(인덱스 2), B열(인덱스 1) 순서로 정렬
     if len(df.columns) > 2:
-        df = df.sort_values(by=[df.columns[2], df.columns[1]], na_position='last')
-        df = df.reset_index(drop=True)
+        df = ex.sort_dataframe_by_c_b(df)  
     
     print("9-2, 9-3단계: C열, B열 순서 정렬 완료")
     
@@ -303,20 +231,9 @@ def run_steps_9_to_11(file_path):
     white_font = Font(name='맑은 고딕', size=9, color="FFFFFF", bold=True)
     center_alignment = Alignment(horizontal='center')
     
-    for col in range(1, len(headers) + 1):
-        header_value = headers[col-1]
-        
-        # OK 시트 헤더
-        ok_cell = ws_ok.cell(row=1, column=col, value=header_value)
-        ok_cell.fill = dark_green_fill
-        ok_cell.font = white_font
-        ok_cell.alignment = center_alignment
-        
-        # IY 시트 헤더
-        iy_cell = ws_iy.cell(row=1, column=col, value=header_value)
-        iy_cell.fill = dark_green_fill
-        iy_cell.font = white_font
-        iy_cell.alignment = center_alignment
+
+    ex.set_header_style(ws_ok, headers, dark_green_fill, white_font, center_alignment)
+    ex.set_header_style(ws_iy, headers, dark_green_fill, white_font, center_alignment)
     
     # 열 너비 복사
     for col in range(1, len(headers) + 1):
@@ -421,7 +338,6 @@ def run_steps_9_to_11(file_path):
     print("11단계: L열 처리 완료 (신용→공백, 착불→빨간색)")
     
     # 모든 시트에 서식 재적용
-    apply_formatting_to_all_sheets(workbook)
     
     # 파일 저장
     workbook.save(file_path)
@@ -429,37 +345,32 @@ def run_steps_9_to_11(file_path):
     
     return file_path
 
-def apply_formatting_to_all_sheets(workbook):
+def apply_formatting_to_all_sheets(final_file):
     """
     모든 시트에 서식 재적용
     """
-    font = Font(name='맑은 고딕', size=9)
-    center_alignment = Alignment(horizontal='center')
-    right_alignment = Alignment(horizontal='right')
+
+    ex = ExcelHandler.from_file(final_file)
+    ws = ex.ws
+    wb = ex.wb
+    last_row = ex.last_row
+    
+
     light_blue_fill = PatternFill(start_color="ADD8E6", end_color="ADD8E6", fill_type="solid")
     
-    for ws in workbook.worksheets:
-        if ws.max_row <= 1:
+    for ws in wb.worksheets:
+        if last_row <= 1:
             continue
             
         # 기본 폰트 적용
-        for row in range(1, ws.max_row + 1):
-            ws.row_dimensions[row].height = 15
-            for col in range(1, ws.max_column + 1):
-                ws.cell(row=row, column=col).font = font
+        ex.set_basic_format(header_rgb="008000")
         
-        # 정렬 적용
-        for row in range(2, ws.max_row + 1):
-            if ws.max_column >= 1:
-                ws[f'A{row}'].alignment = center_alignment
-            if ws.max_column >= 2:
-                ws[f'B{row}'].alignment = center_alignment
-            if ws.max_column >= 4:
-                ws[f'D{row}'].alignment = right_alignment
-            if ws.max_column >= 5:
-                ws[f'E{row}'].alignment = right_alignment
-            if ws.max_column >= 7:
-                ws[f'G{row}'].alignment = right_alignment
+        # A, B, D, E, G열 정렬
+        ex.set_column_alignment()
+        
+        # ================================
+        # [12단계] F열 조건부 서식 재적용
+        # ================================
         
         # F열 조건부 서식 재적용
         for row in range(2, ws.max_row + 1):
@@ -478,6 +389,9 @@ def apply_formatting_to_all_sheets(workbook):
                 
                 if should_highlight:
                     ws[f'F{row}'].fill = light_blue_fill
+        
+        wb.save(final_file)
+        return final_file
 
 def gok_erp_automation_full(file_path):
     """
@@ -498,47 +412,6 @@ def gok_erp_automation_full(file_path):
     print(f"✓ G,옥 ERP 자동화 완료! 최종 파일: {final_file}")
     return final_file
 
-def create_processing_summary(file_path):
-    """
-    처리 결과 요약 생성
-    """
-    workbook = openpyxl.load_workbook(file_path)
-    
-    summary = {}
-    
-    for ws in workbook.worksheets:
-        sheet_name = ws.title
-        row_count = ws.max_row - 1 if ws.max_row > 1 else 0
-        
-        # 바구니 중복 제거 통계 (원본 시트에서만)
-        basket_count = 0
-        jeju_count = 0
-        
-        if sheet_name == workbook.worksheets[0].title:  # 원본 시트
-            # Q열 바구니 번호 카운트
-            basket_numbers = set()
-            for row in range(2, ws.max_row + 1):
-                q_value = ws[f'Q{row}'].value
-                if q_value:
-                    basket_numbers.add(str(q_value).strip())
-            basket_count = len(basket_numbers)
-        
-        summary[sheet_name] = {
-            'rows': row_count,
-            'baskets': basket_count if basket_count > 0 else 'N/A'
-        }
-    
-    print("\n" + "="*50)
-    print("G,옥 ERP 자동화 처리 결과 요약")
-    print("="*50)
-    
-    for sheet_name, info in summary.items():
-        print(f"시트 '{sheet_name}': {info['rows']:,}행")
-        if info['baskets'] != 'N/A':
-            print(f"  - 바구니 수: {info['baskets']:,}개")
-    
-    print("="*50)
-    return file_path
 
 # 사용 예시
 if __name__ == "__main__":
@@ -548,9 +421,9 @@ if __name__ == "__main__":
     try:
         # G,옥 ERP 자동화 전체 프로세스 실행
         final_file = gok_erp_automation_full(excel_file_path)
+
+        apply_formatting_to_all_sheets(final_file)
         
-        # 처리 결과 요약
-        create_processing_summary(final_file)
         
         print("G,옥 ERP 자동화가 성공적으로 완료되었습니다!")
         

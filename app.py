@@ -11,14 +11,14 @@ legacy_ssl_handler.fix_legacy_ssl_config()
 from core.settings import SETTINGS
 from controller.product import run_generate_and_save_all_product_code_data
 from core.db import AsyncSessionLocal
-from models.receive_order.receive_order import ReceiveOrder
+from models.order.receive_order import ReceiveOrder
 from sqlalchemy import select
 import asyncio
 from core.db import get_db_pool
 from controller import fetch_mall_list, fetch_order_list, test_one_one_price_calculation, request_product_create as request_product_create_controller
 from dotenv import load_dotenv
 import typer
-from services.order_list.order_list_write import OrderListWriteService
+from services.order.order_create_service import OrderListCreateService
 from core.initialization import initialize_program
 from utils.sabangnet_logger import get_logger
 from core.db import test_db_write
@@ -174,7 +174,7 @@ def test_receive_order():
 @app.command(help="수집된 주문 DB에 담기")
 def create_order():
     try:
-        order_create_service = OrderListWriteService()
+        order_create_service = OrderListCreateService()
         asyncio.run(order_create_service.create_orders())
     except Exception as e:
         logger.error(f"쓰기 작업 중 오류 발생: {e}")
@@ -245,10 +245,10 @@ def import_product_registration_excel(
 
 @app.command(help="주문 목록을 엑셀로 변환")
 def create_order_xlsx():
-    from repository.receive_order_repository import CreateReceiveOrder
+    from repository.receive_order_repository import ReceiveOrderRepository
     from utils.convert_xlsx import ConvertXlsx
     from utils.order_basic_erp_excel_field_mapping import ORDER_BASIC_ERP_EXCEL_FIELD_MAPPING
-    inserter = CreateReceiveOrder()
+    inserter = ReceiveOrderRepository()
     convert_xlsx = ConvertXlsx()
     try:
         orders = asyncio.run(inserter.read_all())

@@ -4,7 +4,6 @@ from services.product.product_read_service import ProductReadService
 from services.one_one_price.one_one_price_service import OneOnePriceService
 from schemas.one_one_price.request.one_one_price_request import OneOnePriceCreate
 from schemas.one_one_price.one_one_price_dto import OneOnePriceDto, OneOnePriceBulkDto
-from schemas.one_one_price.response.one_one_price_response import OneOnePriceBulkResponse
 
 
 class ProductOneOnePriceUsecase:
@@ -24,19 +23,19 @@ class ProductOneOnePriceUsecase:
         test_product_raw_data_id, compayny_goods_cd, standard_price = \
             product_raw_data_dto.id, product_raw_data_dto.compayny_goods_cd, product_raw_data_dto.goods_price
 
-        one_one_price_dto = await self.one_one_price_service.make_one_one_price_dto(
+        one_one_price_dto = await self.one_one_price_service.calculate_and_save_one_one_price(
             test_product_raw_data_id=test_product_raw_data_id,
             compayny_goods_cd=compayny_goods_cd,
             product_nm=product_nm,
             standard_price=standard_price,
         )
 
-        return await self.one_one_price_service.save_one_one_price_dto(one_one_price_dto)
+        return one_one_price_dto
 
     async def calculate_and_save_one_one_prices_bulk(self, product_nm_and_gubun_list: List[OneOnePriceCreate]) -> OneOnePriceBulkDto:
         success_count: int = 0
         error_count: int = 0 
-        created_product_nm: List[int] = []
+        created_product_nm: List[str] = []
         errors: List[str] = []
         success_data: List[OneOnePriceDto] = []
 
@@ -48,7 +47,7 @@ class ProductOneOnePriceUsecase:
                 created_product_nm.append(one_one_price_dto.product_nm)
                 success_data.append(one_one_price_dto)
             except Exception as e:
-                errors.append(e)
+                errors.append(str(e))
                 error_count += 1
                 continue
 

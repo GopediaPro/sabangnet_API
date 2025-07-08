@@ -110,8 +110,8 @@ class OrderListFetchService:
         Parse XML response and insert order list into the DB.
         Returns the number of inserted records.
         """
-        from repository.receive_order_repository import CreateReceiveOrder
-        from models.receive_order.receive_order import ReceiveOrder
+        from repository.receive_order_repository import ReceiveOrderRepository
+        from models.order.receive_order import ReceiveOrder
         from decimal import Decimal
         import re
         from datetime import datetime, date
@@ -185,7 +185,7 @@ class OrderListFetchService:
                         order_detail[field] = parse_date_field(order_detail[field])
                 order_list.append(order_detail)
             write_log(f"총 {len(order_list)}개의 주문을 DB에 저장합니다.")
-            inserter = CreateReceiveOrder()
+            inserter = ReceiveOrderRepository()
             inserted = 0
             for order_data in order_list:
                 try:

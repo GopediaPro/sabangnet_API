@@ -1,13 +1,13 @@
 import json
 from datetime import datetime, timezone
 
-from repository.receive_order_repository import CreateReceiveOrder
-from models.receive_order.receive_order import ReceiveOrder
+from repository.receive_order_repository import ReceiveOrderRepository
+from models.order.receive_order import ReceiveOrder
 
 
-class OrderListWriteService:
+class OrderListCreateService:
     def __init__(self):
-        self.create_receive_order = CreateReceiveOrder()
+        self.create_receive_order = ReceiveOrderRepository()
 
     def convert_to_model(self, order_data: dict[str, str]) -> ReceiveOrder:
         order_data = {k.lower(): v for k, v in order_data.items()}
@@ -25,7 +25,7 @@ class OrderListWriteService:
         Parse the given XML content and insert orders into the DB using OrderListFetchService.
         Returns the number of inserted records.
         """
-        from services.order_list_fetch import OrderListFetchService
+        from services.order.order_cli_service import OrderListFetchService
         fetch_service = OrderListFetchService(
             ord_st_date="",  # Not needed for this context
             ord_ed_date="",
