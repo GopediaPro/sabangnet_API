@@ -268,6 +268,17 @@ def test_erp_macro():
         logger.error(f"ERP 매크로 실행 중 오류 발생: {e}")
         handle_error(e)
 
+@app.command(help="합포장 자동화 매크로 실행")
+def test_happojang_macro():
+    from controller.happojang_macro import test_happojang_macro
+    """
+    합포장 자동화 CLI 메뉴 실행
+    """
+    try:
+        test_happojang_macro()
+    except Exception as e:
+        typer.echo(f"합포장 자동화 실행 중 오류 발생: {e}")   
+
 @app.command(help="상품코드 생성 및 test_product_raw_data 저장")
 def generate_product_code_data():
     """product_registration_raw_data에서 데이터를 읽어 test_product_raw_data에 저장합니다."""
