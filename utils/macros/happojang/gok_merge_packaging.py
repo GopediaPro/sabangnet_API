@@ -17,9 +17,13 @@ OUTPUT_PREFIX = "G옥_합포장_자동화_"
 
 # 시트 분리 설정
 ACCOUNT_MAPPING = {
-    "OK,CL,BB": ["오케이마트", "클로버프", "베이지베이글"],
-    "IY": ["아이예스"],
+    "자동화_합포장_시트": ["자동화 적용 시트"],
+    "자동화_GOK,CL,BB": ["오케이마트", "클로버프", "베이지베이글"],
+    "자동화_IY": ["아이예스"],
 }
+
+# 필수 생성 시트 목록 (항상 생성)
+REQUIRED_SHEETS = list(ACCOUNT_MAPPING.keys()) 
 
 
 class DataCleanerUtils:
@@ -79,6 +83,11 @@ def clear_l_column(ws: Worksheet) -> None:
 
 
 class SheetSplitter:
+    """🔄 ExcelHandler 후보: copy_empty_sheet, copy_sheet_with_data 메서드"""
+    
+    # 자동화 로직이 적용되어야 하는 시트 접두어
+    AUTOMATION_PREFIX = "자동화_"
+    
     def __init__(self, ws: Worksheet, account_mapping: Dict[str, List[str]]):
         self.ws = ws
         self.account_mapping = account_mapping
@@ -90,24 +99,35 @@ class SheetSplitter:
             ws.column_dimensions[get_column_letter(c)].width
             for c in range(1, self.last_col + 1)
         ]
+        
+    def is_automation_sheet(self, sheet_name: str) -> bool:
+        """자동화 로직이 적용되어야 하는 시트인지 확인"""
+        return sheet_name.startswith(self.AUTOMATION_PREFIX)
 
     def get_rows_by_sheet(self) -> Dict[str, List[int]]:
-        """계정별 행 번호 매핑 생성"""
+        """시트별 행 번호 매핑 생성
+        - 일반 시트: 계정별 데이터만
+        - 자동화_합포장_시트: 모든 데이터 포함
+        """
         rows_by_sheet = defaultdict(list)
-        for r in range(2, self.last_row + 1):
+        all_rows = list(range(2, self.last_row + 1))
+
+        # 자동화_합포장_시트는 모든 데이터 포함
+        rows_by_sheet["자동화_합포장_시트"] = all_rows
+        
+        # 나머지 시트는 계정별로 데이터 분리
+        for r in all_rows:
             account = DataCleanerUtils.extract_bracket_content(
                 self.ws[f"B{r}"].value
             )
             for sheet_name, accounts in self.account_mapping.items():
-                if account in accounts:
+                if sheet_name != "자동화_합포장_시트" and account in accounts:
                     rows_by_sheet[sheet_name].append(r)
+                    
         return rows_by_sheet
 
-    def copy_to_new_sheet(self, 
-                         wb: Worksheet, 
-                         sheet_name: str, 
-                         row_indices: List[int]) -> None:
-        """지정된 행들을 새 시트로 복사"""
+    def create_empty_sheet(self, wb: Worksheet, sheet_name: str) -> Worksheet:
+        """빈 시트 생성 (헤더와 열 너비만 복사)"""
         if sheet_name in wb.sheetnames:
             del wb[sheet_name]
             
@@ -118,62 +138,87 @@ class SheetSplitter:
             new_ws.cell(row=1, column=c, 
                        value=self.ws.cell(row=1, column=c).value)
             new_ws.column_dimensions[get_column_letter(c)].width = self.col_widths[c - 1]
-        
-        # 데이터 복사
+            
+        return new_ws
+
+    def copy_sheet_data(self, ws: Worksheet, row_indices: List[int]) -> None:
+        """시트에 데이터 행 복사"""
+        if not row_indices:
+            return
+            
         for idx, r in enumerate(row_indices, start=2):
             for c in range(1, self.last_col + 1):
-                new_ws.cell(row=idx, column=c, 
-                          value=self.ws.cell(row=r, column=c).value)
-            new_ws[f"A{idx}"].value = "=ROW()-1"
+                ws.cell(row=idx, column=c, 
+                       value=self.ws.cell(row=r, column=c).value)
+            ws[f"A{idx}"].value = "=ROW()-1"
+
+    def apply_automation_logic(self, ws: Worksheet) -> None:
+        """자동화 로직 적용"""
+        # 1. 기본 서식 적용
+        ex = ExcelHandler(ws)
+        ex.set_basic_format()
+        
+        # 2. P열 슬래시(/) 금액 합산
+        ex.sum_prow_with_slash()
+        
+        # 3. V열 슬래시(/) 정제
+        process_slash_values(ws)
+        
+        # 4. F열 모델명 정리
+        for r in range(2, ws.max_row + 1):
+            ws[f"F{r}"].value = DataCleanerUtils.clean_model_name(ws[f"F{r}"].value)
+            
+        # 5. E열 주문번호 처리
+        truncate_order_numbers(ws)
+        
+        # 6. 정렬 및 순번
+        ex.set_column_alignment()
+        ex.set_row_number(ws)
+        
+        # 7. 문자열→숫자 변환
+        ex.convert_numeric_strings(cols=("E", "M", "Q", "W"))
+        
+        # 8. C→B 2단계 정렬
+        ex.sort_by_columns([3, 2])
+        
+        # 9. D열 수식 설정
+        ex.autofill_d_column(formula="=O{row}+P{row}+V{row}")
+        
+        # 10. 서식 초기화
+        ex.clear_fills_from_second_row()
+        ex.clear_borders()
+        clear_l_column(ws)
+
+    def copy_to_new_sheet(self, 
+                         wb: Worksheet, 
+                         sheet_name: str, 
+                         row_indices: List[int] = None) -> None:
+        """지정된 행들로 새 시트 생성 (데이터가 없어도 빈 시트 생성)"""
+        new_ws = self.create_empty_sheet(wb, sheet_name)
+        if row_indices:
+            self.copy_sheet_data(new_ws, row_indices)
+            
+        # 자동화 시트인 경우 로직 적용
+        if self.is_automation_sheet(sheet_name):
+            self.apply_automation_logic(new_ws)
 
 
 def gok_merge_packaging(file_path: str) -> str:
     """G옥 주문 합포장 자동화 처리"""
     # Excel 파일 로드
     ex = ExcelHandler.from_file(file_path)
-    ws = ex.ws
     
-    # 1. 기본 서식 적용
-    ex.set_basic_format()
-    
-    # 2. P열 슬래시(/) 금액 합산
-    ex.sum_prow_with_slash()
-    
-    # 3. V열 슬래시(/) 정제
-    process_slash_values(ws)
-    
-    # 4. F열 모델명 정리
-    for r in range(2, ws.max_row + 1):
-        ws[f"F{r}"].value = DataCleanerUtils.clean_model_name(ws[f"F{r}"].value)
-    
-    # 5. E열 주문번호 처리
-    truncate_order_numbers(ws)
-    
-    # 6. 정렬 및 순번
-    ex.set_column_alignment()
-    ex.set_row_number()
-    
-    # 7. 문자열→숫자 변환 (E, M, Q, W열)
-    ex.convert_numeric_strings(cols=("E", "M", "Q", "W"))
-    
-    # 8. C→B 2단계 정렬
-    ex.sort_by_columns([3, 2])  # C열=3, B열=2
-
-    # 9. D열 수식 설정 (=O+P+V)
-    ex.autofill_d_column(formula="=O{row}+P{row}+V{row}")
-    
-    # 10. 서식 초기화
-    ex.clear_fills_from_second_row()
-    ex.clear_borders()
-    clear_l_column(ws)
-    
-    # 11. 계정별 시트 분리
-    splitter = SheetSplitter(ws, ACCOUNT_MAPPING)
+    # 계정별 시트 분리 및 필수 시트 생성
+    splitter = SheetSplitter(ex.ws, ACCOUNT_MAPPING)
     rows_by_sheet = splitter.get_rows_by_sheet()
     
-    for sheet_name, row_indices in rows_by_sheet.items():
-        if row_indices:  # 해당 계정의 데이터가 있는 경우만
-            splitter.copy_to_new_sheet(ex.wb, sheet_name, row_indices)
+    # 모든 필수 시트 생성 (데이터 유무와 무관)
+    for sheet_name in REQUIRED_SHEETS:
+        splitter.copy_to_new_sheet(
+            ex.wb,
+            sheet_name, 
+            rows_by_sheet.get(sheet_name, [])
+        )
     
     # 12. 저장
     output_path = str(
