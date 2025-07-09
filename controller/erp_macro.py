@@ -27,13 +27,10 @@ def test_erp_macro():
         macro_file_path = ""
         if choice == "1":
             # 기타사이트_ERP_자동화
-            from utils.macros.ERP.other_site_macro import other_site_macro_1_to_14, apply_conditional_formatting
+            from utils.macros.ERP.etc_site_macro import ECTSiteMacro
 
-            # 매크로 실행
-            processed_file = other_site_macro_1_to_14(xlsx_file_path)
-
-            # 조건부 서식 적용
-            macro_file_path = apply_conditional_formatting(processed_file)
+            macro = ECTSiteMacro(xlsx_file_path)
+            macro_file_path = macro.step_1_to_13()
 
             print("기타사이트_ERP_자동화")
 
