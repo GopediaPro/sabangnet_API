@@ -15,8 +15,14 @@ from utils.excel_handler import ExcelHandler
 
 
 # 설정 상수
-OUTPUT_DIR_NAME = "완료"
 MALL_NAME = "브랜디"
+OUTPUT_PREFIX = "브랜디_합포장_자동화_"
+
+# 시트 분리 설정
+REQUIRED_SHEETS = [
+    "자동화_합포장_전체",  # 원본 데이터 보존 + 자동화
+    "자동화_합포장_시트",  # 자동화 전용
+]
 RED_FONT = Font(color="FF0000", bold=True)
 FONT_MALGUN = Font(name="맑은 고딕", size=9)
 HDR_FILL = PatternFill(start_color="006100",
@@ -114,75 +120,118 @@ class GroupMerger:
             
         return sorted(rows_to_delete, reverse=True)  # 역순 정렬(삭제용)
 
+class SheetSplitter:
+    """시트 분리 및 자동화 로직 적용"""
+    
+    def __init__(self, ws: Worksheet):
+        self.ws = ws
+        self.last_row = ws.max_row
+        self.last_col = ws.max_column
+        
+        # 열 너비 저장
+        self.col_widths = [
+            ws.column_dimensions[get_column_letter(c)].width
+            for c in range(1, self.last_col + 1)
+        ]
 
-def process_phones(ws: Worksheet) -> None:
-    """전화번호 처리 (H/I열)"""
-    for row in range(2, ws.max_row + 1):
-        for col in ("H", "I"):
-            phone = PhoneUtils.format_phone(ws[f"{col}{row}"].value)
-            if phone != str(ws[f"{col}{row}"].value):
-                ws[f"{col}{row}"].value = phone
+    def create_empty_sheet(self, wb: Worksheet, sheet_name: str) -> Worksheet:
+        """빈 시트 생성 (헤더와 열 너비만 복사)"""
+        if sheet_name in wb.sheetnames:
+            del wb[sheet_name]
+            
+        new_ws = wb.create_sheet(sheet_name)
+        
+        # 헤더와 열 너비 복사
+        for c in range(1, self.last_col + 1):
+            new_ws.cell(row=1, column=c, 
+                       value=self.ws.cell(row=1, column=c).value)
+            new_ws.column_dimensions[get_column_letter(c)].width = self.col_widths[c - 1]
+            
+        return new_ws
 
+    def copy_sheet_data(self, ws: Worksheet) -> None:
+        """시트에 데이터 행 복사"""
+        for r in range(2, self.last_row + 1):
+            for c in range(1, self.last_col + 1):
+                ws.cell(row=r, column=c, 
+                       value=self.ws.cell(row=r, column=c).value)
+            ws[f"A{r}"].value = "=ROW()-1"
 
-def process_jeju_orders(ex: ExcelHandler) -> None:
-    """제주도 주문 처리"""
-    ws = ex.ws
-    for row in range(2, ws.max_row + 1):
-        if "제주" in str(ws[f"J{row}"].value or ""):
-            ws[f"J{row}"].font = RED_FONT
-            if "[3000원 환불처리]" not in str(ws[f"F{row}"].value):
-                ws[f"F{row}"].value = f"{ws[f'F{row}'].value} [3000원 환불처리]"
-            ws[f"F{row}"].fill = BLUE_FILL
+    def apply_automation_logic(self, ws: Worksheet) -> None:
+        """자동화 로직 적용"""
+        # 1. 기본 서식 적용
+        ex = ExcelHandler(ws)
+        ex.set_basic_format()
+        
+        # 2. C→B 정렬
+        ex.sort_by_columns([3, 2])
+        
+        # 3. 그룹핑 및 병합
+        merger = GroupMerger(ws)
+        merger.group_by_product_and_receiver()
+        rows_to_delete = merger.merge_rows()
+        
+        # 중복 행 삭제 (역순으로)
+        for row_idx in rows_to_delete:
+            ws.delete_rows(row_idx)
+        
+        # 4. D열 수식 재설정
+        ex.autofill_d_column(formula="=O{row}+P{row}+V{row}")
+        
+        # 5. A열 순번 재설정
+        ex.set_row_number(ws)
+        
+        # 6. 전화번호 처리 (H열, I열)
+        for row in range(2, self.last_row + 1):
+            for col in ('H', 'I'):
+                cell_value = ws[f'{col}{row}'].value
+                ws[f'{col}{row}'].value = ex.format_phone_number(cell_value)
+        
+        # 7. 제주도 주문 처리
+        for row in range(2, self.last_row + 1):
+            j_value = ws[f'J{row}'].value
+            if j_value and "제주" in str(j_value):
+                ex.process_jeju_address(row)
+        
+        # 8. 열 정렬
+        ex.set_column_alignment()
+        
+        # 9. 배경·테두리 제거
+        ex.clear_fills_from_second_row()
+        ex.clear_borders()
 
+    def copy_to_new_sheet(self, 
+                         wb: Worksheet, 
+                         sheet_name: str,
+                         ex: ExcelHandler) -> None:
+        """새 시트 생성 및 자동화 로직 적용"""
+        new_ws = self.create_empty_sheet(wb, sheet_name)
+        self.copy_sheet_data(new_ws)
+        self.apply_automation_logic(new_ws)  # ex 인자 제거
 
 def brandy_merge_packaging(input_path: str) -> str:
     """브랜디 주문 합포장 자동화 처리"""
     # Excel 파일 로드
     ex = ExcelHandler.from_file(input_path)
-    ws = ex.ws
-
-    # 1. 기본 서식 적용
-    ex.set_basic_format()
-
-    # 2. C→B 정렬
-    ex.sort_by_columns([3, 2])  # C열=3, B열=2
     
-    # 3. 그룹핑 및 병합
-    merger = GroupMerger(ws)
-    merger.group_by_product_and_receiver()
-    rows_to_delete = merger.merge_rows()
+    # 첫 번째 시트(원본)에 자동화 로직 적용
+    source_ws = ex.ws
+    splitter = SheetSplitter(source_ws)
+    splitter.apply_automation_logic(source_ws)
     
-    # 중복 행 삭제 (역순으로)
-    for row_idx in rows_to_delete:
-        ws.delete_rows(row_idx)
-    
-    # 4. D열 수식 재설정
-    ex.autofill_d_column(formula="=O{row}+P{row}+V{row}")
-    
-    # 5. A열 순번 재설정
-    ex.set_row_number()
-    
-    # 6. 전화번호 처리
-    process_phones(ws)
-    
-    # 7. 제주도 주문 처리
-    process_jeju_orders(ex)
-    
-    # 8. 열 정렬
-    ex.set_column_alignment()
-    
-    # 9. 배경·테두리 제거
-    ex.clear_fills_from_second_row()
-    ex.clear_borders()
+    # 필수 시트 생성
+    for sheet_name in REQUIRED_SHEETS:
+        splitter.copy_to_new_sheet(ex.wb, sheet_name, ex)
+        print(f"◼︎ [{MALL_NAME}] {sheet_name} 처리 완료")
     
     # 저장
-    output_dir = Path(input_path).parent / OUTPUT_DIR_NAME
-    output_dir.mkdir(exist_ok=True)
-    output_path = str(output_dir / Path(input_path).name)
-    
+    output_path = str(
+        Path(input_path).with_name(OUTPUT_PREFIX + Path(input_path).name)
+    )
     ex.wb.save(output_path)
-    print(f"◼︎ [{MALL_NAME}] 합포장 자동화 완료!")
+    ex.wb.close()
     
+    print(f"◼︎ [{MALL_NAME}] 합포장 자동화 완료!")
     return output_path
 
 
