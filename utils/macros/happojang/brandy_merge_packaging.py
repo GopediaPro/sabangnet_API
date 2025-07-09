@@ -33,8 +33,8 @@ def to_num(val):
         return 0
 
 
-class ProductUtils:
-    """상품 정보 처리 유틸리티"""
+class BrandyProductProcessor:
+    """브랜디 상품 정보 처리 유틸리티"""
     
     @staticmethod
     def clean_product_text(txt: str | None) -> str:
@@ -45,8 +45,8 @@ class ProductUtils:
         return str(txt or "").replace(" 1개", "").strip()
 
 
-class PhoneUtils:
-    """전화번호 처리 유틸리티"""
+class BrandyPhoneFormatter:
+    """브랜디 전화번호 처리 유틸리티"""
     
     @staticmethod
     def format_phone(val: str | None) -> str:
@@ -59,8 +59,8 @@ class PhoneUtils:
         return str(val)
 
 
-class GroupMerger:
-    """주문 데이터 그룹핑 및 병합 처리"""
+class BrandyOrderMerger:
+    """브랜디 주문 데이터 그룹핑 및 병합 처리"""
     
     def __init__(self, ws: Worksheet):
         self.ws = ws
@@ -115,7 +115,7 @@ class GroupMerger:
             for row in rows:
                 model = self.ws[f"F{row}"].value
                 if model:
-                    clean_model = ProductUtils.clean_product_text(model)
+                    clean_model = BrandyProductProcessor.clean_product_text(model)
                     if clean_model:
                         models.append(clean_model)
             self.ws[f"F{base_row}"].value = " + ".join(models)
@@ -125,8 +125,8 @@ class GroupMerger:
             
         return sorted(rows_to_delete, reverse=True)  # 역순 정렬(삭제용)
 
-class SheetSplitter:
-    """시트 분리 및 자동화 로직 적용"""
+class BrandySheetProcessor:
+    """브랜디 시트 분리 및 자동화 로직 적용"""
     
     def __init__(self, ws: Worksheet):
         self.ws = ws
@@ -172,7 +172,7 @@ class SheetSplitter:
         ex.sort_by_columns([3])
         
         # 3. 그룹핑 및 병합
-        merger = GroupMerger(ws)
+        merger = BrandyOrderMerger(ws)
         merger.group_by_product_and_receiver()
         rows_to_delete = merger.merge_rows()
         
@@ -224,7 +224,7 @@ def brandy_merge_packaging(input_path: str) -> str:
     
     # 첫 번째 시트에 자동화 로직 적용
     source_ws = ex.ws
-    splitter = SheetSplitter(source_ws)
+    splitter = BrandySheetProcessor(source_ws)
     splitter.apply_automation_logic(source_ws)
     print(f"◼︎ [{MALL_NAME}] 자동화 처리 완료")
     

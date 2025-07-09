@@ -25,7 +25,8 @@ ACCOUNT_MAPPING = {
 REQUIRED_SHEETS = list(ACCOUNT_MAPPING.keys()) 
 
 
-class DataCleanerUtils:
+class GokDataProcessor:
+    """G옥 데이터 정리 처리 유틸리티"""
     MULTI_SEP_RE = re.compile(r"[\/;]")
     BRACKET_RE = re.compile(r"\[(.*?)\]")
     
@@ -38,7 +39,7 @@ class DataCleanerUtils:
         """
         if not txt:
             return ""
-        txt = DataCleanerUtils.MULTI_SEP_RE.sub(" + ", str(txt))
+        txt = GokDataProcessor.MULTI_SEP_RE.sub(" + ", str(txt))
         return txt.replace(" 1개", "").strip()
 
     @staticmethod
@@ -46,7 +47,7 @@ class DataCleanerUtils:
         """[계정명] 형식에서 계정명만 추출"""
         if not text:
             return ""
-        match = DataCleanerUtils.BRACKET_RE.search(str(text))
+        match = GokDataProcessor.BRACKET_RE.search(str(text))
         return match.group(1) if match else ""
 
 
@@ -81,7 +82,8 @@ def clear_l_column(ws: Worksheet) -> None:
             break
 
 
-class SheetSplitter:
+class GokSheetManager:
+    """G옥 시트 분리 및 자동화 로직 적용"""
     
     def __init__(self, ws: Worksheet, account_mapping: Dict[str, List[str]]):
         self.ws = ws
@@ -108,7 +110,7 @@ class SheetSplitter:
         
         # 나머지 시트는 계정별로 데이터 분리
         for r in all_rows:
-            account = DataCleanerUtils.extract_bracket_content(
+            account = GokDataProcessor.extract_bracket_content(
                 self.ws[f"B{r}"].value
             )
             for sheet_name, accounts in self.account_mapping.items():
@@ -157,7 +159,7 @@ class SheetSplitter:
         
         # 4. F열 모델명 정리
         for r in range(2, ws.max_row + 1):
-            ws[f"F{r}"].value = DataCleanerUtils.clean_model_name(ws[f"F{r}"].value)
+            ws[f"F{r}"].value = GokDataProcessor.clean_model_name(ws[f"F{r}"].value)
             
         # 5. E열 주문번호 처리
         truncate_order_numbers(ws)
@@ -200,11 +202,11 @@ def gok_merge_packaging(file_path: str) -> str:
     
     # 첫 번째 시트(원본)에 자동화 로직 적용
     source_ws = ex.ws
-    splitter = SheetSplitter(source_ws, ACCOUNT_MAPPING)
+    splitter = GokSheetManager(source_ws, ACCOUNT_MAPPING)
     splitter.apply_automation_logic(source_ws)
     
     # 계정별 시트 분리 및 필수 시트 생성
-    splitter = SheetSplitter(source_ws, ACCOUNT_MAPPING)
+    splitter = GokSheetManager(source_ws, ACCOUNT_MAPPING)
     rows_by_sheet = splitter.get_rows_by_sheet()
     
     # 모든 필수 시트 생성 (데이터 유무와 무관)
