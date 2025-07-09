@@ -251,7 +251,7 @@ class ExcelHandler:
                         # 0 도 유효 숫자로 인정
                         if raw not in {"", ".", ","}:
                             cell.value = num_val
-                            cell.number_format = "General"
+                            cell.number_format = "0"
 
     # 정렬 및 레이아웃 Method
 
