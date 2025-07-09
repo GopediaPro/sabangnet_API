@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 def test_erp_macro():
-    xlsx_base_path = Path("./files/xlsx/")
+    xlsx_base_path = Path("./files/excel/")
     try:
         print(f"Excel 파일 ERP 매크로 적용 테스트")
         print('=' * 50)
