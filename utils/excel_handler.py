@@ -47,7 +47,7 @@ class ExcelHandler:
         return output_path
 
     # 기본 서식 설정 Method
-    def set_basic_format(self, header_rgb="006100"):
+    def set_basic_format(self, ws=None, header_rgb="006100"):
         """
         폰트, 행높이, 첫 행 배경색, 줄바꿈 해제 등 기본 서식 적용
         예시:
@@ -55,15 +55,17 @@ class ExcelHandler:
             ws = wb.active
             set_basic_format(ws)
         """
+        if ws is None:
+            ws = self.ws
         font = Font(name='맑은 고딕', size=9)
         green_fill = PatternFill(start_color=header_rgb,
                                  end_color=header_rgb, fill_type="solid")
-        for row in self.ws.iter_rows():
+        for row in ws.iter_rows():
             for cell in row:
                 cell.font = font
                 cell.alignment = Alignment(wrap_text=False)
-            self.ws.row_dimensions[row[0].row].height = 15
-        for cell in self.ws[1]:
+            ws.row_dimensions[row[0].row].height = 15
+        for cell in ws[1]:
             cell.fill = green_fill
             cell.alignment = Alignment(horizontal='center')
 
@@ -127,15 +129,17 @@ class ExcelHandler:
 
     def clear_borders(self, ws=None):
         """
-        테두리 제거
+        테두리 제거 & 격자 제거
         예시:
             clear_borders(ws)
         """
         if ws is None:
             ws = self.ws
         for row in ws.iter_rows():
+            ws.sheet_view.showGridLines = False
             for cell in row:
                 cell.border = Border()
+
 
     def clear_fills_from_second_row(self):
         """
