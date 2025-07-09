@@ -45,6 +45,14 @@ class ExcelHandler:
             output_path = file_path.replace('.xlsx', '_매크로_완료.xlsx')
         self.wb.save(output_path)
         return output_path
+    
+    def set_auto_filter(self, ws=None):
+        """
+        A1 행 자동 필터 설정
+        """
+        if ws is None:
+            ws = self.ws
+        ws.auto_filter.ref = f"A1:{get_column_letter(ws.max_column)}{ws.max_row}"
 
     # 기본 서식 설정 Method
     def set_basic_format(self, ws=None, header_rgb="006100"):
@@ -187,7 +195,7 @@ class ExcelHandler:
             else:
                 self.ws[f"P{r}"].value = self.to_num(p_raw)
 
-    def to_num(self, val) -> float:
+    def to_num(self, val) -> int:
         """
         '12,345원' → 12345.0 (실패 시 0)
         예시:
@@ -240,7 +248,7 @@ class ExcelHandler:
                         # 0 도 유효 숫자로 인정
                         if raw not in {"", ".", ","}:
                             cell.value = num_val
-                            cell.number_format = "General"
+                            cell.number_format = "0"
 
     # 정렬 및 레이아웃 Method
 
@@ -267,9 +275,6 @@ class ExcelHandler:
                 elif col_letter in align_map['right']:
                     cell.alignment = right
 
-        # 1행: 모든 셀 가운데 정렬
-        for cell in self.ws[1]:
-            cell.alignment = center
 
     def sort_dataframe_by_c_b(self, df, c_col='C', b_col='B'):
         """
@@ -284,24 +289,26 @@ class ExcelHandler:
 
     # 특수 처리 Method
 
-    def process_jeju_address(self, row, f_col='F', j_col='J'):
+    def process_jeju_address(self, row,ws=None, f_col='F', j_col='J'):
         """
         제주도 주소: '[3000원 연락해야함]' 추가, 연한 파란색 배경 및 빨간 글씨 적용
         예시:
             process_jeju_address(ws, row=5)
         """
+        if ws is None:
+            ws = self.ws
         red_font = Font(color="FF0000", bold=True)
         # RGB(204,255,255) → hex: "CCFFFF"
         light_blue_fill = PatternFill(
             start_color="CCFFFF", end_color="CCFFFF", fill_type="solid")
         # F열 안내문 추가
-        f_val = self.ws[f'{f_col}{row}'].value
+        f_val = ws[f'{f_col}{row}'].value
         if f_val and "[3000원 연락해야함]" not in str(f_val):
-            self.ws[f'{f_col}{row}'].value = str(f_val) + " [3000원 연락해야함]"
+            ws[f'{f_col}{row}'].value = str(f_val) + " [3000원 연락해야함]"
         # J열 빨간 글씨
-        self.ws[f'{j_col}{row}'].font = red_font
+        ws[f'{j_col}{row}'].font = red_font
         # F열 연한 파란색 배경
-        self.ws[f'{f_col}{row}'].fill = light_blue_fill
+        ws[f'{f_col}{row}'].fill = light_blue_fill
 
     def process_l_column(self, row, l_col='L'):
         """
@@ -441,3 +448,41 @@ class ExcelHandler:
             ws.row_dimensions[1].height = 15
             ws_map[sheet_name] = ws
         return ws_map
+
+    def split_sheets_by_site(self, df, ws_map, site_mapping):
+        """
+        공통 시트 분리 메서드
+        
+        Args:
+            rules (dict): 간단한 규칙 딕셔너리
+                        예: {"OK": ["오케이마트"], "IY": ["아이예스"], "OK,CL,BB": ["오케이마트", "클로버프", "베이지베이글"]}
+        """
+        # 각 시트별 행 인덱스 초기화
+        site_rows = {sheet: 2 for sheet in site_mapping.keys()}
+        font = Font(name='맑은 고딕', size=9)
+        
+        for row_data in df.itertuples(index=False):
+            # 계정명 추출
+            site_value = str(getattr(row_data, '사이트')) if pd.notna(getattr(row_data, '사이트')) else ""
+            account_name = ""
+            
+            if "]" in site_value and site_value.startswith("["):
+                try:
+                    account_name = site_value[1:site_value.index("]")]
+                except:
+                    account_name = ""
+            
+            # 매칭되는 시트 찾기
+            for sheet, filters in site_mapping.items():
+                if account_name in filters and sheet in ws_map:
+                    target_sheet = ws_map[sheet]
+                    current_row = site_rows[sheet]
+                    
+                    # 데이터 복사
+                    for col_idx, value in enumerate(row_data, 1):
+                        cell = target_sheet.cell(row=current_row, column=col_idx, value=value)
+                        cell.font = font
+                    
+                    target_sheet.row_dimensions[current_row].height = 15
+                    site_rows[sheet] += 1
+                    break
