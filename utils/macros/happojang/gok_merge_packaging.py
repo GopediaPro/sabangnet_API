@@ -17,9 +17,8 @@ OUTPUT_PREFIX = "G옥_합포장_자동화_"
 
 # 시트 분리 설정
 ACCOUNT_MAPPING = {
-    "자동화_합포장_시트": ["자동화 적용 시트"],
-    "자동화_GOK,CL,BB": ["오케이마트", "클로버프", "베이지베이글"],
-    "자동화_IY": ["아이예스"],
+    "GOK,CL,BB": ["오케이마트", "클로버프", "베이지베이글"],
+    "IY": ["아이예스"],
 }
 
 # 필수 생성 시트 목록 (항상 생성)
@@ -83,10 +82,6 @@ def clear_l_column(ws: Worksheet) -> None:
 
 
 class SheetSplitter:
-    """🔄 ExcelHandler 후보: copy_empty_sheet, copy_sheet_with_data 메서드"""
-    
-    # 자동화 로직이 적용되어야 하는 시트 접두어
-    AUTOMATION_PREFIX = "자동화_"
     
     def __init__(self, ws: Worksheet, account_mapping: Dict[str, List[str]]):
         self.ws = ws
@@ -99,10 +94,6 @@ class SheetSplitter:
             ws.column_dimensions[get_column_letter(c)].width
             for c in range(1, self.last_col + 1)
         ]
-        
-    def is_automation_sheet(self, sheet_name: str) -> bool:
-        """자동화 로직이 적용되어야 하는 시트인지 확인"""
-        return sheet_name.startswith(self.AUTOMATION_PREFIX)
 
     def get_rows_by_sheet(self) -> Dict[str, List[int]]:
         """시트별 행 번호 매핑 생성
@@ -198,9 +189,8 @@ class SheetSplitter:
         if row_indices:
             self.copy_sheet_data(new_ws, row_indices)
             
-        # 자동화 시트인 경우 로직 적용
-        if self.is_automation_sheet(sheet_name):
-            self.apply_automation_logic(new_ws)
+        # 모든 시트에 자동화 로직 적용
+        self.apply_automation_logic(new_ws)
 
 
 def gok_merge_packaging(file_path: str) -> str:
@@ -208,8 +198,13 @@ def gok_merge_packaging(file_path: str) -> str:
     # Excel 파일 로드
     ex = ExcelHandler.from_file(file_path)
     
+    # 첫 번째 시트(원본)에 자동화 로직 적용
+    source_ws = ex.ws
+    splitter = SheetSplitter(source_ws, ACCOUNT_MAPPING)
+    splitter.apply_automation_logic(source_ws)
+    
     # 계정별 시트 분리 및 필수 시트 생성
-    splitter = SheetSplitter(ex.ws, ACCOUNT_MAPPING)
+    splitter = SheetSplitter(source_ws, ACCOUNT_MAPPING)
     rows_by_sheet = splitter.get_rows_by_sheet()
     
     # 모든 필수 시트 생성 (데이터 유무와 무관)
