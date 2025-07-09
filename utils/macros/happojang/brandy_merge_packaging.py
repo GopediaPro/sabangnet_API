@@ -17,12 +17,6 @@ from utils.excel_handler import ExcelHandler
 # 설정 상수
 MALL_NAME = "브랜디"
 OUTPUT_PREFIX = "브랜디_합포장_자동화_"
-
-# 시트 분리 설정
-REQUIRED_SHEETS = [
-    "자동화_합포장_전체",  # 원본 데이터 보존 + 자동화
-    "자동화_합포장_시트",  # 자동화 전용
-]
 RED_FONT = Font(color="FF0000", bold=True)
 FONT_MALGUN = Font(name="맑은 고딕", size=9)
 HDR_FILL = PatternFill(start_color="006100",
@@ -92,7 +86,7 @@ class GroupMerger:
             base_row = rows[0]  # 첫 행 유지
             
             # D열 금액 합산
-            total = 0.0
+            total_d = 0.0
             for row in rows:
                 cell_val = self.ws[f"D{row}"].value
                 if isinstance(cell_val, str) and cell_val.startswith("="):
@@ -100,10 +94,21 @@ class GroupMerger:
                     o_val = float(self.ws[f"O{row}"].value or 0)
                     p_val = float(self.ws[f"P{row}"].value or 0)
                     v_val = float(self.ws[f"V{row}"].value or 0)
-                    total += (o_val + p_val + v_val)
+                    total_d += (o_val + p_val + v_val)
                 else:
-                    total += float(cell_val or 0)
-            self.ws[f"D{base_row}"].value = total
+                    total_d += float(cell_val or 0)
+            self.ws[f"D{base_row}"].value = total_d
+            
+            # G열 수량 합산
+            total_g = 0
+            for row in rows:
+                g_val = self.ws[f"G{row}"].value
+                if g_val is not None:
+                    try:
+                        total_g += float(str(g_val).strip() or 0)
+                    except ValueError:
+                        pass  # 숫자로 변환할 수 없는 경우 무시
+            self.ws[f"G{base_row}"].value = total_g
             
             # F열 모델명 결합
             models = []
@@ -163,8 +168,8 @@ class SheetSplitter:
         ex = ExcelHandler(ws)
         ex.set_basic_format()
         
-        # 2. C→B 정렬
-        ex.sort_by_columns([3, 2])
+        # 2. C열(수취인) 기준 정렬
+        ex.sort_by_columns([3])
         
         # 3. 그룹핑 및 병합
         merger = GroupMerger(ws)
@@ -177,7 +182,7 @@ class SheetSplitter:
         
         # 4. D열 수식 재설정
         ex.autofill_d_column(formula="=O{row}+P{row}+V{row}")
-        
+
         # 5. A열 순번 재설정
         ex.set_row_number(ws)
         
@@ -192,11 +197,14 @@ class SheetSplitter:
             j_value = ws[f'J{row}'].value
             if j_value and "제주" in str(j_value):
                 ex.process_jeju_address(row)
-        
-        # 8. 열 정렬
+
+        # 8. 문자열→숫자 변환 
+        ex.convert_numeric_strings(cols=("E", "P", "W"))
+
+        # 9. 열 정렬
         ex.set_column_alignment()
         
-        # 9. 배경·테두리 제거
+        # 10. 배경·테두리 제거
         ex.clear_fills_from_second_row()
         ex.clear_borders()
 
@@ -214,15 +222,11 @@ def brandy_merge_packaging(input_path: str) -> str:
     # Excel 파일 로드
     ex = ExcelHandler.from_file(input_path)
     
-    # 첫 번째 시트(원본)에 자동화 로직 적용
+    # 첫 번째 시트에 자동화 로직 적용
     source_ws = ex.ws
     splitter = SheetSplitter(source_ws)
     splitter.apply_automation_logic(source_ws)
-    
-    # 필수 시트 생성
-    for sheet_name in REQUIRED_SHEETS:
-        splitter.copy_to_new_sheet(ex.wb, sheet_name, ex)
-        print(f"◼︎ [{MALL_NAME}] {sheet_name} 처리 완료")
+    print(f"◼︎ [{MALL_NAME}] 자동화 처리 완료")
     
     # 저장
     output_path = str(
