@@ -10,6 +10,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
+from openpyxl.styles import Alignment
 
 from utils.excel_handler import ExcelHandler
 
@@ -24,14 +25,6 @@ HDR_FILL = PatternFill(start_color="006100",
 BLUE_FILL = PatternFill(start_color="CCE8FF", end_color="CCE8FF", fill_type="solid")
 NO_BORDER = Border()
 MULTI_SEP_RE = re.compile(r"[\/;]")
-
-def to_num(val):
-    """쉼표·원화기호 등을 제거하고 float 변환 (실패 시 0)."""
-    try:
-        return float(re.sub(r"[^\d.-]", "", str(val))) if str(val).strip() else 0
-    except ValueError:
-        return 0
-
 
 class BrandyProductProcessor:
     """브랜디 상품 정보 처리 유틸리티"""
@@ -175,36 +168,46 @@ class BrandySheetProcessor:
         merger = BrandyOrderMerger(ws)
         merger.group_by_product_and_receiver()
         rows_to_delete = merger.merge_rows()
+
+        # 4. F열 모델명 정리 (모든 행에 대해 "1개" 제거)
+        left_alignment = Alignment(horizontal='left')
+        
+        for row in range(2, ws.max_row + 1):
+            model_value = ws[f'F{row}'].value
+            if model_value:
+                ws[f'F{row}'].value = BrandyProductProcessor.clean_product_text(model_value)
+            # F열 왼쪽 정렬 적용
+            ws[f'F{row}'].alignment = left_alignment
         
         # 중복 행 삭제 (역순으로)
         for row_idx in rows_to_delete:
             ws.delete_rows(row_idx)
         
-        # 4. D열 수식 재설정
+        # 5. D열 수식 재설정
         ex.autofill_d_column(formula="=O{row}+P{row}+V{row}")
 
-        # 5. A열 순번 재설정
+        # 6. A열 순번 재설정
         ex.set_row_number(ws)
         
-        # 6. 전화번호 처리 (H열, I열)
+        # 7. 전화번호 처리 (H열, I열)
         for row in range(2, self.last_row + 1):
             for col in ('H', 'I'):
                 cell_value = ws[f'{col}{row}'].value
                 ws[f'{col}{row}'].value = ex.format_phone_number(cell_value)
         
-        # 7. 제주도 주문 처리
+        # 8. 제주도 주문 처리
         for row in range(2, self.last_row + 1):
             j_value = ws[f'J{row}'].value
             if j_value and "제주" in str(j_value):
                 ex.process_jeju_address(row)
 
-        # 8. 문자열→숫자 변환 
-        ex.convert_numeric_strings(cols=("P", "W"))      # 텍스트 서식
+        # 9. 문자열→숫자 변환 
+        ex.convert_numeric_strings(cols=("F","E", "P", "W"))      # 텍스트 서식
 
-        # 9. 열 정렬
+        # 10. 열 정렬
         ex.set_column_alignment()
         
-        # 10. 배경·테두리 제거
+        # 11. 배경·테두리 제거
         ex.clear_fills_from_second_row()
         ex.clear_borders()
 
