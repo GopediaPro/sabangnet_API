@@ -29,7 +29,7 @@ class ProductRegistrationXml(SabangnetXml):
         for db_field, xml_tag_name in get_db_to_xml_mapping().items():
             if xml_tag_name:
                 db_value = getattr(product_data, db_field, None)
-                if SETTINGS.TEST_MODE:
+                if SETTINGS.CONPANY_GOODS_CD_TEST_MODE:
                     self._make_test_xml_element(xml_tag_name, db_field, db_value, data, row_idx)
                 else:
                     child = ET.SubElement(data, xml_tag_name)
@@ -51,7 +51,7 @@ class ProductRegistrationXml(SabangnetXml):
         if file_name is None:
             now_str = datetime.now().strftime("%m%d%H%M")
             base_name = f"product_create_request_db_{now_str}_{product_create_db_count}.xml"
-            if SETTINGS.TEST_MODE:
+            if SETTINGS.CONPANY_GOODS_CD_TEST_MODE:
                 base_name = f"product_create_request_db_test_{now_str}_{product_create_db_count}.xml"
             file_name = f"{self._PATH}/" + sanitize_filename(base_name)
 
