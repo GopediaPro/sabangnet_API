@@ -1,9 +1,7 @@
 import math
-from typing import List
 from decimal import Decimal
 from utils.sabangnet_logger import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.one_one_price.one_one_price import OneOnePrice
 from schemas.one_one_price.one_one_price_dto import OneOnePriceDto
 from repository.one_one_price_repository import OneOnePriceRepository
 

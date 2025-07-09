@@ -2,11 +2,8 @@ import re
 import json
 import hashlib
 import requests
-from pathlib import Path
-from datetime import date
-from datetime import datetime
-from decimal import Decimal
 from typing import List, Dict
+from datetime import datetime
 from urllib.parse import urljoin
 import xml.etree.ElementTree as ET
 from core.settings import SETTINGS

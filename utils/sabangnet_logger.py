@@ -29,6 +29,7 @@ import time
 import socket
 import inspect
 import logging
+import platform
 import traceback
 from pathlib import Path
 from typing import Callable
@@ -124,15 +125,19 @@ class HTTPLoggingMiddleware(BaseHTTPMiddleware):
         # 클라이언트 IP 추출
         client_ip = self.get_client_ip(request)
 
+        # OS 감지 후 요청 표시 문자 결정
+        is_linux = platform.system() == "Linux"
+        request_symbol = f"{YELLOW}[REQ]{RESET}" if is_linux else "🟡"
+
         # 요청 로깅
         http_cli_logger.info(
             f"사용자 {client_ip} ▷▷▷ 서버 {SERVER_ID} "
-            f"🟡 {request.method} {request.url.path}"
+            f"{request_symbol} {request.method} {request.url.path}"
             f"{f'?{request.url.query}' if request.url.query else ''}"
         )
         http_file_logger.info(
             f"사용자 {client_ip} ▷▷▷ 서버 {SERVER_ID} "
-            f"🟡 {request.method} {request.url.path}"
+            f"{request_symbol} {request.method} {request.url.path}"
             f"{f'?{request.url.query}' if request.url.query else ''}"
         )
 
@@ -160,17 +165,20 @@ class HTTPLoggingMiddleware(BaseHTTPMiddleware):
         except Exception as exc:
             # 서버 측 에러 발생 시 처리 (정상적인 Response가 불가능한 상황)
             process_time = time.time() - start_time
+            # 에러 표시 문자 결정 (이미 위에서 is_linux를 정의했으므로 재사용)
+            error_symbol = f"{RED}[SERVER_ERR]{RESET}" if is_linux else "🔴"
+            
             # 콘솔에는 간단한 에러 로그만
             http_cli_logger.error(
                 f"사용자 {client_ip} ◁◁◁ 서버 {SERVER_ID} "
-                f"🔴 500 "
+                f"{error_symbol} 500 "
                 f"{request.method} {request.url.path} "
                 f"({process_time:.3f}s)"
             )
             # 파일에는 자세하게 (실제 위치 포함)
             http_file_logger.error(
                 f"사용자 {client_ip} ◁◁◁ 서버 {SERVER_ID} "
-                f"🔴 500 "
+                f"{error_symbol} 500 "
                 f"{request.method} {request.url.path} "
                 f"({process_time:.3f}s)",
                 exc
@@ -201,17 +209,20 @@ class HTTPLoggingMiddleware(BaseHTTPMiddleware):
         return "unknown"
 
     def get_status_emoji(self, status_code: int) -> str:
-        """HTTP 상태코드에 따른 이모지 반환"""
+        """HTTP 상태코드에 따른 이모지 반환 (리눅스 계열에서는 텍스트로 대체)"""
+        # OS 감지 (Linux, Darwin=macOS, Windows)
+        is_linux = platform.system() == "Linux"
+        
         if 200 <= status_code < 300:
-            return "🟢"  # 성공
+            return f"{GREEN}[OK]{RESET}" if is_linux else "🟢"  # 성공
         elif 300 <= status_code < 400:
-            return "🔵"  # 리다이렉트
+            return f"{BLUE}[REDIRECT]{RESET}" if is_linux else "🔵"  # 리다이렉트
         elif 400 <= status_code < 500:
-            return "🟠"  # 클라이언트 에러
+            return f"{YELLOW}[CLIENT_ERR]{RESET}" if is_linux else "🟠"  # 클라이언트 에러
         elif 500 <= status_code < 600:
-            return "🔴"  # 서버 에러
+            return f"{RED}[SERVER_ERR]{RESET}" if is_linux else "🔴"  # 서버 에러
         else:
-            return "⚪"  # 알 수 없음
+            return f"{RESET}[UNKNOWN]{RESET}" if is_linux else "⚪"  # 알 수 없음
 
 
 def get_logger_base(file_name: str):
