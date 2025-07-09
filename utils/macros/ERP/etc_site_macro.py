@@ -20,28 +20,32 @@ class ECTSiteMacro:
             start_color="ADD8E6", end_color="ADD8E6", fill_type="solid")
         self.green_fill = PatternFill(
             start_color="006100", end_color="006100", fill_type="solid")
-        self.headers = [cell.value for cell in self.ws[1]]
+        self.white_font = Font(name='맑은 고딕', size=9, color="FFFFFF", bold=True)
+        self.headers = []
         self.df = None
 
-    def step_1_to_13(self) -> str:
+    def step_1_to_14(self) -> str:
         """
-        1~13단계 자동화 실행
+        1~14단계 자동화 실행
         """
-        print("1~13단계 자동화 시작...")
-        self._step_1()  
-        self._step_2()  
-        self._step_3()  
-        self._step_4()  
-        self._step_5()  
-        self._step_6()  
+        print("1~14단계 자동화 시작...")
+        self._step_1()
+        self._step_2()
+        self._step_3()
+        self._step_4()
+        self._step_5()
+        self._step_6()
         self._step_7()
         self._step_8()
-        # ws 로직
+        self._step_9()
+        
+        print("14단계: 모든 시트에 서식 적용 시작...")
         for ws in self.wb.worksheets:
             if ws.max_row <= 1:
                 continue
-            self._step_13(ws)
+            self._step_14(ws)
         output_path = self.ex.save_file(self.file_path)
+        print(f"✓ 기타 사이트 ERP 자동화 완료! 최종 파일: {output_path}")
         return output_path
 
     def _step_1(self):
@@ -58,9 +62,6 @@ class ECTSiteMacro:
                 self.df, c_col='수취인명', b_col='사이트')
 
         print("1단계: C열, B열 순서 정렬 완료")
-
-        
-        self.df.iloc[:, 0] = range(1, len(self.df) + 1)  # A열 순번 재설정
 
     def _step_2(self):
         # 사이트별 처리 (오늘의집, 톡스토어, 롯데온, 보리보리, 스마트스토어)
@@ -106,7 +107,7 @@ class ECTSiteMacro:
                     self.df.at[row_idx, self.df.columns[21]
                                ] = 3000 if i == 0 else 0
         print("3단계: 토스 처리 완료")
-    
+
     def _step_4(self):
         # 전화번호 포맷팅 (H, I)
         for col_idx in [7, 8]:
@@ -135,7 +136,6 @@ class ECTSiteMacro:
                     self.df.iloc[idx, 4] = int(float(order_num))
         print("5단계: 사이트별 주문번호 숫자 변환 완료")
 
-
     def _step_6(self):
         # 카카오 + 제주 처리
         for idx in self.df.index:
@@ -144,61 +144,65 @@ class ECTSiteMacro:
                 if "[3000원 연락해야함]" not in f_val:
                     self.df.iloc[idx, 5] = f_val + " [3000원 연락해야함]"
         print("6단계: 카카오 + 제주 처리 완료")
-    
+
     def _step_7(self):
         """
         [7단계] 워크시트에 정렬된 데이터 덮어쓰기
         """
         for row_idx, row_data in enumerate(self.df.itertuples(index=False), start=2):
             for col_idx, value in enumerate(row_data, start=1):
-                self.ws.cell(row=row_idx, column=col_idx, value=value if value or value == 0 else "")
+                self.ws.cell(row=row_idx, column=col_idx,
+                             value=value if value or value == 0 else "")
         print("7단계: 워크시트에 정렬된 데이터 덮어쓰기 완료")
 
-    
     def _step_8(self):
         """
-        [8단계] 시트 분리
+        [8단계] 시트 분리 준비
         """
-        site_filters = ["오케이마트", "아이예스", "베이지베이글"]
-        site_codes = ["OK", "IY", "BB"]
-        for i, (site_filter, site_code) in enumerate(zip(site_filters, site_codes)):
-            if site_code in self.wb.sheetnames:
-                del self.wb[site_code]
-            new_ws = self.wb.create_sheet(title=site_code)
-            for col_idx, header in enumerate(self.headers, 1):
-                new_ws.cell(row=1, column=col_idx, value=header)
-                new_ws.cell(row=1, column=col_idx).fill = self.green_fill
-            filtered_df = self.df[self.df.iloc[:,
-                                               1].str.contains(site_filter, na=False)]
-            for row_idx, (_, row) in enumerate(filtered_df.iterrows(), 2):
-                for col_idx, value in enumerate(row, 1):
-                    new_ws.cell(row=row_idx, column=col_idx, value=value)
-            for row_idx in range(2, new_ws.max_row + 1):
-                new_ws.cell(row=row_idx, column=1, value=row_idx - 1)
-            for col_idx in range(1, len(self.headers) + 1):
-                col_letter = openpyxl.utils.get_column_letter(col_idx)
-                new_ws.column_dimensions[col_letter].width = self.ws.column_dimensions[col_letter].width
-        print("8단계: 시트 분리 완료")
+        self.ws_map = self.ex.create_split_sheets(
+            self.headers, ["OK", "IY", "BB"])
 
-    def _step_9(self, ws):
+        self.ex.set_header_style(
+            self.ws_map["OK"], self.headers, self.green_fill, self.white_font, self.center_alignment)
+        self.ex.set_header_style(
+            self.ws_map["IY"], self.headers, self.green_fill, self.white_font, self.center_alignment)
+        self.ex.set_header_style(
+            self.ws_map["BB"], self.headers, self.green_fill, self.white_font, self.center_alignment)
+
+        print("8단계: 시트 분리 준비 완료")
+
+    def _step_9(self):
         """
-        [9단계] D열 수식 활성화 및 채우기
+        [9단계] 시트 분리
         """
-        d2_formula = self.ws['D2'].value
-        self.ex.autofill_d_column(ws=ws,
-            start_row=2, end_row=ws.max_row, formula=d2_formula)
-        print("9단계: D열 수식 처리 완료")
+        site_mapping = {
+            "OK": ["오케이마트"],
+            "IY": ["아이예스"],
+            "BB": ["베이지베이글"]
+        }
+
+        self.ex.split_sheets_by_site(self.df, self.ws_map, site_mapping)
+        print("9단계: 시트 분리 완료")
 
     def _step_10(self, ws):
         """
-        [10단계] M, P, Q,W 숫자 변환
+        [10단계] D열 수식 활성화 및 채우기
         """
-        cols_names = ['M', 'P', 'Q','W']
-        self.ex.convert_numeric_strings(
-            ws=ws, start_row=2, end_row=self.last_row, cols=cols_names)
-        print("10단계: M, P, Q,W 숫자 변환 완료")
-    
+        d2_formula = self.ws['D2'].value
+        self.ex.autofill_d_column(ws=ws,
+                                  start_row=2, end_row=ws.max_row, formula=d2_formula)
+        print("10단계: D열 수식 처리 완료")
+
     def _step_11(self, ws):
+        """
+        [11단계] M, P, Q,W 숫자 변환
+        """
+        cols_names = ['M', 'P', 'Q', 'W']
+        self.ex.convert_numeric_strings(
+            ws=ws, start_row=2, end_row=ws.max_row, cols=cols_names)
+        print("11단계: M, P, Q,W 숫자 변환 완료")
+
+    def _step_12(self, ws):
         # L열 처리 (배송비 관련) & V열이 0인 경우 빨간색 굵게
         red_font = Font(color="FF0000")
 
@@ -213,9 +217,9 @@ class ECTSiteMacro:
             if ws[f'V{row}'].value == 0:
                 ws[f'V{row}'].font = Font(color="FF0000", bold=True)
                 ws[f'V{row}'].alignment = Alignment(horizontal='right')
-        print("11단계: L열 & V열 처리 완료")
+        print("12단계: L열 & V열 처리 완료")
 
-    def _step_12(self, ws):
+    def _step_13(self, ws):
         # F열 처리 (상품명)
         for row in range(2, ws.max_row + 1):
             ws[f'F{row}'].value = self.ex.clean_model_name(ws[f'F{row}'].value)
@@ -223,19 +227,18 @@ class ECTSiteMacro:
         self.ex.highlight_column(
             col='F', light_color=self.light_blue_fill, ws=ws, start_row=2, last_row=ws.max_row)
 
-        print("12단계: F열 ' 개' 제거 + 조건부 하이라이트 완료")
-    
+        print("13단계: F열 ' 개' 제거 + 조건부 하이라이트 완료")
 
-    def _step_13(self, ws):
+    def _step_14(self, ws):
         """
-        [13단계] 모든 시트에 서식 적용
-        """ 
+        [14단계] 모든 시트에 서식 적용
+        """
         # A열 수식 값 변환
         self.ex.set_row_number(ws)
 
         # 테두리 제거 & 격자 제거
         self.ex.clear_borders(ws)
-        
+
         # D열 수식 활성화 및 채우기
         self._step_9(ws)
 
@@ -253,7 +256,5 @@ class ECTSiteMacro:
 
         # F열 처리
         self._step_12(ws)
-        
 
-        print(f"13단계: {ws.title} 시트에 서식 적용 완료")
-
+        print(f"14단계: {ws.title} 시트에 서식 적용 완료")
