@@ -199,7 +199,7 @@ class SheetSplitter:
                 ex.process_jeju_address(row)
 
         # 8. 문자열→숫자 변환 
-        ex.convert_numeric_strings(cols=("E", "P", "W"))
+        ex.convert_numeric_strings(cols=("P", "W"))      # 텍스트 서식
 
         # 9. 열 정렬
         ex.set_column_alignment()
