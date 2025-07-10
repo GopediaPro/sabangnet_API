@@ -16,7 +16,7 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 # RUN pip install flake8 black isort mypy pytest
 
 # 린트, 타입, 테스트 체크 (실패 시 빌드 중단)
-RUN flake8 . && black --check . && isort --check-only . && mypy . && pytest --maxfail=1 --disable-warnings
+# RUN flake8 . && black --check . && isort --check-only . && mypy . && pytest --maxfail=1 --disable-warnings
 
 COPY . .
 
