@@ -286,16 +286,16 @@ pipeline {
                                 mkdir -p ./backup
                                 
                                 echo ">> 이전 버전 백업"
-                                BACKUP_TIMESTAMP=$(date +%Y%m%d%H%M%S)
-                                RAND_CHAR=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 1 | head -n 1)
+                                BACKUP_TIMESTAMP=\$(date +%Y%m%d%H%M%S)
+                                RAND_CHAR=\$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 1 | head -n 1)
                                 if [ -f .env ]; then
-                                    cp .env ./backup/.env.backup.${BACKUP_TIMESTAMP}${RAND_CHAR}
+                                    cp .env ./backup/.env.backup.\${BACKUP_TIMESTAMP}${RAND_CHAR}
                                 fi
                                 if [ -f .env.docker ]; then
-                                    cp .env.docker ./backup/.env.docker.backup.${BACKUP_TIMESTAMP}${RAND_CHAR}
+                                    cp .env.docker ./backup/.env.docker.backup.\${BACKUP_TIMESTAMP}${RAND_CHAR}
                                 fi
                                 if [ -f docker-compose.yml ]; then
-                                    cp docker-compose.yml ./backup/docker-compose.yml.backup.${BACKUP_TIMESTAMP}${RAND_CHAR}
+                                    cp docker-compose.yml ./backup/docker-compose.yml.backup.\${BACKUP_TIMESTAMP}${RAND_CHAR}
                                 fi
                                 
                                 echo ">> 배포용 환경변수 파일(.env) 생성"
