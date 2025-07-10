@@ -8,6 +8,7 @@ venv
 *.xml
 *.log
 *.json
+/files
 
 */__pycache__/*
 
