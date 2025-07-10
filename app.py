@@ -268,7 +268,7 @@ def create_order_xlsx():
 def test_erp_macro():
     from controller.erp_macro import test_erp_macro
     try:
-        test_erp_macro()
+        asyncio.run(test_erp_macro())
     except Exception as e:
         logger.error(f"ERP 매크로 실행 중 오류 발생: {e}")
         handle_error(e)
