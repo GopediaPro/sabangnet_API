@@ -3,7 +3,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, Request, Query
 from services.order.order_read_service import OrderReadService
 from schemas.order.response.order_response import OrderResponse, OrderResponseList
-
+from services.order.data_processing_pipeline import DataProcessingPipeline
+from schemas.order.data_processing import ProcessDataRequest, ProcessDataResponse
+from repository.receive_order_repository import ReceiveOrderRepository
+from typing import Optional
+from services.order.down_form_order_template_service import DownFormOrderTemplateService
+from schemas.order.down_form_order_dto import DownFormOrderRequest, DownFormOrderResponse
+from repository.template_config_repository import TemplateConfigRepository
 
 router = APIRouter(
     prefix="/order",
@@ -12,7 +18,6 @@ router = APIRouter(
 
 def get_order_read_service(session: AsyncSession = Depends(get_async_session)) -> OrderReadService:
     return OrderReadService(session=session)
-
 
 @router.get("/all", response_model=OrderResponseList)
 async def get_orders(
@@ -26,7 +31,6 @@ async def get_orders(
     """
     return OrderResponseList.from_dto(await order_read_service.get_orders(skip, limit))
 
-
 @router.get("/pagination", response_model=OrderResponseList)
 async def get_orders_pagination(
     request: Request,
@@ -39,7 +43,6 @@ async def get_orders_pagination(
     """
     return OrderResponseList.from_dto(await order_read_service.get_orders_pagination(page, page_size))
 
-
 @router.get("/{idx}", response_model=OrderResponse)
 async def get_order(
     request: Request,
@@ -50,3 +53,81 @@ async def get_order(
     주문 수집 데이터 단건 조회
     """
     return OrderResponse.from_dto(await order_read_service.get_order_by_idx(idx))
+
+@router.post("/process-data", response_model=ProcessDataResponse)
+async def process_data(
+    request: ProcessDataRequest,
+    session: AsyncSession = Depends(get_async_session)
+):
+    try:
+        raw_data = await ReceiveOrderRepository(session).fetch_raw_data_from_receive_orders(request.filters.dict() if request.filters else {})
+        if not raw_data:
+            return ProcessDataResponse(
+                success=False,
+                template_code=request.template_code,
+                processed_count=0,
+                saved_count=0,
+                message="No data found to process"
+            )
+        pipeline = DataProcessingPipeline(session)
+        saved_count = await pipeline.process_raw_data_to_down_form_orders(
+            raw_data,
+            request.template_code
+        )
+        return ProcessDataResponse(
+            success=True,
+            template_code=request.template_code,
+            processed_count=len(raw_data),
+            saved_count=saved_count,
+            message=f"Successfully processed {len(raw_data)} records and saved {saved_count} records"
+        )
+    except Exception as e:
+        return ProcessDataResponse(
+            success=False,
+            template_code=request.template_code,
+            processed_count=0,
+            saved_count=0,
+            message=f"Error: {str(e)}"
+        )
+
+@router.get("/down-form-orders")
+async def get_down_form_orders(
+    template_code: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+    session: AsyncSession = Depends(get_async_session)
+):
+    repo = TemplateConfigRepository(session)
+    data = await repo.get_down_form_orders(template_code, limit, offset)
+    return {"data": data}
+
+@router.post("/down-form-orders/process", response_model=DownFormOrderResponse)
+async def process_down_form_orders(
+    request: DownFormOrderRequest,
+    session: AsyncSession = Depends(get_async_session)
+):
+    service = DownFormOrderTemplateService(session)
+    try:
+        saved_count = await service.process_and_save(request.template_code, request.raw_data)
+        return DownFormOrderResponse(saved_count=saved_count, message="Success")
+    except Exception as e:
+        return DownFormOrderResponse(saved_count=0, message=f"Error: {str(e)}")
+
+@router.get("/example")
+async def example_usage():
+    return {
+        "workflow": "원본 데이터 -> 템플릿별 변환 -> down_form_orders 저장",
+        "step1": "POST /process-data with template_code='gmarket_erp'",
+        "step2": "원본 receive_orders 데이터를 G마켓 ERP 형식으로 변환",
+        "step3": "변환된 데이터를 down_form_orders에 저장",
+        "step4": "GET /down-form-orders?template_code=gmarket_erp로 결과 확인",
+        "example_request": {
+            "template_code": "gmarket_erp",
+            "filters": {
+                "order_date_from": "2025-04-23",
+                "order_date_to": "2025-04-30",
+                "mall_id": "ESM지마켓",
+                # "order_status" : "출고완료" 비우면 모든 상태 조회
+            }
+        }
+    } 
