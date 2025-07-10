@@ -20,9 +20,15 @@ class DownFormOrderRepository:
         finally:
             await self.session.close()
 
-    async def get_down_form_orders(self, skip: int = None, limit: int = None) -> list[DownFormOrder]:
+    async def get_down_form_orders(self, skip: int = None, limit: int = None, template_code: str = None) -> list[DownFormOrder]:
         try:
             query = select(DownFormOrder).order_by(DownFormOrder.id)
+            if template_code == 'all':
+                pass  # no filter, fetch all
+            elif template_code is None or template_code == '':
+                query = query.where((DownFormOrder.form_name == None) | (DownFormOrder.form_name == ''))
+            else:
+                query = query.where(DownFormOrder.form_name == template_code)
             if skip:
                 query = query.offset(skip)
             if limit:
@@ -36,10 +42,10 @@ class DownFormOrderRepository:
         finally:
             await self.session.close()
 
-    async def get_down_form_orders_pagination(self, page: int = 1, page_size: int = 20) -> list[DownFormOrder]:
+    async def get_down_form_orders_pagination(self, page: int = 1, page_size: int = 20, template_code: str = None) -> list[DownFormOrder]:
         skip = (page - 1) * page_size
         limit = page_size
-        return await self.get_down_form_orders(skip, limit)
+        return await self.get_down_form_orders(skip, limit, template_code)
 
     async def create_down_form_order(self, obj_in: DownFormOrderDto) -> DownFormOrder:
         obj_in = DownFormOrder(**obj_in.model_dump())
@@ -85,9 +91,16 @@ class DownFormOrderRepository:
         finally:
             await self.session.close()
 
-    async def count_all(self) -> int:
+    async def count_all(self, template_code: str = None) -> int:
         try:
-            result = await self.session.execute(select(func.count()).select_from(DownFormOrder))
+            query = select(func.count()).select_from(DownFormOrder)
+            if template_code == 'all':
+                pass  # no filter, fetch all
+            elif template_code is None or template_code == '':
+                query = query.where((DownFormOrder.form_name == None) | (DownFormOrder.form_name == ''))
+            else:
+                query = query.where(DownFormOrder.form_name == template_code)
+            result = await self.session.execute(query)
             return result.scalar_one()
         except Exception as e:
             await self.session.rollback()
