@@ -30,7 +30,7 @@ ACCOUNT_MAPPING = {
 REQUIRED_SHEETS = list(ACCOUNT_MAPPING.keys())
 
 # 사이트 설정
-class SiteConfig:
+class ETCSiteConfig:
     # 배송비 분할 대상
     DELIVERY_SPLIT_SITES: Set[str] = {
         "롯데온", "보리보리", "스마트스토어", "톡스토어"
@@ -61,7 +61,7 @@ class SiteConfig:
     }
 
 
-class PhoneUtils:
+class ETCPhoneUtils:
     """전화번호 처리 유틸리티"""
     
     @staticmethod
@@ -75,7 +75,7 @@ class PhoneUtils:
         return str(val)
 
 
-class OrderUtils:
+class ETCOrderUtils:
     """주문번호 처리 유틸리티"""
     
     @staticmethod
@@ -113,7 +113,7 @@ def process_order_numbers(ws: Worksheet) -> None:
         order_raw = str(ws[f"E{row}"].value or "")
         
         # 사이트별 주문번호 길이 제한 적용
-        for site_name, length in SiteConfig.ORDER_NUMBER_LENGTHS.items():
+        for site_name, length in ETCSiteConfig.ORDER_NUMBER_LENGTHS.items():
             if site_name in site:
                 ws[f"E{row}"].value = order_raw[:length]
                 break
@@ -130,7 +130,7 @@ def process_phones(ws: Worksheet) -> None:
     """전화번호 처리 (H/I열)"""
     for row in range(2, ws.max_row + 1):
         for col in ("H", "I"):
-            phone = PhoneUtils.format_phone(ws[f"{col}{row}"].value)
+            phone = ETCPhoneUtils.format_phone(ws[f"{col}{row}"].value)
             if phone != str(ws[f"{col}{row}"].value):
                 ws[f"{col}{row}"].value = phone
 
@@ -143,7 +143,7 @@ def etc_site_merge_packaging(input_path: str) -> str:
     
     # ========== VBA 매크로 14단계: 시트분리 (OK, IY, BB) ==========
     # 원본 시트에서 시트분리 수행
-    splitter = EtcSiteSheetManager(ws, ACCOUNT_MAPPING)
+    splitter = ETCSheetManager(ws, ACCOUNT_MAPPING)
     rows_by_sheet = splitter.get_rows_by_sheet()
     
     # 원본 시트에 자동화 로직 적용
@@ -169,7 +169,7 @@ def etc_site_merge_packaging(input_path: str) -> str:
     return output_path
 
 
-class DeliveryFeeHandler:
+class ETCDeliveryFeeHandler:
     """사이트별 배송비 처리"""
     
     def __init__(self, ws: Worksheet):
@@ -191,14 +191,14 @@ class DeliveryFeeHandler:
             u_val = float(self.ws[f"U{row}"].value or 0)
 
             # 배송비 분할 대상
-            if any(s in site for s in SiteConfig.DELIVERY_SPLIT_SITES) and "/" in order_text:
+            if any(s in site for s in ETCSiteConfig.DELIVERY_SPLIT_SITES) and "/" in order_text:
                 count = len(order_text.split("/"))
                 if v_val > 3000 and count > 0:
                     v_cell.value = round(v_val / count)
                     v_cell.font = RED_FONT
 
             # 무료배송
-            elif any(s in site for s in SiteConfig.FREE_DELIVERY_SITES):
+            elif any(s in site for s in ETCSiteConfig.FREE_DELIVERY_SITES):
                 v_cell.value = 0
                 v_cell.font = RED_FONT
 
@@ -208,7 +208,7 @@ class DeliveryFeeHandler:
                 v_cell.font = RED_FONT
 
 
-class SpecialCaseHandler:
+class ETCSpecialCaseHandler:
     """특수 케이스 처리"""
     
     def __init__(self, ws: Worksheet):
@@ -240,7 +240,7 @@ class SpecialCaseHandler:
                 self.ws[f"L{row}"].font = RED_FONT
 
 
-class EtcSiteSheetManager:
+class ETCSheetManager:
     """기타사이트 시트 분리 및 자동화 로직 적용 (VBA 매크로 14단계 구현)"""
     
     def __init__(self, ws: Worksheet, account_mapping: Dict[str, List[str]]):
@@ -261,7 +261,7 @@ class EtcSiteSheetManager:
         
         for r in range(2, self.last_row + 1):
             # B열에서 [계정명] 추출 (VBA ExtractBracketText와 동일)
-            account = OrderUtils.extract_bracket_text(self.ws[f"B{r}"].value)
+            account = ETCOrderUtils.extract_bracket_text(self.ws[f"B{r}"].value)
             
             # 각 시트의 계정 목록과 정확히 비교
             for sheet_name, accounts in self.account_mapping.items():
@@ -319,7 +319,7 @@ class EtcSiteSheetManager:
         ex.autofill_d_column(formula="=O{row}+P{row}+V{row}")
         
         # 4. 사이트별 배송비 처리
-        DeliveryFeeHandler(ws).process_delivery_fee()
+        ETCDeliveryFeeHandler(ws).process_delivery_fee()
         
         # 5. 주문번호 처리
         process_order_numbers(ws)
@@ -328,13 +328,13 @@ class EtcSiteSheetManager:
         process_phones(ws)
         
         # 7. 특수 케이스 처리
-        special = SpecialCaseHandler(ws)
+        special = ETCSpecialCaseHandler(ws)
         special.process_kakao_jeju()
         special.process_l_column()
         
         # 8. F열 텍스트 정리
         for row in range(2, ws.max_row + 1):
-            ws[f"F{row}"].value = OrderUtils.clean_order_text(ws[f"F{row}"].value)
+            ws[f"F{row}"].value = ETCOrderUtils.clean_order_text(ws[f"F{row}"].value)
         
         # 9. A열 순번 설정
         ex.set_row_number(ws)
