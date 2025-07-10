@@ -305,6 +305,8 @@ ENV_EOF
                                 echo ">> Docker Compose 환경변수 파일(.env.docker) 생성"
                                 cat > .env.docker << 'DOCKER_ENV_EOF'
 ${dockerComposeEnvFileContent}
+IMAGE_TAG=${env.IMAGE_TAG}
+DEPLOY_ENV=${env.DEPLOY_ENV}
 DOCKER_ENV_EOF
                                 
                                 echo ">> Docker Compose 파일(docker-compose.yml) 생성"
