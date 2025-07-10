@@ -29,9 +29,7 @@ class DownFormOrderCreateResponse(BaseModel):
 
 
 class DownFormOrderItem(BaseModel):
-    id: int
-    idx: str
-    # ... 추가 필드 정의 ...
+    data: List[DownFormOrderDto]
     status: Optional[str] = None  # row별 상태(success, error 등)
     message: Optional[str] = None # row별 에러 메시지 등
 
