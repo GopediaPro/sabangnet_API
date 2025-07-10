@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.order.down_form_order import DownFormOrder
 from schemas.order.down_form_order_dto import DownFormOrderDto
+from sqlalchemy import func
 
 
 class DownFormOrderRepository:
@@ -58,14 +59,10 @@ class DownFormOrderRepository:
         await self.session.commit()
         return len(objects)
 
-    async def bulk_update(self, objects: list[DownFormOrderDto]):
+    async def bulk_update(self, objects: list[DownFormOrder]):
         try:
             for obj in objects:
-                db_obj = await self.session.get(DownFormOrder, obj.id)
-                if db_obj:
-                    for field, value in obj.model_dump().items():
-                        if field != 'id':
-                            setattr(db_obj, field, value)
+                self.session.merge(obj)
             await self.session.commit()
             return len(objects)
         except Exception as e:
@@ -90,8 +87,8 @@ class DownFormOrderRepository:
 
     async def count_all(self) -> int:
         try:
-            result = await self.session.execute(select(DownFormOrder))
-            return result.scalars().count()
+            result = await self.session.execute(select(func.count()).select_from(DownFormOrder))
+            return result.scalar_one()
         except Exception as e:
             await self.session.rollback()
             raise e
