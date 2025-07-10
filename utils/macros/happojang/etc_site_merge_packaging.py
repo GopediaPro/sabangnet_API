@@ -136,8 +136,8 @@ def etc_site_merge_packaging(input_path: str) -> str:
     # 2. C→B 정렬
     ex.sort_by_columns([3, 2])  # C열=3, B열=2
     
-    # 3. D열 수식 설정 (=U+V)
-    ex.autofill_d_column(formula="=U{row}+V{row}")
+    # 3. D열 수식 설정 (=O+P+V)
+    ex.autofill_d_column(formula="=O{row}+P{row}+V{row}")
     
     # 4. 사이트별 배송비 처리
     DeliveryFeeHandler(ws).process_delivery_fee()
@@ -158,7 +158,7 @@ def etc_site_merge_packaging(input_path: str) -> str:
         ws[f"F{row}"].value = OrderUtils.clean_order_text(ws[f"F{row}"].value)
     
     # 9. A열 순번 설정
-    ex.set_row_number()
+    ex.set_row_number(ws)
     
     # 10. 열 정렬
     ex.set_column_alignment()
@@ -168,7 +168,7 @@ def etc_site_merge_packaging(input_path: str) -> str:
     ex.clear_borders()
     
     # 12. 숫자형 변환
-    ex.convert_numeric_strings(cols=("E", "M", "P", "W"))
+    ex.convert_numeric_strings(cols=("E", "F", "M", "P", "W", "AA"))
     
     # 저장
     output_dir = Path(input_path).parent / OUTPUT_DIR_NAME
@@ -235,8 +235,8 @@ class SpecialCaseHandler:
             if "카카오" in site and "제주" in addr:
                 # F열 안내문구 추가 및 배경색
                 f_cell = self.ws[f"F{row}"]
-                if "[3000원 환불처리]" not in str(f_cell.value):
-                    f_cell.value = f"{f_cell.value} [3000원 환불처리]"
+                if "[3000원 연락해야함]" not in str(f_cell.value):
+                    f_cell.value = f"{f_cell.value} [3000원 연락해야함]"
                 f_cell.fill = BLUE_FILL
                 
                 # J열 빨간색 굵게
