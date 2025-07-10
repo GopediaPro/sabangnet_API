@@ -33,3 +33,12 @@ class OrderResponseList(BaseModel):
             errors=dto.errors,
             success_data=[OrderResponse.from_dto(order_dto) for order_dto in dto.success_data],
         )
+    
+
+class OrderBulkCreateResponse(BaseModel):
+    """
+    주문 수집 데이터 대량 DB 저장 응답 객체
+    """
+    total_count: int = Field(..., description="총 건수")
+    success_count: int = Field(..., description="성공 건수")
+    duplicated_count: int = Field(..., description="중복값 무시 건수")
