@@ -58,7 +58,7 @@ class MallPriceRegistrationXml(SabangnetXml):
             file_name = f"{self._PATH}/" + sanitize_filename(raw_name)
 
         root = ET.Element("SABANGNET_GOODS_REGI")
-        self._create_header(root=root)
+        self._create_product_header(root=root)
         for shop_code in self.SHOP_CODE:
             price = getattr(mall_price_dto, shop_code, None)
             self.create_body(
@@ -80,5 +80,3 @@ class MallPriceRegistrationXml(SabangnetXml):
             tree.write(f, encoding='EUC-KR', xml_declaration=False)
 
         return file_name
-
-
