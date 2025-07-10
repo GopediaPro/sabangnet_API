@@ -11,7 +11,7 @@ pipeline {
     environment {
         // Docker Registry 설정
         DOCKER_REGISTRY = 'registry.lyckabc.xyz'
-        IMAGE_NAME = 'sabangnet_API'
+        IMAGE_NAME = 'sabangnet-api'
         DOMAIN = 'lyckabc.xyz'
         DEV_DOMAIN = 'lyckabc.xyz'
         SUBDOMAIN = 'api'
