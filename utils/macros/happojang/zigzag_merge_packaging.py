@@ -12,7 +12,6 @@ from utils.excel_handler import ExcelHandler
 
 
 # 설정 상수
-OUTPUT_DIR_NAME = "완료"
 MALL_NAME = "지그재그"
 BLUE_FILL = PatternFill(start_color="CCE8FF", end_color="CCE8FF", fill_type="solid")
 
@@ -108,7 +107,7 @@ def zigzag_merge_packaging(input_path: str) -> str:
     highlight_multiple_items(ws)
     
     # 6. A열 순번 설정
-    ex.set_row_number()
+    ex.set_row_number(ws)
     
     # 7. 열 정렬
     ex.set_column_alignment()
@@ -121,11 +120,9 @@ def zigzag_merge_packaging(input_path: str) -> str:
     ex.sort_by_columns([3, 2])  # C열=3, B열=2
     
     # 저장
-    output_dir = Path(input_path).parent / OUTPUT_DIR_NAME
-    output_dir.mkdir(exist_ok=True)
-    output_path = str(output_dir / Path(input_path).name)
+    base_name = Path(input_path).stem  # 확장자 제거한 파일명
+    output_path = ex.happojang_save_file(base_name=base_name)
     
-    ex.wb.save(output_path)
     print(f"◼︎ [{MALL_NAME}] 합포장 자동화 완료!")
     
     return output_path

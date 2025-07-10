@@ -13,7 +13,6 @@ from utils.excel_handler import ExcelHandler
 
 # 설정 상수
 MALL_NAME = "G·옥"
-OUTPUT_PREFIX = "G옥_합포장_자동화_"
 
 # 시트 분리 설정
 ACCOUNT_MAPPING = {
@@ -226,11 +225,9 @@ def gok_merge_packaging(file_path: str) -> str:
             rows_by_sheet.get(sheet_name, [])
         )
     
-    # 12. 저장
-    output_path = str(
-        Path(file_path).with_name(OUTPUT_PREFIX + Path(file_path).name)
-    )
-    ex.wb.save(output_path)
+    # 저장
+    base_name = Path(file_path).stem  # 확장자 제거한 파일명
+    output_path = ex.happojang_save_file(base_name=base_name)
     ex.wb.close()
     
     print(f"◼︎ [{MALL_NAME}] 합포장 자동화 완료!")
