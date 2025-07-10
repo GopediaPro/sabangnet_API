@@ -1,3 +1,4 @@
+from typing import List
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border
 import re
@@ -32,6 +33,19 @@ class ExcelHandler:
         wb = openpyxl.load_workbook(file_path)
         ws = wb.worksheets[sheet_index]
         return cls(ws, wb)
+    
+    def save_file(self, file_path):
+        """
+        엑셀 파일 저장
+        예시:
+            ex.save_file('file.xlsx')
+        """
+        if file_path.endswith('_매크로_완료.xlsx'):
+            output_path = file_path
+        else:
+            output_path = file_path.replace('.xlsx', '_매크로_완료.xlsx')
+        self.wb.save(output_path)
+        return output_path
 
     def save_file(self, file_path):
         """
@@ -78,6 +92,7 @@ class ExcelHandler:
             cell.alignment = Alignment(horizontal='center')
 
     # 수식 처리 Method
+
     def autofill_d_column(self, ws=None, start_row=2, end_row=None, formula=None):
         """
         D열 수식 활성화 및 복사 (금액 계산)
@@ -106,7 +121,7 @@ class ExcelHandler:
             else:
                 ws[f'D{row}'].value = formula
 
-    def set_row_number(self, ws, start_row=2, end_row=None):
+    def set_row_number(self,ws, start_row=2, end_row=None):
         """
         A열 순번 자동 생성 (=ROW()-1)
         예시:
@@ -286,6 +301,49 @@ class ExcelHandler:
             print(c_col, b_col)
             return df.sort_values(by=[c_col, b_col]).reset_index(drop=True)
         return df
+    
+    def sort_by_columns(self, key_columns: List[int], start_row: int = 2) -> None:
+        """
+        지정된 열들을 기준으로 워크시트 데이터 정렬
+        
+        :param key_columns: 정렬 기준 열 번호 리스트 (1-based indexing)
+                        예: [2, 3]은 B열, C열 순서로 정렬
+        :param start_row: 정렬 시작 행 번호 (기본값: 2, 첫 행은 헤더)
+        
+        예시:
+            # B열, C열 순서로 2단계 정렬
+            ex = ExcelHandler.from_file("example.xlsx")
+            ex.sort_by_columns([2, 3])
+            
+            # D열 기준 단일 정렬, 3행부터
+            ex.sort_by_columns([4], start_row=3)
+            
+            # 여러 열 조합 정렬 (A → C → B)
+            ex.sort_by_columns([1, 3, 2])
+        
+        주의:
+        - 열 번호는 1부터 시작 (A열=1, B열=2, ...)
+        - 정렬은 문자열 비교 기준 ('123' > '1000')
+        - 정렬 후 자동으로 행 번호 재설정되지 않음
+        필요시 set_row_number() 별도 호출
+        """
+        rows = [
+            [self.ws.cell(row=r, column=c).value 
+            for c in range(1, self.ws.max_column + 1)]
+            for r in range(start_row, self.last_row + 1)
+        ]
+        
+        # 정렬 키 함수: 각 열을 문자열로 변환하여 비교
+        rows.sort(key=lambda x: tuple(str(x[i-1]) for i in key_columns))
+        
+        # 기존 데이터 삭제 후 정렬된 데이터 재기록
+        self.ws.delete_rows(start_row, self.last_row - start_row + 1)
+        for ridx, row in enumerate(rows, start=start_row):
+            for cidx, val in enumerate(row, start=1):
+                self.ws.cell(row=ridx, column=cidx, value=val)
+        
+        # last_row 업데이트
+        self.last_row = self.ws.max_row
 
     # 특수 처리 Method
 
@@ -447,6 +505,7 @@ class ExcelHandler:
             # 행 높이 복사 (헤더 행만)
             ws.row_dimensions[1].height = 15
             ws_map[sheet_name] = ws
+
         return ws_map
 
     def split_sheets_by_site(self, df, ws_map, site_mapping):
