@@ -57,3 +57,43 @@ class DownFormOrderRepository:
         self.session.add_all(objects)
         await self.session.commit()
         return len(objects)
+
+    async def bulk_update(self, objects: list[DownFormOrderDto]):
+        try:
+            for obj in objects:
+                db_obj = await self.session.get(DownFormOrder, obj.id)
+                if db_obj:
+                    for field, value in obj.model_dump().items():
+                        if field != 'id':
+                            setattr(db_obj, field, value)
+            await self.session.commit()
+            return len(objects)
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+        finally:
+            await self.session.close()
+
+    async def bulk_delete(self, ids: list[int]):
+        try:
+            for id in ids:
+                db_obj = await self.session.get(DownFormOrder, id)
+                if db_obj:
+                    await self.session.delete(db_obj)
+            await self.session.commit()
+            return len(ids)
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+        finally:
+            await self.session.close()
+
+    async def count_all(self) -> int:
+        try:
+            result = await self.session.execute(select(DownFormOrder))
+            return result.scalars().count()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+        finally:
+            await self.session.close()
