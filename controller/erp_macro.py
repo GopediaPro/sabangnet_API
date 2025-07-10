@@ -30,49 +30,45 @@ def test_erp_macro():
             from utils.macros.ERP.etc_site_macro import ECTSiteMacro
 
             macro = ECTSiteMacro(xlsx_file_path)
-            macro_file_path = macro.step_1_to_13()
+            macro_file_path = macro.step_1_to_14()
 
             print("기타사이트_ERP_자동화")
 
         elif choice == "2":
             # 지그재그_ERP_자동화
-            from utils.macros.ERP.zigzag_erp_macro import zigzag_erp_automation_full, apply_advanced_formatting
+            from utils.macros.ERP.zigzag_erp_macro import ZigzagMacro
 
-            # 전체 자동화 프로세스 실행
-            final_file = zigzag_erp_automation_full(xlsx_file_path)
-
-            # 고급 서식 적용
-            macro_file_path = apply_advanced_formatting(final_file)
+            zigzag_macro = ZigzagMacro(xlsx_file_path)
+            macro_file_path = zigzag_macro.step_1_to_9()
 
             print("지그재그_ERP_자동화")
 
         elif choice == "3":
             # 알리_ERP_자동화
-            from utils.macros.ERP.ali_erp_macro import ali_erp_macro_1_to_15, apply_additional_formatting
+            from utils.macros.ERP.ali_erp_macro import AliMacro
 
             # 알리 ERP 자동화 전체 프로세스 실행
-            processed_file = ali_erp_macro_1_to_15(
-                xlsx_file_path, sheet_name="자동화")
-
-            # 추가 서식 적용
-            macro_file_path = apply_additional_formatting(processed_file)
+            ali_macro = AliMacro(xlsx_file_path)
+            macro_file_path = ali_macro.step_1_to_10()
 
             print("알리_ERP_자동화")
 
         elif choice == "4":
             # 브랜디_ERP_자동화
-            from utils.macros.ERP.brandi_erp_macro import brandi_erp_macro_1_to_10
+            from utils.macros.ERP.brandi_erp_macro import BrandiMacro
 
             # 브랜디 ERP 자동화 전체 프로세스 실행
-            macro_file_path = brandi_erp_macro_1_to_10(xlsx_file_path)
+            brandi_macro = BrandiMacro(xlsx_file_path)
+            macro_file_path = brandi_macro.step_1_to_11()
 
             print("브랜디_ERP_자동화")
 
         elif choice == "5":
             # G,옥_ERP_자동화
-            from utils.macros.ERP.Gmarket_auction_erp_macro import gok_erp_automation_full
+            from utils.macros.ERP.Gmarket_auction_erp_macro import GmarketAuctionMacro
 
-            macro_file_path = gok_erp_automation_full(xlsx_file_path)
+            gmarket_auction_macro = GmarketAuctionMacro(xlsx_file_path)
+            macro_file_path = gmarket_auction_macro.step_1_to_11()
 
             print("G,옥 ERP 자동화")
 

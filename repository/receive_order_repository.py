@@ -1,7 +1,9 @@
-from sqlalchemy import select
+from sqlalchemy import select, and_
+from datetime import date, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.order.receive_order import ReceiveOrder
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from typing import Dict, List, Any
 
 class ReceiveOrderRepository:
     def __init__(self, session: AsyncSession):
@@ -80,3 +82,30 @@ class ReceiveOrderRepository:
             raise e
         finally:
             await self.session.close()
+
+    def _parse_date(self, val):
+        if isinstance(val, date):
+            return val
+        if isinstance(val, str):
+            return datetime.strptime(val, "%Y-%m-%d").date()
+        return val
+                
+    async def fetch_raw_data_from_receive_orders(self, filters: Dict = None) -> List[Dict[str, Any]]:
+        query = select(ReceiveOrder)
+        conditions = []
+        if filters:
+            if 'order_date_from' in filters and filters['order_date_from']:
+                conditions.append(ReceiveOrder.order_date >= self._parse_date(filters['order_date_from']))
+            if 'order_date_to' in filters and filters['order_date_to']:
+                conditions.append(ReceiveOrder.order_date <= self._parse_date(filters['order_date_to']))
+            if 'mall_id' in filters and filters['mall_id']:
+                conditions.append(ReceiveOrder.mall_id == filters['mall_id'])
+            if 'order_status' in filters and filters['order_status']:
+                conditions.append(ReceiveOrder.order_status == filters['order_status'])
+        if conditions:
+            query = query.where(and_(*conditions))
+        query = query.order_by(ReceiveOrder.id)
+        result = await self.session.execute(query)
+        rows = result.scalars().all()
+        # dict 변환 (기존 asyncpg와 유사하게)
+        return [row.__dict__ for row in rows] 

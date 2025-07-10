@@ -49,10 +49,10 @@ pip3 install -r requirements.txt
 
 ### FastAPI 활용
 ```bash
-uvicorn main:app --reload
+uvicorn main:app --port 8008 --reload
 
 # web에서 
-http://localhost:8000/docs
+http://localhost:8008/docs
 
 # 실행하고 싶은 엔드포인트 ->  Try it out → Execute (request 값 필요 시 입력)
 ```
