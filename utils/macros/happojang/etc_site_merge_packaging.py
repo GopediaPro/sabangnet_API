@@ -6,7 +6,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Set
 
-from openpyxl.styles import Font, PatternFill
+from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 from utils.excel_handler import ExcelHandler
@@ -344,6 +344,9 @@ class ETCSheetManager:
 
         # 11. 열 정렬
         ex.set_column_alignment()
+        # F열 왼쪽정렬 
+        for row in range(1, ws.max_row + 1):
+            ws[f"F{row}"].alignment = Alignment(horizontal='left')
         
         # 12. 배경·테두리 제거
         ex.clear_fills_from_second_row()
