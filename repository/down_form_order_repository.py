@@ -52,3 +52,8 @@ class DownFormOrderRepository:
             raise e
         finally:
             await self.session.close()
+
+    async def bulk_insert(self, objects: list[BaseDownFormOrder]):
+        self.session.add_all(objects)
+        await self.session.commit()
+        return len(objects)

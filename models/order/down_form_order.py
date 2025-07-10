@@ -18,50 +18,51 @@ class BaseDownFormOrder(Base):
     process_dt: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=False))
     form_name: Mapped[str | None] = mapped_column(String(30))
     seq: Mapped[int | None] = mapped_column(Integer)
-    fld_dsp: Mapped[str | None] = mapped_column(Text)
-    receive_name: Mapped[str | None] = mapped_column(String(100))
-    price_formula: Mapped[str | None] = mapped_column(String(50))
+    idx: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)  # 사방넷주문번호
     order_id: Mapped[str | None] = mapped_column(String(100))
+    mall_order_id: Mapped[str | None] = mapped_column(Text)
+    product_id: Mapped[str | None] = mapped_column(Text)
+    product_name: Mapped[str | None] = mapped_column(Text)
+    mall_product_id: Mapped[str | None] = mapped_column(String(50))
     item_name: Mapped[str | None] = mapped_column(String(100))
+    sku_value: Mapped[str | None] = mapped_column(Text)
+    sku_alias: Mapped[str | None] = mapped_column(Text)
+    sku_no: Mapped[str | None] = mapped_column(Text)
+    barcode: Mapped[str | None] = mapped_column(Text)
+    model_name: Mapped[str | None] = mapped_column(Text)
+    erp_model_name: Mapped[str | None] = mapped_column(Text)
+    location_nm: Mapped[str | None] = mapped_column(Text)
     sale_cnt: Mapped[int | None] = mapped_column(Integer)
+    pay_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
+    delv_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
+    total_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
+    total_delv_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
+    expected_payout: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
+    etc_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
+    price_formula: Mapped[str | None] = mapped_column(String(50))
+    service_fee: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
+    sum_p_ea: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
+    sum_expected_payout: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
+    sum_pay_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
+    sum_delv_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
+    sum_total_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
+    receive_name: Mapped[str | None] = mapped_column(String(100))
     receive_cel: Mapped[str | None] = mapped_column(String(20))
     receive_tel: Mapped[str | None] = mapped_column(String(20))
     receive_addr: Mapped[str | None] = mapped_column(Text)
-    receive_zipcode: Mapped[str | None] = mapped_column(String(10))
-    delivery_payment_type: Mapped[str | None] = mapped_column(String(2))
-    mall_product_id: Mapped[str | None] = mapped_column(String(50))
+    receive_zipcode: Mapped[str | None] = mapped_column(String(15))
+    delivery_payment_type: Mapped[str | None] = mapped_column(String(10))
     delv_msg: Mapped[str | None] = mapped_column(Text)
-    expected_payout: Mapped[Decimal | None] = mapped_column(Numeric(15, 2))
-    order_etc_6: Mapped[Decimal | None] = mapped_column(Numeric(15, 2))
-    mall_order_id: Mapped[str | None] = mapped_column(Text)
-    delivery_no: Mapped[str | None] = mapped_column(Text)
+    delivery_id: Mapped[str | None] = mapped_column(Text)
     delivery_class: Mapped[str | None] = mapped_column(Text)
     seller_code: Mapped[str | None] = mapped_column(Text)
-    pay_cost: Mapped[Decimal | None] = mapped_column(Numeric(15, 2))
-    delv_cost: Mapped[Decimal | None] = mapped_column(Numeric(15, 2))
-    product_id: Mapped[str | None] = mapped_column(Text)
-    idx: Mapped[str] = mapped_column(Text, unique=True)
-    product_name: Mapped[str | None] = mapped_column(Text)
-    sku_value: Mapped[str | None] = mapped_column(Text)
-    erp_model_name: Mapped[str | None] = mapped_column(Text)
     free_gift: Mapped[str | None] = mapped_column(Text)
     pay_cost_minus_mall_won_cost_times_sale_cnt: Mapped[Decimal | None] = mapped_column(Numeric(15, 2))
-    total_cost: Mapped[Decimal | None] = mapped_column(Numeric(15, 2))
-    total_delv_cost: Mapped[str | None] = mapped_column(Text)
-    service_fee: Mapped[str | None] = mapped_column(Text)
     etc_msg: Mapped[str | None] = mapped_column(Text)
-    sum_p_ea: Mapped[str | None] = mapped_column(Text)
-    sum_expected_payout: Mapped[Decimal | None] = mapped_column(Numeric(15, 2))
-    location_nm: Mapped[str | None] = mapped_column(Text)
     order_etc_7: Mapped[str | None] = mapped_column(Text)
-    sum_pay_cost: Mapped[str | None] = mapped_column(Text)
-    sum_delv_cost: Mapped[str | None] = mapped_column(Text)
-    sku_alias: Mapped[str | None] = mapped_column(Text)
-    sum_total_cost: Mapped[str | None] = mapped_column(Text)
-    model_name: Mapped[str | None] = mapped_column(Text)
     invoice_no: Mapped[str | None] = mapped_column(Text)
-    sku_no: Mapped[str | None] = mapped_column(Text)
-    barcode: Mapped[str | None] = mapped_column(Text)
+    fld_dsp: Mapped[str | None] = mapped_column(Text)
+    order_etc_6: Mapped[str | None] = mapped_column(Text)
 
     @classmethod
     def build_erp(cls, order_dto: OrderDto) -> "BaseDownFormOrder":
@@ -87,7 +88,6 @@ class BaseDownFormOrder(Base):
             expected_payout=order_data.get('expected_payout', None),
             order_etc_6=order_data.get('order_etc_6', None),
             mall_order_id=order_data.get('mall_order_id', None),
-            delivery_no=order_data.get('delivery_no', None),
             delivery_class=order_data.get('delivery_class', None),
             seller_code=order_data.get('seller_code', None),
             pay_cost=order_data.get('pay_cost', None),
@@ -114,7 +114,9 @@ class BaseDownFormOrder(Base):
             model_name=order_data.get('model_name', None),
             invoice_no=order_data.get('invoice_no', None),
             sku_no=order_data.get('sku_no', None),
-            barcode=order_data.get('barcode', None)
+            barcode=order_data.get('barcode', None),
+            etc_cost=order_data.get('etc_cost', None),
+            delivery_id=order_data.get('delivery_id', None),
         )
     
     @classmethod

@@ -1,8 +1,11 @@
-from sqlalchemy import select
+from typing import Any
+from sqlalchemy import select, and_
+from datetime import date, datetime
+from utils.sabangnet_logger import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.order.receive_order import ReceiveOrder
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from utils.sabangnet_logger import get_logger
+
 
 logger = get_logger(__name__)
 
@@ -24,9 +27,15 @@ class ReceiveOrderRepository:
             await self.session.close()
 
     async def get_order_by_idx(self, idx: str) -> ReceiveOrder:
-        query = select(ReceiveOrder).where(ReceiveOrder.idx == idx)
-        result = await self.session.execute(query)
-        return result.scalar_one_or_none()
+        try:
+            query = select(ReceiveOrder).where(ReceiveOrder.idx == idx)
+            result = await self.session.execute(query)
+            return result.scalar_one_or_none()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+        finally:
+            await self.session.close()
 
     async def get_orders(self, skip: int = None, limit: int = None) -> list[ReceiveOrder]:
         """
@@ -224,3 +233,32 @@ class ReceiveOrderRepository:
             raise e
         finally:
             await self.session.close()
+
+
+    def _parse_date(self, val):
+        if isinstance(val, date):
+            return val
+        if isinstance(val, str):
+            return datetime.strptime(val, "%Y-%m-%d").date()
+        return val
+
+
+    async def fetch_raw_data_from_receive_orders(self, filters: dict = None) -> list[dict[str, Any]]:
+        query = select(ReceiveOrder)
+        conditions = []
+        if filters:
+            if 'order_date_from' in filters and filters['order_date_from']:
+                conditions.append(ReceiveOrder.order_date >= self._parse_date(filters['order_date_from']))
+            if 'order_date_to' in filters and filters['order_date_to']:
+                conditions.append(ReceiveOrder.order_date <= self._parse_date(filters['order_date_to']))
+            if 'mall_id' in filters and filters['mall_id']:
+                conditions.append(ReceiveOrder.mall_id == filters['mall_id'])
+            if 'order_status' in filters and filters['order_status']:
+                conditions.append(ReceiveOrder.order_status == filters['order_status'])
+        if conditions:
+            query = query.where(and_(*conditions))
+        query = query.order_by(ReceiveOrder.id)
+        result = await self.session.execute(query)
+        rows = result.scalars().all()
+        # dict 변환 (기존 asyncpg와 유사하게)
+        return [row.__dict__ for row in rows] 

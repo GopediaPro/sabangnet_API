@@ -1,6 +1,9 @@
+from typing import List
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border
 import re
+import pandas as pd
+from openpyxl.utils import get_column_letter
 
 """
 주문관리 Excel 파일 매크로 공통 처리 메소드
@@ -44,8 +47,29 @@ class ExcelHandler:
         self.wb.save(output_path)
         return output_path
 
+    def save_file(self, file_path):
+        """
+        엑셀 파일 저장
+        예시:
+            ex.save_file('file.xlsx')
+        """
+        if file_path.endswith('_매크로_완료.xlsx'):
+            output_path = file_path
+        else:
+            output_path = file_path.replace('.xlsx', '_매크로_완료.xlsx')
+        self.wb.save(output_path)
+        return output_path
+    
+    def set_auto_filter(self, ws=None):
+        """
+        A1 행 자동 필터 설정
+        """
+        if ws is None:
+            ws = self.ws
+        ws.auto_filter.ref = f"A1:{get_column_letter(ws.max_column)}{ws.max_row}"
+
     # 기본 서식 설정 Method
-    def set_basic_format(self, header_rgb="006100"):
+    def set_basic_format(self, ws=None, header_rgb="006100"):
         """
         폰트, 행높이, 첫 행 배경색, 줄바꿈 해제 등 기본 서식 적용
         예시:
@@ -53,44 +77,49 @@ class ExcelHandler:
             ws = wb.active
             set_basic_format(ws)
         """
+        if ws is None:
+            ws = self.ws
         font = Font(name='맑은 고딕', size=9)
         green_fill = PatternFill(start_color=header_rgb,
                                  end_color=header_rgb, fill_type="solid")
-        for row in self.ws.iter_rows():
+        for row in ws.iter_rows():
             for cell in row:
                 cell.font = font
                 cell.alignment = Alignment(wrap_text=False)
-            self.ws.row_dimensions[row[0].row].height = 15
-        for cell in self.ws[1]:
+            ws.row_dimensions[row[0].row].height = 15
+        for cell in ws[1]:
             cell.fill = green_fill
             cell.alignment = Alignment(horizontal='center')
 
     # 수식 처리 Method
-    def autofill_d_column(self, start_row=2, end_row=None, formula=None):
+
+    def autofill_d_column(self, ws=None, start_row=2, end_row=None, formula=None):
         """
         D열 수식 활성화 및 복사 (금액 계산)
         예시:
             autofill_d_column(ws, 2, last_row, "=U{row}+V{row}")
         - formula에 "{row}"를 포함하면 각 행 번호로 치환하여 적용
         """
+
+        if ws is None:
+            ws = self.ws
         if not end_row:
             end_row = self.last_row
         if not formula:
-            formula = self.ws['D2'].value
+            formula = ws['D2'].value
         for row in range(start_row, end_row + 1):
-            if self.ws[f'D{row}'].value is None:
+            if ws[f'D{row}'].value is None:
                 continue
-
             # D열 숫자 포맷 초기화
-            self.ws[f'D{row}'].number_format = 'General'
+            ws[f'D{row}'].number_format = 'General'
 
             # 수식 적용
             if isinstance(formula, str) and '{row}' in formula:
-                self.ws[f'D{row}'].value = formula.format(row=row)
+                ws[f'D{row}'].value = formula.format(row=row)
             elif isinstance(formula, str) and '=' in formula:
-                self.ws[f'D{row}'].value = formula.replace('2', str(row))
+                ws[f'D{row}'].value = formula.replace('2', str(row))
             else:
-                self.ws[f'D{row}'].value = formula
+                ws[f'D{row}'].value = formula
 
     def set_row_number(self,ws, start_row=2, end_row=None):
         """
@@ -121,15 +150,19 @@ class ExcelHandler:
 
     # 데이터 정리 Method
 
-    def clear_borders(self):
+    def clear_borders(self, ws=None):
         """
-        테두리 제거
+        테두리 제거 & 격자 제거
         예시:
             clear_borders(ws)
         """
-        for row in self.ws.iter_rows():
+        if ws is None:
+            ws = self.ws
+        for row in ws.iter_rows():
+            ws.sheet_view.showGridLines = False
             for cell in row:
                 cell.border = Border()
+
 
     def clear_fills_from_second_row(self):
         """
@@ -177,7 +210,7 @@ class ExcelHandler:
             else:
                 self.ws[f"P{r}"].value = self.to_num(p_raw)
 
-    def to_num(self, val) -> float:
+    def to_num(self, val) -> int:
         """
         '12,345원' → 12345.0 (실패 시 0)
         예시:
@@ -188,7 +221,7 @@ class ExcelHandler:
         except ValueError:
             return 0.0
 
-    def convert_numeric_strings(self, start_row: int = 2, end_row: int | None = None, cols: tuple[str, ...] | None = None) -> None:
+    def convert_numeric_strings(self, ws=None, start_row: int = 2, end_row: int | None = None, cols: tuple[str, ...] | None = None) -> None:
         """
         워크시트의 문자열 숫자를 숫자 타입(int/float)으로 변환합니다.
 
@@ -204,6 +237,8 @@ class ExcelHandler:
             # 2) 특정 열만
             ex.convert_numeric_strings(cols=("E", "M", "Q", "W"))
         """
+        if ws is None:
+            ws = self.ws
         if end_row is None:
             end_row = self.ws.max_row
 
@@ -212,11 +247,12 @@ class ExcelHandler:
             target_cols = cols
         else:
             # 1행 헤더를 기준으로 모든 실제 열 레터를 수집
-            target_cols = tuple(cell.column_letter for cell in self.ws[1] if cell.value is not None)
+            target_cols = tuple(
+                cell.column_letter for cell in ws[1] if cell.value is not None)
 
         for row in range(start_row, end_row + 1):
             for col in target_cols:
-                cell = self.ws[f"{col}{row}"]
+                cell = ws[f"{col}{row}"]
                 if cell.value is None:
                     continue
                 if isinstance(cell.value, str):
@@ -227,7 +263,7 @@ class ExcelHandler:
                         # 0 도 유효 숫자로 인정
                         if raw not in {"", ".", ","}:
                             cell.value = num_val
-                            cell.number_format = "General"
+                            cell.number_format = "0"
 
     # 정렬 및 레이아웃 Method
 
@@ -254,40 +290,83 @@ class ExcelHandler:
                 elif col_letter in align_map['right']:
                     cell.alignment = right
 
-        # 1행: 모든 셀 가운데 정렬
-        for cell in self.ws[1]:
-            cell.alignment = center
 
-    def sort_dataframe_by_c_b(self, df):
+    def sort_dataframe_by_c_b(self, df, c_col='C', b_col='B'):
         """
         DataFrame을 C열 → B열 순서로 오름차순 정렬
         예시:
             df = sort_dataframe_by_c_b(df)
         """
-        if 'C' in df.columns and 'B' in df.columns:
-            return df.sort_values(by=['C', 'B']).reset_index(drop=True)
+        if c_col in df.columns and b_col in df.columns:
+            print(c_col, b_col)
+            return df.sort_values(by=[c_col, b_col]).reset_index(drop=True)
         return df
+    
+    def sort_by_columns(self, key_columns: List[int], start_row: int = 2) -> None:
+        """
+        지정된 열들을 기준으로 워크시트 데이터 정렬
+        
+        :param key_columns: 정렬 기준 열 번호 리스트 (1-based indexing)
+                        예: [2, 3]은 B열, C열 순서로 정렬
+        :param start_row: 정렬 시작 행 번호 (기본값: 2, 첫 행은 헤더)
+        
+        예시:
+            # B열, C열 순서로 2단계 정렬
+            ex = ExcelHandler.from_file("example.xlsx")
+            ex.sort_by_columns([2, 3])
+            
+            # D열 기준 단일 정렬, 3행부터
+            ex.sort_by_columns([4], start_row=3)
+            
+            # 여러 열 조합 정렬 (A → C → B)
+            ex.sort_by_columns([1, 3, 2])
+        
+        주의:
+        - 열 번호는 1부터 시작 (A열=1, B열=2, ...)
+        - 정렬은 문자열 비교 기준 ('123' > '1000')
+        - 정렬 후 자동으로 행 번호 재설정되지 않음
+        필요시 set_row_number() 별도 호출
+        """
+        rows = [
+            [self.ws.cell(row=r, column=c).value 
+            for c in range(1, self.ws.max_column + 1)]
+            for r in range(start_row, self.last_row + 1)
+        ]
+        
+        # 정렬 키 함수: 각 열을 문자열로 변환하여 비교
+        rows.sort(key=lambda x: tuple(str(x[i-1]) for i in key_columns))
+        
+        # 기존 데이터 삭제 후 정렬된 데이터 재기록
+        self.ws.delete_rows(start_row, self.last_row - start_row + 1)
+        for ridx, row in enumerate(rows, start=start_row):
+            for cidx, val in enumerate(row, start=1):
+                self.ws.cell(row=ridx, column=cidx, value=val)
+        
+        # last_row 업데이트
+        self.last_row = self.ws.max_row
 
     # 특수 처리 Method
 
-    def process_jeju_address(self, row, f_col='F', j_col='J'):
+    def process_jeju_address(self, row,ws=None, f_col='F', j_col='J'):
         """
         제주도 주소: '[3000원 연락해야함]' 추가, 연한 파란색 배경 및 빨간 글씨 적용
         예시:
             process_jeju_address(ws, row=5)
         """
+        if ws is None:
+            ws = self.ws
         red_font = Font(color="FF0000", bold=True)
         # RGB(204,255,255) → hex: "CCFFFF"
         light_blue_fill = PatternFill(
             start_color="CCFFFF", end_color="CCFFFF", fill_type="solid")
         # F열 안내문 추가
-        f_val = self.ws[f'{f_col}{row}'].value
+        f_val = ws[f'{f_col}{row}'].value
         if f_val and "[3000원 연락해야함]" not in str(f_val):
-            self.ws[f'{f_col}{row}'].value = str(f_val) + " [3000원 연락해야함]"
+            ws[f'{f_col}{row}'].value = str(f_val) + " [3000원 연락해야함]"
         # J열 빨간 글씨
-        self.ws[f'{j_col}{row}'].font = red_font
+        ws[f'{j_col}{row}'].font = red_font
         # F열 연한 파란색 배경
-        self.ws[f'{f_col}{row}'].fill = light_blue_fill
+        ws[f'{f_col}{row}'].fill = light_blue_fill
 
     def process_l_column(self, row, l_col='L'):
         """
@@ -302,7 +381,7 @@ class ExcelHandler:
         elif l_val == "착불":
             self.ws[f'{l_col}{row}'].font = red_font
 
-    def highlight_column(self, col: str, light_color: PatternFill, start_row: int = 2, last_row: int = None):
+    def highlight_column(self, col: str, light_color: PatternFill, ws=None, start_row: int = 2, last_row: int = None):
         """
         특정 열 하이라이트 처리
         예시:
@@ -332,14 +411,16 @@ class ExcelHandler:
                 return True
             return False
 
+        if ws is None:
+            ws = self.ws
         if not last_row:
             last_row = self.last_row
         for row in range(start_row, last_row + 1):
-            cell_value = self.ws[f'{col}{row}'].value
+            cell_value = ws[f'{col}{row}'].value
             txt = str(cell_value).strip() if cell_value else ""
 
             if cell_value is not None and _should_highlight(txt):
-                self.ws[f"{col}{row}"].fill = light_color
+                ws[f"{col}{row}"].fill = light_color
 
     def set_header_style(self, ws, headers: list, fill: PatternFill, font: Font, alignment: Alignment):
         """
@@ -365,3 +446,102 @@ class ExcelHandler:
             convert_to_number(ws['M2'].value)
         """
         return float(cell_value) if '.' in str(cell_value) else int(float(cell_value))
+
+    def to_dataframe(self, ws=None, start_row=2, start_col=1, end_row=None, end_col=None):
+        """
+        지정된 워크시트의 데이터를 DataFrame으로 변환
+        args:
+            ws: 워크시트
+            start_row: 시작 행
+            start_col: 시작 열
+            end_row: 끝 행
+            end_col: 끝 열
+        """
+        ws = ws or self.ws
+        end_row = end_row or ws.max_row
+        end_col = end_col or ws.max_column
+
+        # 헤더 추출
+        headers = []
+
+        for col in range(start_col, end_col + 1):
+            header = ws.cell(row=1, column=col).value
+            headers.append(header if header else f"Col{col}")
+
+        # 데이터 추출
+        data = []
+        for row in range(start_row, end_row + 1):
+            row_data = []
+            for col in range(start_col, end_col + 1):
+                row_data.append(ws.cell(row=row, column=col).value)
+            data.append(row_data)
+
+        return pd.DataFrame(data, columns=headers)
+
+    def create_split_sheets(self, headers: list, sheet_names: list):
+        """
+        지정한 이름의 시트를 생성하고, 열 너비/행 높이만 원본 시트(self.ws)에서 복사합니다.
+        헤더 복사 및 스타일 적용은 제외합니다.
+
+        Args:
+            headers (list): 헤더 리스트 
+            sheet_names (list): 생성할 시트명 리스트 ["OK,CL,BB", "IY"]
+
+        Returns:
+            dict: {시트명: 워크시트 객체}
+        """
+        ws_map = {}
+        for sheet_name in sheet_names:
+            # 기존 시트 삭제
+            if sheet_name in self.wb.sheetnames:
+                del self.wb[sheet_name]
+            # 새 시트 생성
+            ws = self.wb.create_sheet(title=sheet_name)
+            # 열 너비 복사
+            for col in range(1, len(headers) + 1):
+                col_letter = get_column_letter(col)
+                src_width = self.ws.column_dimensions[col_letter].width
+                ws.column_dimensions[col_letter].width = src_width
+            # 행 높이 복사 (헤더 행만)
+            ws.row_dimensions[1].height = 15
+            ws_map[sheet_name] = ws
+
+        return ws_map
+
+    def split_sheets_by_site(self, df, ws_map, site_mapping):
+        """
+        공통 시트 분리 메서드
+        
+        Args:
+            rules (dict): 간단한 규칙 딕셔너리
+                        예: {"OK": ["오케이마트"], "IY": ["아이예스"], "OK,CL,BB": ["오케이마트", "클로버프", "베이지베이글"]}
+        """
+        # 각 시트별 행 인덱스 초기화
+        site_rows = {sheet: 2 for sheet in site_mapping.keys()}
+        font = Font(name='맑은 고딕', size=9)
+        
+        for row_data in df.itertuples(index=False):
+            # 계정명 추출
+            site_value = str(getattr(row_data, '사이트')) if pd.notna(getattr(row_data, '사이트')) else ""
+            account_name = ""
+            
+            if "]" in site_value and site_value.startswith("["):
+                try:
+                    account_name = site_value[1:site_value.index("]")]
+                except:
+                    account_name = ""
+            
+            # 매칭되는 시트 찾기
+            for sheet, filters in site_mapping.items():
+                if account_name in filters and sheet in ws_map:
+                    target_sheet = ws_map[sheet]
+                    current_row = site_rows[sheet]
+                    
+                    # 데이터 복사
+                    for col_idx, value in enumerate(row_data, 1):
+                        cell = target_sheet.cell(row=current_row, column=col_idx, value=value)
+                        cell.font = font
+                    
+                    target_sheet.row_dimensions[current_row].height = 15
+                    site_rows[sheet] += 1
+                    break
