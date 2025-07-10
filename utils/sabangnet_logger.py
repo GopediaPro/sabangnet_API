@@ -131,12 +131,12 @@ class HTTPLoggingMiddleware(BaseHTTPMiddleware):
 
         # 요청 로깅
         http_cli_logger.info(
-            f"사용자 {client_ip} ▷▷▷ 서버 {SERVER_ID} "
+            f"사용자 {client_ip:15s} ▷▷▷ 서버 {SERVER_ID:15s} "
             f"{request_symbol} {request.method} {request.url.path}"
             f"{f'?{request.url.query}' if request.url.query else ''}"
         )
         http_file_logger.info(
-            f"사용자 {client_ip} ▷▷▷ 서버 {SERVER_ID} "
+            f"사용자 {client_ip:15s} ▷▷▷ 서버 {SERVER_ID:15s} "
             f"{request_symbol} {request.method} {request.url.path}"
             f"{f'?{request.url.query}' if request.url.query else ''}"
         )
@@ -149,13 +149,13 @@ class HTTPLoggingMiddleware(BaseHTTPMiddleware):
             # 응답 로깅 (상태코드와 처리시간 포함)
             status_emoji = self.get_status_emoji(response.status_code)
             http_cli_logger.info(
-                f"사용자 {client_ip} ◁◁◁ 서버 {SERVER_ID} "
+                f"사용자 {client_ip:15s} ◁◁◁ 서버 {SERVER_ID:15s} "
                 f"{status_emoji} {response.status_code} "
                 f"{request.method} {request.url.path} "
                 f"({process_time:.3f}s)"
             )
             http_file_logger.info(
-                f"사용자 {client_ip} ◁◁◁ 서버 {SERVER_ID} "
+                f"사용자 {client_ip:15s} ◁◁◁ 서버 {SERVER_ID:15s} "
                 f"{status_emoji} {response.status_code} "
                 f"{request.method} {request.url.path} "
                 f"({process_time:.3f}s)"
@@ -170,14 +170,14 @@ class HTTPLoggingMiddleware(BaseHTTPMiddleware):
             
             # 콘솔에는 간단한 에러 로그만
             http_cli_logger.error(
-                f"사용자 {client_ip} ◁◁◁ 서버 {SERVER_ID} "
+                f"사용자 {client_ip:15s} ◁◁◁ 서버 {SERVER_ID:15s} "
                 f"{error_symbol} 500 "
                 f"{request.method} {request.url.path} "
                 f"({process_time:.3f}s)"
             )
             # 파일에는 자세하게 (실제 위치 포함)
             http_file_logger.error(
-                f"사용자 {client_ip} ◁◁◁ 서버 {SERVER_ID} "
+                f"사용자 {client_ip:15s} ◁◁◁ 서버 {SERVER_ID:15s} "
                 f"{error_symbol} 500 "
                 f"{request.method} {request.url.path} "
                 f"({process_time:.3f}s)",
@@ -214,15 +214,15 @@ class HTTPLoggingMiddleware(BaseHTTPMiddleware):
         is_linux = platform.system() == "Linux"
         
         if 200 <= status_code < 300:
-            return f"{GREEN}[OK]{RESET}" if is_linux else "🟢"  # 성공
+            return f"{GREEN}{"[OK]":<10s}{RESET}" if is_linux else "🟢"  # 성공
         elif 300 <= status_code < 400:
-            return f"{BLUE}[REDIRECT]{RESET}" if is_linux else "🔵"  # 리다이렉트
+            return f"{BLUE}{"[REDIRECT]":<10s}{RESET}" if is_linux else "🔵"  # 리다이렉트
         elif 400 <= status_code < 500:
-            return f"{YELLOW}[CLIENT_ERR]{RESET}" if is_linux else "🟠"  # 클라이언트 에러
+            return f"{YELLOW}{"[CLIENT_ERR]":<10s}{RESET}" if is_linux else "🟠"  # 클라이언트 에러
         elif 500 <= status_code < 600:
-            return f"{RED}[SERVER_ERR]{RESET}" if is_linux else "🔴"  # 서버 에러
+            return f"{RED}{"[SERVER_ERR]":<10s}{RESET}" if is_linux else "🔴"  # 서버 에러
         else:
-            return f"{RESET}[UNKNOWN]{RESET}" if is_linux else "⚪"  # 알 수 없음
+            return f"{RESET}{"[UNKNOWN]":<10s}{RESET}" if is_linux else "⚪"  # 알 수 없음
 
 
 def get_logger_base(file_name: str):

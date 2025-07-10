@@ -8,10 +8,10 @@ venv
 *.xml
 *.log
 *.json
-files/*
 
 */__pycache__/*
 
 /logs/*
 
 !files/xml/templates/*
+!templates/*
