@@ -1,7 +1,7 @@
 from utils.sabangnet_logger import get_logger
 logger = get_logger(__name__)
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.order.down_form_order import DownFormOrder
+from models.order.down_form_order import BaseDownFormOrder
 from typing import Dict, List, Any
 from datetime import datetime
 from schemas.order.down_form_order_mapper import map_raw_to_down_form, map_aggregated_to_down_form
@@ -103,7 +103,7 @@ class DataProcessingPipeline:
             logger.warning("No processed data to save.")
             return 0
         try:
-            objects = [DownFormOrder(**row) for row in processed_data]
+            objects = [BaseDownFormOrder(**row) for row in processed_data]
             self.session.add_all(objects)
             await self.session.commit()
             logger.info(f"[END] _save_to_down_form_orders | saved_count={len(objects)}")

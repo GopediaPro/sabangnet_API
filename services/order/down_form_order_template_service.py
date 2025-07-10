@@ -1,7 +1,7 @@
 from utils.sabangnet_logger import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from repository.down_form_order_repository import DownFormOrderRepository
-from models.order.down_form_order import DownFormOrder
+from models.order.down_form_order import BaseDownFormOrder
 from typing import List, Dict, Any
 from datetime import datetime
 from schemas.order.down_form_order_mapper import map_raw_to_down_form, map_aggregated_to_down_form
@@ -29,7 +29,7 @@ class DownFormOrderTemplateService:
         logger.info(f"Data processed. processed_data_count={len(processed_data)}")
 
         # 3. 저장
-        objects = [DownFormOrder(**row) for row in processed_data]
+        objects = [BaseDownFormOrder(**row) for row in processed_data]
         try:
             saved_count = await self.repo.bulk_insert(objects)
             logger.info(f"[END] process_and_save | saved_count={saved_count}")
