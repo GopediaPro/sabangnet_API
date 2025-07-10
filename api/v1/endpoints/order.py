@@ -9,7 +9,6 @@ from repository.receive_order_repository import ReceiveOrderRepository
 from typing import Optional
 from services.order.down_form_order_template_service import DownFormOrderTemplateService
 from schemas.order.down_form_order_dto import DownFormOrderRequest, DownFormOrderResponse
-from repository.template_config_repository import TemplateConfigRepository
 
 router = APIRouter(
     prefix="/order",
@@ -89,17 +88,6 @@ async def process_data(
             saved_count=0,
             message=f"Error: {str(e)}"
         )
-
-@router.get("/down-form-orders")
-async def get_down_form_orders(
-    template_code: Optional[str] = None,
-    limit: int = 100,
-    offset: int = 0,
-    session: AsyncSession = Depends(get_async_session)
-):
-    repo = TemplateConfigRepository(session)
-    data = await repo.get_down_form_orders(template_code, limit, offset)
-    return {"data": data}
 
 @router.post("/down-form-orders/process", response_model=DownFormOrderResponse)
 async def process_down_form_orders(
