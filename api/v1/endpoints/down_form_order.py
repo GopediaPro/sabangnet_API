@@ -27,11 +27,14 @@ def get_down_form_order_read_service(session: AsyncSession = Depends(get_async_s
 async def list_down_form_orders(
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=1000),
+    template_code: Optional[str] = Query(
+        None,
+        description="form_name 필터링: 'all'은 전체, ''(빈값)은 form_name이 NULL 또는 빈 값, 그 외는 해당 값과 일치하는 항목 조회"
+    ),
     down_form_order_read_service: DownFormOrderReadService = Depends(get_down_form_order_read_service),
 ):
-    items, total = await down_form_order_read_service.get_down_form_orders_paginated(page, page_size)
+    items, total = await down_form_order_read_service.get_down_form_orders_paginated(page, page_size, template_code)
     dto_items = [DownFormOrderDto.model_validate(item) for item in items]
-    # DownFormOrderListResponse의 items는 List[DownFormOrderItem]이므로, 하나의 DownFormOrderItem에 전체 dto_items를 data로 할당
     return DownFormOrderListResponse(
         total=total,
         page=page,
