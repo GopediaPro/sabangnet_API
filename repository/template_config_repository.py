@@ -3,6 +3,7 @@ from sqlalchemy import text, select
 import json
 from typing import Optional, List
 from models.order.down_form_order import BaseDownFormOrder
+from models.order.macro_info import MacroInfo
 
 class TemplateConfigRepository:
     DEFAULT_TEMPLATE_META_QUERY = """
@@ -93,3 +94,9 @@ class TemplateConfigRepository:
         result = await self.session.execute(query)
         rows = result.scalars().all()
         return [row.__dict__ for row in rows] 
+    
+    async def get_template_config_by_template_code(self, template_code: str) -> Optional[list[str]]:
+        query = select(MacroInfo.macro_name)
+        query = query.where(MacroInfo.form_name == template_code)
+        result = await self.session.execute(query)
+        return result.scalars().first()
