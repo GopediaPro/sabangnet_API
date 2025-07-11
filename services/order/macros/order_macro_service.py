@@ -11,6 +11,7 @@ from repository.template_config_repository import TemplateConfigRepository
 from utils.macros.ERP.Gmarket_auction_erp_macro import GmarketAuctionMacro
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.sabangnet_logger import get_logger
+from minio_handler import temp_file_to_object_name, delete_temp_file
 
 logger = get_logger(__name__)
 
@@ -69,3 +70,19 @@ async def run_macro(session: AsyncSession, template_code: str, file_path: str):
     else:
         logger.error(f"Macro not found for template code: {template_code}")
         raise ValueError(f"Macro not found for template code: {template_code}")
+
+async def process_macro_with_tempfile(session, template_code, file):
+    """
+    1. 업로드 파일을 임시 파일로 저장
+    2. 매크로 실행 (run_macro)
+    3. 임시 파일 삭제
+    4. 파일명 반환
+    5. (필요시) presigned URL에서 쿼리스트링 제거
+    """
+    file_name = file.filename
+    temp_upload_file_path = temp_file_to_object_name(file)
+    try:
+        file_path = await run_macro(session, template_code, temp_upload_file_path)
+    finally:
+        delete_temp_file(temp_upload_file_path)
+    return file_name, file_path
