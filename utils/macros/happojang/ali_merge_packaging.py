@@ -15,7 +15,6 @@ from utils.excel_handler import ExcelHandler
 
 
 # 설정 상수
-OUTPUT_DIR_NAME = "완료"
 MALL_NAME = "알리익스프레스"
 RED_FONT = Font(color="FF0000", bold=True)
 
@@ -164,7 +163,7 @@ def ali_merge_packaging(input_path: str) -> str:
     ex.autofill_d_column(formula="=U{row}+P{row}+V{row}")
     
     # 13. A열 순번 설정
-    ex.set_row_number()
+    ex.set_row_number(ws)
     
     # 14-17. 열 정렬/서식
     ex.set_column_alignment()
@@ -199,11 +198,9 @@ def ali_merge_packaging(input_path: str) -> str:
             ex.wb._sheets.insert(0, ex.wb._sheets.pop(ex.wb.sheetnames.index(name)))
             
     # 저장
-    output_dir = Path(input_path).parent / OUTPUT_DIR_NAME
-    output_dir.mkdir(exist_ok=True)
-    output_path = str(output_dir / Path(input_path).name)
+    base_name = Path(input_path).stem  # 확장자 제거한 파일명
+    output_path = ex.happojang_save_file(base_name=base_name)
     
-    ex.wb.save(output_path)
     print(f"◼︎ [{MALL_NAME}] 합포장 자동화 완료!")
     
     return output_path

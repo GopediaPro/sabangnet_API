@@ -47,16 +47,37 @@ class ExcelHandler:
         self.wb.save(output_path)
         return output_path
 
-    def save_file(self, file_path):
+    def happojang_save_file(self, output_dir="files/excel/happojang", base_name=None, suffix="_매크로_완료"):
         """
-        엑셀 파일 저장
+        엑셀 파일 저장 (happojang 규칙 적용)
+        
+        Args:
+            output_dir: 저장할 디렉토리 (프로젝트 루트 기준)
+            base_name: 기본 파일명 (확장자 제외). None이면 현재 시트명 사용
+            suffix: 파일명 접미사
+            
+        Returns:
+            str: 저장된 파일의 전체 경로
+            
         예시:
-            ex.save_file('file.xlsx')
+            ex.save_file()  # 기본값으로 저장
+            ex.save_file(base_name="브랜디_주문데이터")  # 특정 파일명으로 저장
         """
-        if file_path.endswith('_매크로_완료.xlsx'):
-            output_path = file_path
-        else:
-            output_path = file_path.replace('.xlsx', '_매크로_완료.xlsx')
+        from pathlib import Path
+        
+        # 기본 파일명 결정
+        if base_name is None:
+            base_name = self.ws.title or "output"
+            
+        # 출력 디렉토리 생성
+        project_root = Path(__file__).parent.parent
+        output_path_dir = project_root / output_dir
+        output_path_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 최종 파일 경로
+        output_path = str(output_path_dir / f"{base_name}{suffix}.xlsx")
+        
+        # 파일 저장
         self.wb.save(output_path)
         return output_path
     

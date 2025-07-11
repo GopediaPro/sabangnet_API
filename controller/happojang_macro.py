@@ -1,7 +1,7 @@
 from pathlib import Path
 
 def test_happojang_macro():
-    xlsx_base_path = Path("./files/xlsx/")
+    xlsx_base_path = Path("./files/excel/happojang/")
     try:
         print("합포장 자동화 테스트")
         print("=" * 50)
