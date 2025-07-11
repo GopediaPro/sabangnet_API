@@ -5,6 +5,7 @@ from urllib.parse import urlparse, urlunparse
 from utils.sabangnet_logger import get_logger
 from core.settings import SETTINGS
 import shutil
+from datetime import datetime
 
 logger = get_logger(__name__)
 
@@ -91,7 +92,7 @@ def get_minio_file_url(object_name):
         logger.info(f"get_minio_file_url MinIO에 업로드된 XML 파일 URL: {return_url}")
         return return_url
     except S3Error as e:
-        raise RuntimeError(f"MinIO get URL failed: {e}") 
+        raise RuntimeError(f"MinIO get URL failed: {e}")
 
 def temp_file_to_object_name(file):
     # 임시 파일로 저장
@@ -107,3 +108,18 @@ def delete_temp_file(temp_file_path):
 
 def url_arrange(url):
     return url.split("?", 1)[0]
+
+def upload_and_get_url(file_path, template_code, file_name=None):
+    """
+    1. file_name이 없으면 file_path에서 추출
+    2. 날짜 기반 minio_object_name 생성
+    3. MinIO 업로드
+    4. 임시 파일 삭제
+    5. presigned url 반환 (쿼리스트링 제거)
+    """
+    date_now = datetime.now().strftime("%Y%m%d%H%M%S")
+    minio_object_name = f"excel/{template_code}/{date_now}_{file_name}"
+    object_name = upload_file_to_minio(file_path, minio_object_name)
+    delete_temp_file(file_path)
+    file_url = get_minio_file_url(object_name)
+    return file_url, minio_object_name
