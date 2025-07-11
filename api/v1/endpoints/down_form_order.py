@@ -9,7 +9,7 @@ from schemas.order.response.down_form_order_response import DownFormOrderListRes
 from schemas.order.down_form_order_dto import DownFormOrderDto
 from utils.response_status import make_row_result, RowStatus
 from utils.sabangnet_logger import get_logger
-from minio_handler import upload_file_to_minio, get_minio_file_url, temp_file_to_object_name, delete_temp_file
+from minio_handler import upload_and_get_url, temp_file_to_object_name
 from services.order.data_processing_pipeline import DataProcessingPipeline
 
 logger = get_logger(__name__)
@@ -116,14 +116,9 @@ async def upload_excel_file(
     """
     프론트에서 template_code와 엑셀 파일을 받아 MinIO에 업로드하고 presigned URL을 반환합니다.
     """
-    # 임시 파일로 저장
-    temp_file_path = temp_file_to_object_name(file)
-    # MinIO에 업로드 (폴더 경로 포함)
-    minio_object_name = f"excel/{template_code}/{file.filename}"
-    upload_file_to_minio(temp_file_path, minio_object_name)
-    file_url = get_minio_file_url(minio_object_name)
-    # 임시 파일 삭제
-    delete_temp_file(temp_file_path)
+    file_name = file.filename
+    file_path = temp_file_to_object_name(file)
+    file_url, minio_object_name = upload_and_get_url(file_path, template_code, file_name)
     return {"file_url": file_url, "object_name": minio_object_name, "template_code": template_code}
 
 
