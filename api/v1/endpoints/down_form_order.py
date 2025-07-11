@@ -122,15 +122,15 @@ async def upload_excel_file(
     return {"file_url": file_url, "object_name": minio_object_name, "template_code": template_code}
 
 
-@router.get("/get-excel-to-db")
+@router.post("/get-excel-to-db")
 async def get_excel_to_db(
     template_code: str = Form(...),
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_async_session)
 ):
     """
     프론트에서 template_code와 엑셀 파일을 받아 DB에 저장
     """
-    session: AsyncSession = Depends(get_async_session)
     pipeline = DataProcessingPipeline(session)
     saved_count = await pipeline.process_excel_to_down_form_orders(file, template_code)
     return {"saved_count": saved_count}
