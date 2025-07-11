@@ -71,7 +71,7 @@ async def test_erp_macro():
             from utils.macros.ERP.Gmarket_auction_erp_macro import GmarketAuctionMacro
             from utils.down_form_order_to_excel import DownFormOrderToExcel
             down_form_order_to_excel = DownFormOrderToExcel(await get_async_session())
-            file_path = await down_form_order_to_excel.down_form_order_to_excel(template_code="gmarket_bundle", file_path="./files/excel/erp", file_name="gmarket_bundle")
+            file_path = await down_form_order_to_excel.down_form_order_to_excel(template_code="gmarket_erp", file_path="./files/excel/er", file_name="gmarket_erp")
 
             # # G,옥_ERP_자동화
             gmarket_auction_macro = GmarketAuctionMacro(file_path)
