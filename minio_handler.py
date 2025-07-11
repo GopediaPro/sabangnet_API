@@ -2,13 +2,19 @@ import os
 from minio import Minio
 from minio.error import S3Error
 from urllib.parse import urlparse, urlunparse
+from utils.sabangnet_logger import get_logger
+from core.settings import SETTINGS
 
-MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT')
-MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY')
-MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY')
-MINIO_BUCKET_NAME = os.getenv('MINIO_BUCKET_NAME')
-MINIO_USE_SSL = os.getenv('MINIO_USE_SSL', 'false').lower() == 'true'
-MINIO_PORT = os.getenv('MINIO_PORT')
+
+logger = get_logger(__name__)
+
+
+MINIO_ENDPOINT = SETTINGS.MINIO_ENDPOINT
+MINIO_ACCESS_KEY = SETTINGS.MINIO_ACCESS_KEY
+MINIO_SECRET_KEY = SETTINGS.MINIO_SECRET_KEY
+MINIO_BUCKET_NAME = SETTINGS.MINIO_BUCKET_NAME
+MINIO_USE_SSL = SETTINGS.MINIO_USE_SSL
+MINIO_PORT = SETTINGS.MINIO_PORT
 
 if MINIO_PORT:
     endpoint = f"{MINIO_ENDPOINT}:{MINIO_PORT}"
@@ -51,8 +57,8 @@ def upload_file_to_minio(local_file_path, object_name=None):
             object_name,
             local_file_path
         )
-        print(f"MinIO에 업로드된 XML 파일 이름: {object_name}")
-        print(f"MinIO에 업로드된 XML 파일 경로: {local_file_path}")
+        logger.info(f"MinIO에 업로드된 XML 파일 이름: {object_name}")
+        logger.info(f"MinIO에 업로드된 XML 파일 경로: {local_file_path}")
         return object_name
     except S3Error as e:
         raise RuntimeError(f"MinIO upload failed: {e}")
@@ -82,7 +88,7 @@ def get_minio_file_url(object_name):
     try:
         url = minio_client.presigned_get_object(MINIO_BUCKET_NAME, object_name)
         return_url = remove_port_from_url(url)
-        print(f"get_minio_file_url MinIO에 업로드된 XML 파일 URL: {return_url}")
+        logger.info(f"get_minio_file_url MinIO에 업로드된 XML 파일 URL: {return_url}")
         return return_url
     except S3Error as e:
         raise RuntimeError(f"MinIO get URL failed: {e}") 

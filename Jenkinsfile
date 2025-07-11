@@ -274,6 +274,11 @@ pipeline {
                                 script: "cat ${DOCKER_COMPOSE_ENV_FILE}",
                                 returnStdout: true
                             ).trim()
+
+                            def randomChar = sh(
+                                script: "cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 1 | head -n 1",
+                                returnStdout: true
+                            ).trim()
                             
                             sh """
                                 ssh -p ${DEPLOY_SERVER_PORT} -o StrictHostKeyChecking=no ${DEPLOY_SERVER_USER_HOST} << 'EOF'
@@ -288,13 +293,13 @@ pipeline {
                                 echo ">> 이전 버전 백업"
                                 BACKUP_TIMESTAMP=\$(date +%Y%m%d%H%M%S)
                                 if [ -f .env ]; then
-                                    cp .env ./backup/.env.backup.\${BACKUP_TIMESTAMP}
+                                    cp .env ./backup/.env.backup.\${BACKUP_TIMESTAMP}${randomChar}
                                 fi
                                 if [ -f .env.docker ]; then
-                                    cp .env.docker ./backup/.env.docker.backup.\${BACKUP_TIMESTAMP}
+                                    cp .env.docker ./backup/.env.docker.backup.\${BACKUP_TIMESTAMP}${randomChar}
                                 fi
                                 if [ -f docker-compose.yml ]; then
-                                    cp docker-compose.yml ./backup/docker-compose.yml.backup.\${BACKUP_TIMESTAMP}
+                                    cp docker-compose.yml ./backup/docker-compose.yml.backup.\${BACKUP_TIMESTAMP}${randomChar}
                                 fi
                                 
                                 echo ">> 배포용 환경변수 파일(.env) 생성"

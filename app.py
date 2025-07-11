@@ -18,7 +18,7 @@ from core.db import get_db_pool
 from controller import fetch_mall_list, fetch_order_list, test_one_one_price_calculation, request_product_create as request_product_create_controller
 from dotenv import load_dotenv
 import typer
-from services.order.order_create_service import OrderListCreateService
+from services.order.order_create_service import OrderCreateService
 from core.initialization import initialize_program
 from utils.sabangnet_logger import get_logger
 from core.db import test_db_write
@@ -108,13 +108,16 @@ def mall_list():
 
 @app.command(help="주문 목록을 조회합니다")
 def order_list():
-    """주문 목록 조회 명령어"""
-    try:
-        logger.info("주문 목록 조회를 시작합니다...")
-        fetch_order_list()
-    except Exception as e:
-        logger.error(f"주문 목록 조회 중 오류 발생: {e}")
-        handle_error(e)
+    async def _order_list():
+        """주문 목록 조회 명령어"""
+        try:
+            logger.info("주문 목록 조회를 시작합니다...")
+            async with AsyncSessionLocal() as session:
+                await fetch_order_list(session)
+        except Exception as e:
+            logger.error(f"주문 목록 조회 중 오류 발생: {e}")
+            handle_error(e)
+    asyncio.run(_order_list())
 
 
 @app.command(help="DB 연결을 테스트합니다")
@@ -172,13 +175,16 @@ def test_receive_order():
 
 
 @app.command(help="수집된 주문 DB에 담기")
-def create_order():
-    try:
-        order_create_service = OrderListCreateService()
-        asyncio.run(order_create_service.create_orders())
-    except Exception as e:
-        logger.error(f"쓰기 작업 중 오류 발생: {e}")
-        handle_error(e)
+def create_order(json_file_name: str = typer.Argument(..., help="JSON 파일 이름")):
+    async def _create_order():
+        try:
+            async with AsyncSessionLocal() as session:
+                order_create_service = OrderCreateService(session)
+                await order_create_service.save_orders_to_db_from_json(json_file_name)
+        except Exception as e:
+            logger.error(f"쓰기 작업 중 오류 발생: {e}")
+            handle_error(e)
+    asyncio.run(_create_order())
 
 
 @app.command(help="상품 등록 API 테스트")
@@ -200,7 +206,6 @@ def import_product_registration_excel(
     """Excel 파일에서 상품 등록 데이터를 가져와 DB에 저장합니다."""
     async def _import_excel():
         try:
-            from core.db import AsyncSessionLocal
             from services.product_registration import ProductRegistrationService
 
             async with AsyncSessionLocal() as session:
@@ -263,7 +268,7 @@ def create_order_xlsx():
 def test_erp_macro():
     from controller.erp_macro import test_erp_macro
     try:
-        test_erp_macro()
+        asyncio.run(test_erp_macro())
     except Exception as e:
         logger.error(f"ERP 매크로 실행 중 오류 발생: {e}")
         handle_error(e)

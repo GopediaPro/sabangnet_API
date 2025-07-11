@@ -1,8 +1,11 @@
 from core.db import get_async_session
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, Request, Query
 from services.order.order_read_service import OrderReadService
-from schemas.order.response.order_response import OrderResponse, OrderResponseList
+from services.order.order_create_service import OrderCreateService
+from schemas.order.request.order_xml_template_request import OrderXmlTemplateRequest
+from schemas.order.response.order_response import OrderResponse, OrderResponseList, OrderBulkCreateResponse
 from services.order.data_processing_pipeline import DataProcessingPipeline
 from schemas.order.data_processing import ProcessDataRequest, ProcessDataResponse
 from repository.receive_order_repository import ReceiveOrderRepository
@@ -11,13 +14,20 @@ from services.order.down_form_order_template_service import DownFormOrderTemplat
 from schemas.order.down_form_order_dto import DownFormOrderRequest, DownFormOrderResponse
 from repository.template_config_repository import TemplateConfigRepository
 
+
 router = APIRouter(
     prefix="/order",
     tags=["order"],
 )
 
+
 def get_order_read_service(session: AsyncSession = Depends(get_async_session)) -> OrderReadService:
     return OrderReadService(session=session)
+
+
+def get_order_create_service(session: AsyncSession = Depends(get_async_session)) -> OrderCreateService:
+    return OrderCreateService(session=session)
+
 
 @router.get("/all", response_model=OrderResponseList)
 async def get_orders(
@@ -31,6 +41,7 @@ async def get_orders(
     """
     return OrderResponseList.from_dto(await order_read_service.get_orders(skip, limit))
 
+
 @router.get("/pagination", response_model=OrderResponseList)
 async def get_orders_pagination(
     request: Request,
@@ -43,6 +54,7 @@ async def get_orders_pagination(
     """
     return OrderResponseList.from_dto(await order_read_service.get_orders_pagination(page, page_size))
 
+
 @router.get("/{idx}", response_model=OrderResponse)
 async def get_order(
     request: Request,
@@ -53,6 +65,7 @@ async def get_order(
     주문 수집 데이터 단건 조회
     """
     return OrderResponse.from_dto(await order_read_service.get_order_by_idx(idx))
+
 
 @router.post("/process-data", response_model=ProcessDataResponse)
 async def process_data(
@@ -90,6 +103,7 @@ async def process_data(
             message=f"Error: {str(e)}"
         )
 
+
 @router.get("/down-form-orders")
 async def get_down_form_orders(
     template_code: Optional[str] = None,
@@ -100,6 +114,7 @@ async def get_down_form_orders(
     repo = TemplateConfigRepository(session)
     data = await repo.get_down_form_orders(template_code, limit, offset)
     return {"data": data}
+
 
 @router.post("/down-form-orders/process", response_model=DownFormOrderResponse)
 async def process_down_form_orders(
@@ -112,6 +127,7 @@ async def process_down_form_orders(
         return DownFormOrderResponse(saved_count=saved_count, message="Success")
     except Exception as e:
         return DownFormOrderResponse(saved_count=0, message=f"Error: {str(e)}")
+
 
 @router.get("/example")
 async def example_usage():
@@ -131,3 +147,36 @@ async def example_usage():
             }
         }
     } 
+
+
+@router.post("/order-xml-template", response_class=StreamingResponse)
+def make_and_get_order_xml_template(
+    request: OrderXmlTemplateRequest,
+    order_create_service: OrderCreateService = Depends(get_order_create_service),
+) -> StreamingResponse:
+    """
+    주문 수집 데이터 XML 템플릿만 생성하고 내려받음 (요청은 안함.)
+    """
+    return order_create_service.get_order_xml_template(
+        ord_st_date=request.start_date,
+        ord_ed_date=request.end_date,
+        order_status=request.order_status
+    )
+
+
+@router.post("/orders-from-xml", response_model=OrderBulkCreateResponse)
+async def save_orders_to_db(
+    request: OrderXmlTemplateRequest,
+    order_create_service: OrderCreateService = Depends(get_order_create_service),
+):
+    """
+    주문 수집 데이터 XML 파일을 업로드하여 주문 데이터를 생성함.
+    """
+    xml_file_path = order_create_service.create_request_xml(
+        ord_st_date=request.start_date,
+        ord_ed_date=request.end_date,
+        order_status=request.order_status
+    )
+    xml_url = order_create_service.get_xml_url_from_minio(xml_file_path)
+    xml_content = order_create_service.get_orders_from_sabangnet(xml_url)
+    return await order_create_service.save_orders_to_db_from_xml(xml_content)

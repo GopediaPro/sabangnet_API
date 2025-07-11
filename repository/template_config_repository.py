@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, select
 import json
 from typing import Optional, List
-from models.order.down_form_order import DownFormOrder
+from models.order.down_form_order import BaseDownFormOrder
 
 class TemplateConfigRepository:
     DEFAULT_TEMPLATE_META_QUERY = """
@@ -86,10 +86,10 @@ class TemplateConfigRepository:
         }
 
     async def get_down_form_orders(self, template_code: Optional[str], limit: int = 100, offset: int = 0) -> List[dict]:
-        query = select(DownFormOrder)
+        query = select(BaseDownFormOrder)
         if template_code:
-            query = query.where(DownFormOrder.form_name == template_code)
-        query = query.order_by(DownFormOrder.id.desc()).limit(limit).offset(offset)
+            query = query.where(BaseDownFormOrder.form_name == template_code)
+        query = query.order_by(BaseDownFormOrder.id.desc()).limit(limit).offset(offset)
         result = await self.session.execute(query)
         rows = result.scalars().all()
         return [row.__dict__ for row in rows] 

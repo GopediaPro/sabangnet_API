@@ -4,8 +4,7 @@ Product Registration Repository
 """
 
 from decimal import Decimal
-from sqlalchemy.engine import Row
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete, func
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
@@ -61,7 +60,7 @@ class ProductRegistrationRepository:
             logger.error(f"알 수 없는 오류: {e}")
             raise
     
-    async def create_bulk(self, data_list: List[ProductRegistrationCreateDto]) -> List[int]:
+    async def create_bulk(self, data_list: list[ProductRegistrationCreateDto]) -> list[int]:
         """
         대량 상품 등록 데이터를 생성합니다.
         
@@ -69,7 +68,7 @@ class ProductRegistrationRepository:
             data_list: 생성할 데이터 DTO 리스트
             
         Returns:
-            List[int]: 생성된 데이터의 ID 리스트
+            list[int]: 생성된 데이터의 ID 리스트
             
         Raises:
             SQLAlchemyError: 데이터베이스 오류
@@ -123,7 +122,7 @@ class ProductRegistrationRepository:
             logger.error(f"데이터 조회 오류: {e}")
             raise
     
-    async def get_all(self, limit: int = None, offset: int = None) -> List[ProductRegistrationRawData]:
+    async def get_all(self, limit: int = None, offset: int = None) -> list[ProductRegistrationRawData]:
         """
         모든 상품 등록 데이터를 조회합니다.
         
@@ -132,7 +131,7 @@ class ProductRegistrationRepository:
             offset: 조회 시작 위치 (None이면 0)
         
         Returns:
-            List[ProductRegistrationRawData]: 조회된 데이터 리스트
+            list[ProductRegistrationRawData]: 조회된 데이터 리스트
         """
         try:
             stmt = select(ProductRegistrationRawData).order_by(ProductRegistrationRawData.created_at.desc())
@@ -226,7 +225,7 @@ class ProductRegistrationRepository:
             logger.error(f"데이터 수 조회 오류: {e}")
             raise
     
-    async def search_by_name(self, search_term: str, limit: int = 50) -> List[ProductRegistrationRawData]:
+    async def search_by_name(self, search_term: str, limit: int = 50) -> list[ProductRegistrationRawData]:
         """
         제품명이나 상품명으로 데이터를 검색합니다.
         
@@ -235,7 +234,7 @@ class ProductRegistrationRepository:
             limit: 조회할 데이터 수 제한
             
         Returns:
-            List[ProductRegistrationRawData]: 검색된 데이터 리스트
+            list[ProductRegistrationRawData]: 검색된 데이터 리스트
         """
         try:
             search_pattern = f"%{search_term}%"
@@ -275,7 +274,7 @@ class ProductRegistrationRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
       
-async def get_all_registration_data(session: AsyncSession) -> List[ProductRegistrationRawData]:
+async def get_all_registration_data(session: AsyncSession) -> list[ProductRegistrationRawData]:
     result = await session.execute(
         select(ProductRegistrationRawData)
     )
