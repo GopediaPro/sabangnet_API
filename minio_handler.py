@@ -4,7 +4,7 @@ from minio.error import S3Error
 from urllib.parse import urlparse, urlunparse
 from utils.sabangnet_logger import get_logger
 from core.settings import SETTINGS
-
+import shutil
 
 logger = get_logger(__name__)
 
@@ -92,3 +92,18 @@ def get_minio_file_url(object_name):
         return return_url
     except S3Error as e:
         raise RuntimeError(f"MinIO get URL failed: {e}") 
+
+def temp_file_to_object_name(file):
+    # 임시 파일로 저장
+    temp_dir = "/tmp"
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_file_path = os.path.join(temp_dir, file.filename)
+    with open(temp_file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return temp_file_path
+
+def delete_temp_file(temp_file_path):
+    os.remove(temp_file_path)
+
+def url_arrange(url):
+    return url.split("?", 1)[0]
