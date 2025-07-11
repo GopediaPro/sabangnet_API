@@ -1,4 +1,5 @@
 from typing import Dict, Any, List
+import pandas as pd
 
 def map_raw_to_down_form(raw_row: Dict[str, Any], config: dict) -> Dict[str, Any]:
     """
@@ -57,3 +58,17 @@ def eval_formula(transform_config: dict, row: dict) -> Any:
             return eval(source, {}, row)
     except Exception:
         return None 
+
+def map_excel_to_down_form(df: pd.DataFrame, config: dict) -> Dict[str, Any]:
+    """
+    excel 데이터를 down_form_orders 스키마에 맞게 변환
+    """
+    column_mappings = config.get('column_mappings', [])
+    # target_column(엑셀 컬럼명) -> source_field(DB 필드명) 매핑 dict
+    col_map = {col['target_column']: col['source_field'] for col in column_mappings}
+    raw_data = []
+    # 엑셀 데이터 → DB 저장용 dict 변환
+    for _, row in df.iterrows():
+        mapped_row = {col_map.get(col, col): row[col] for col in df.columns if col in col_map}
+        raw_data.append(mapped_row)
+    return raw_data
