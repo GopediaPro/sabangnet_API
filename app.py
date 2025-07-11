@@ -280,7 +280,7 @@ def test_happojang_macro():
     합포장 자동화 CLI 메뉴 실행
     """
     try:
-        test_happojang_macro()
+        asyncio.run(test_happojang_macro())
     except Exception as e:
         typer.echo(f"합포장 자동화 실행 중 오류 발생: {e}")   
 
