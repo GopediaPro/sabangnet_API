@@ -44,7 +44,7 @@ class DownFormOrderDto(BaseDTO):
     total_cost: Optional[Decimal] = Field(None, description="주문금액")
     total_delv_cost: Optional[Decimal] = Field(None, description="주문금액/배송비(수집)")
     expected_payout: Optional[Decimal] = Field(None, description="정산예정금액")
-    etc_cost: Optional[Decimal] = Field(None, description="etc 금액 - 설명2")
+    etc_cost: Optional[str] = Field(None, description="etc 금액 - 설명2")
 
     # 계산된 금액 정보
     price_formula: Optional[str] = Field(None, max_length=50, description="금액 계산 공식")
