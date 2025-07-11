@@ -38,6 +38,8 @@ venv\Scripts\activate
 ```
 # ssl 오류 해결용 명령어
 export OPENSSL_CONF=./config/openssl.cnf
+# 개발환경 명령어 (개인정보 마스킹용)
+export DEPLOY_ENV=development
 
 # 의존성 설치
 
