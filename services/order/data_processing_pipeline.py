@@ -133,7 +133,7 @@ class DataProcessingPipeline:
             processed_data.append(processed_row)
         return processed_data
     
-    async def process_excel_to_down_form_orders(self, excel_file: str, template_code: str) -> int:
+    async def process_excel_to_down_form_orders(self, df, template_code: str) -> int:
         """
         Excel 파일을 읽어 config 매핑에 따라 데이터를 DB에 저장
         Args:
@@ -142,24 +142,15 @@ class DataProcessingPipeline:
         Returns:
             저장된 레코드 수
         """
-        # 1. 엑셀 파일 저장
-        with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp:
-            tmp.write(excel_file.file.read())
-            tmp_path = tmp.name
-
-        # 2. 엑셀 데이터 읽기
-        ex = ExcelHandler.from_file(tmp_path)
-        df = ex.to_dataframe()
-
-        # 3. config 매핑 정보 조회
+        logger.info(f"[START] process_excel_to_down_form_orders | template_code={template_code} | df_count={len(df)}")
+        # 1. config 매핑 정보 조회
         config = await self.template_config_repo.get_template_config(template_code)
-        # 4. 엑셀 데이터 변환
+        logger.info(f"Loaded template config: {config}")
+        # 2. 엑셀 데이터 변환
         raw_data = await self._process_excel_data(df, config)
-
-        # 5. DB 저장
+        # 3. DB 저장
         saved_count = await self._save_to_down_form_orders(raw_data, template_code)
-        # 6. tmp 파일 삭제
-        os.remove(tmp_path)
+        logger.info(f"[END] process_excel_to_down_form_orders | saved_count={saved_count}")
         return saved_count
 
     # 변환 함수들
