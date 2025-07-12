@@ -116,22 +116,24 @@ class GmarketAuctionMacro:
         self.ex.set_header_style(
             self.ws, headers, self.dark_green_fill, self.white_font, self.center_alignment)
         print("4단계: 헤더 서식 완료")
-    
+
     def _step_5(self):
         """ 
         [6단계] 시트 분리 준비
         """
-         # 기존 시트 삭제
+        # 기존 시트 삭제
         sheets_name: list[str] = ["OK,CL,BB", "IY"]
-        
+
         self.ws_map = self.ex.create_split_sheets(self.headers, sheets_name)
-        
+
         # 지정한 워크시트의 헤더 행에 배경색, 폰트, 정렬을 일괄 적용
-        self.ex.set_header_style(self.ws_map["OK,CL,BB"], self.headers,self.dark_green_fill, self.white_font, self.center_alignment)
-        self.ex.set_header_style(self.ws_map["IY"], self.headers, self.dark_green_fill, self.white_font, self.center_alignment)
-        
+        self.ex.set_header_style(self.ws_map["OK,CL,BB"], self.headers,
+                                 self.dark_green_fill, self.white_font, self.center_alignment)
+        self.ex.set_header_style(
+            self.ws_map["IY"], self.headers, self.dark_green_fill, self.white_font, self.center_alignment)
+
         print("5단계: 시트 분리 준비 완료")
-            
+
     def _step_6(self):
         """ 
         [6단계] 데이터 분류 및 복사
@@ -140,28 +142,28 @@ class GmarketAuctionMacro:
             "OK,CL,BB": ["오케이마트", "클로버프", "베이지베이글"],
             "IY": ["아이예스"]
         }
-        
+
         self.ex.split_sheets_by_site(self.df, self.ws_map, site_mapping)
         print("6단계: 데이터 분리 완료")
-        
+
     def _step_7(self, ws):
         """
         [7단계] D열 수식 활성화 및 채우기
         """
         d2_formula = ws['D2'].value
         self.ex.autofill_d_column(ws=ws,
-            start_row=2, end_row=ws.max_row, formula=d2_formula)
+                                  start_row=2, end_row=ws.max_row, formula=d2_formula)
         print("7단계: D열 수식 처리 완료")
 
     def _step_8(self, ws=None):
         """
-        [8단계] Q, P, M, W 숫자 변환 
+        [8단계] 'O', 'P', 'Q', 'R', 'S', 'U', 'W', 'M' 숫자 변환 
         """
-        cols_names = ['Q', 'P', 'M', 'W']
+        cols_names = ['O', 'P', 'Q', 'R', 'S', 'U', 'W', 'M']
         self.ex.convert_numeric_strings(
             ws=ws, start_row=2, end_row=self.last_row, cols=cols_names)
 
-        print("8단계: Q, P, M, W 숫자 변환")
+        print("8단계: 'O', 'P', 'Q', 'R', 'S', 'U', 'W', 'M' 숫자 변환")
 
     def _step_9(self, ws):
         """
@@ -185,7 +187,7 @@ class GmarketAuctionMacro:
             if e_value and str(e_value).replace('.', '').replace('-', '').isdigit():
                 ws[f'E{row}'].value = self.ex.convert_to_number(e_value)
             ws[f'E{row}'].alignment = self.right_alignment
-            
+
             # F열 '1개' 제거
             if f_value:
                 ws[f'F{row}'].value = self.ex.clean_model_name(f_value)
@@ -201,7 +203,6 @@ class GmarketAuctionMacro:
             col='F', light_color=self.light_blue_fill, ws=ws, start_row=2, last_row=ws.max_row)
         print("11단계: F열 조건부 하이라이트 완료")
 
-
     def _step_11(self, ws):
         """ 
         [11단계] 모든 시트에 서식 적용
@@ -209,16 +210,16 @@ class GmarketAuctionMacro:
 
         # A열 수식 값 변환
         self.ex.set_row_number(ws)
-        
+
         # 테두리 제거 & 격자 제거
         self.ex.clear_borders(ws)
-        
+
         # D열 수식 활성화 및 채우기
         self._step_7(ws)
-        
+
         # 기본 폰트 적용
         self.ex.set_basic_format(ws=ws, header_rgb="008000")
-        
+
         # A, B, D, E, G열 정렬
         self.ex.set_column_alignment(ws)
 
@@ -232,7 +233,5 @@ class GmarketAuctionMacro:
         self._step_10(ws)
 
         print(f"11단계: [{ws.title}] 서식 재적용 완료")
-        
-
 
 

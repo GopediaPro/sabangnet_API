@@ -217,7 +217,7 @@ class ExcelHandler:
             num = to_num("12,345원")
         """
         try:
-            return float(re.sub(r"[^\d.-]", "", str(val))) if str(val).strip() else 0.0
+            return int(re.sub(r"[^\d.-]", "", str(val))) if str(val).strip() else 0.0
         except ValueError:
             return 0.0
 

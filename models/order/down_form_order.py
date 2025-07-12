@@ -38,7 +38,7 @@ class BaseDownFormOrder(Base):
     total_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
     total_delv_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
     expected_payout: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
-    etc_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
+    etc_cost: Mapped[str | None] = mapped_column(Text)
     price_formula: Mapped[str | None] = mapped_column(String(50))
     service_fee: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
     sum_p_ea: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))

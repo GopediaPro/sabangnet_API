@@ -1,8 +1,11 @@
+import asyncio
 from pathlib import Path
+from core.db import get_async_session
 
 
-def test_erp_macro():
-    xlsx_base_path = Path("./files/excel/")
+async def test_erp_macro():
+
+    xlsx_base_path = Path("./files/excel/erp")
     try:
         print(f"Excel 파일 ERP 매크로 적용 테스트")
         print('=' * 50)
@@ -64,10 +67,14 @@ def test_erp_macro():
             print("브랜디_ERP_자동화")
 
         elif choice == "5":
-            # G,옥_ERP_자동화
+            # down_form_order table to excel
             from utils.macros.ERP.Gmarket_auction_erp_macro import GmarketAuctionMacro
+            from utils.down_form_order_to_excel import DownFormOrderToExcel
+            down_form_order_to_excel = DownFormOrderToExcel(await get_async_session())
+            file_path = await down_form_order_to_excel.down_form_order_to_excel(template_code="gmarket_erp", file_path="./files/excel/er", file_name="gmarket_erp")
 
-            gmarket_auction_macro = GmarketAuctionMacro(xlsx_file_path)
+            # # G,옥_ERP_자동화
+            gmarket_auction_macro = GmarketAuctionMacro(file_path)
             macro_file_path = gmarket_auction_macro.step_1_to_11()
 
             print("G,옥 ERP 자동화")
