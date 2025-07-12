@@ -302,6 +302,12 @@ def start_server():
     run_fastapi()
 
 
+@app.command(help="pytest 실행")
+def start_pytest():
+    from tests.run_test import main
+    main()
+
+
 def handle_error(e: Exception):
     """에러 처리 헬퍼 함수"""
     if isinstance(e, ValueError):

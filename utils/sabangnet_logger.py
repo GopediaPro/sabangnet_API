@@ -11,9 +11,18 @@
     각 함수 모두 파일명을 파라미터로 받아서 로거를 생성합니다.
 
 사용법:
-    파일명은 __name__ 을 사용하면 되고,
-    실제로 쓸 때는 스크립트 최상단에 logger = get_logger(__name__) 처럼 선언한 뒤,
-    logger.info("로그 메시지") 처럼 사용하면 됩니다.
+    기본: 
+        파일명은 __name__ 을 사용하면 되고,
+        실제로 쓸 때는 스크립트 최상단에 logger = get_logger(__name__) 처럼 선언한 뒤,
+        logger.info("로그 메시지") 처럼 사용하면 됩니다.
+
+    디버그:
+        디버그 메세지(logger.debug("로그 메시지"))를 보시려면,
+        logger = get_logger(__name__, level="DEBUG") 처럼 쓰면 됩니다.
+
+    스택트레이스:
+        기본 방법으로 로거 선언하고,
+        logger.error("로그 메시지", stack_info=True) 로 설정하면 됩니다.
     
 예시:
     from utils.sabangnet_logger import get_logger
