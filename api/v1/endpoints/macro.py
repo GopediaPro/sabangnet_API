@@ -8,8 +8,8 @@ from services.order.macros.order_macro_service import process_macro_with_tempfil
 logger = get_logger(__name__)
 
 router = APIRouter(
-    prefix="/erp-macro",
-    tags=["erp-macro"],
+    prefix="/macro",
+    tags=["macro"],
 )
 
 @router.post("/excel-run-macro")

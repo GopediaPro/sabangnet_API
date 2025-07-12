@@ -22,3 +22,9 @@ class DownFormOrderCreateService:
 
     async def bulk_delete_down_form_orders(self, ids: list[int]):
         return await self.down_form_order_repository.bulk_delete(ids)
+    
+    async def delete_all_down_form_orders(self):
+        return await self.down_form_order_repository.delete_all()
+    
+    async def delete_duplicate_down_form_orders(self):
+        return await self.down_form_order_repository.delete_duplicate()

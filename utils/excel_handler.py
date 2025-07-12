@@ -566,3 +566,28 @@ class ExcelHandler:
                     target_sheet.row_dimensions[current_row].height = 15
                     site_rows[sheet] += 1
                     break
+
+    @staticmethod
+    def from_upload_file_to_dataframe(upload_file, sheet_index=0, **to_df_kwargs):
+        """
+        업로드 파일(UploadFile 등 file-like object)을 임시 파일로 저장하고, DataFrame으로 읽고, 임시 파일 삭제 후 DataFrame 반환
+        Args:
+            upload_file: FastAPI UploadFile 등 file-like object
+            sheet_index: 읽을 시트 인덱스(기본 0)
+            **to_df_kwargs: to_dataframe에 전달할 추가 인자
+        Returns:
+            pd.DataFrame
+        """
+        import tempfile
+        import os
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp:
+                tmp.write(upload_file.file.read())
+                tmp_path = tmp.name
+            ex = ExcelHandler.from_file(tmp_path, sheet_index=sheet_index)
+            df = ex.to_dataframe(**to_df_kwargs)
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        return df

@@ -11,7 +11,7 @@ from utils.response_status import make_row_result, RowStatus
 from utils.sabangnet_logger import get_logger
 from minio_handler import upload_and_get_url, temp_file_to_object_name
 from services.order.data_processing_pipeline import DataProcessingPipeline
-
+from utils.excel_handler import ExcelHandler
 logger = get_logger(__name__)
 
 router = APIRouter(
@@ -108,6 +108,24 @@ async def bulk_delete_down_form_orders(
         logger.error(f"[bulk_delete] 실패: {str(e)}", e)
         raise
 
+@router.delete("/delete-all")
+async def delete_all_down_form_orders(
+    down_form_order_create_service: DownFormOrderCreateService = Depends(get_down_form_order_create_service),
+):
+    try:
+        await down_form_order_create_service.delete_all_down_form_orders()
+        return {"message": "모든 데이터 삭제 완료"}
+    except Exception as e:
+        logger.error(f"[delete_all] 실패: {str(e)}", e)
+        raise
+
+@router.delete("/delete-duplicate")
+async def delete_duplicate_down_form_orders(
+    down_form_order_create_service: DownFormOrderCreateService = Depends(get_down_form_order_create_service),
+):
+    deleted_count = await down_form_order_create_service.delete_duplicate_down_form_orders()
+    return {"message": f"중복 데이터 삭제 완료: {deleted_count}개 행 삭제됨"}
+
 @router.post("/upload-excel-file")
 async def upload_excel_file(
     template_code: str = Form(...),
@@ -132,5 +150,6 @@ async def get_excel_to_db(
     프론트에서 template_code와 엑셀 파일을 받아 DB에 저장
     """
     pipeline = DataProcessingPipeline(session)
-    saved_count = await pipeline.process_excel_to_down_form_orders(file, template_code)
+    dataframe = ExcelHandler.from_upload_file_to_dataframe(file)
+    saved_count = await pipeline.process_excel_to_down_form_orders(dataframe, template_code)
     return {"saved_count": saved_count}
