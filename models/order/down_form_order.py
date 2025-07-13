@@ -9,6 +9,7 @@ class BaseFormOrder(Base):
     """
     다운폼/내보내기 폼 주문 테이블의 공통 ORM 매핑 모델
     """
+    __abstract__ = True
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     process_dt: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=False))
     form_name: Mapped[str | None] = mapped_column(String(30))
@@ -64,7 +65,7 @@ class BaseFormOrder(Base):
     delivery_confirm_date: Mapped[str | None] = mapped_column(String(14))
     cancel_dt: Mapped[str | None] = mapped_column(String(14))
     hope_delv_date: Mapped[str | None] = mapped_column(String(14))
-    inv_send_dt: Mapped[str | None] = mapped_column(String(14))
+    inv_send_dm: Mapped[str | None] = mapped_column(String(14))
 
     @classmethod
     def build_erp(cls, order_dto: OrderDto):
@@ -126,7 +127,7 @@ class BaseFormOrder(Base):
             delivery_confirm_date=order_data.get('delivery_confirm_date', None),
             cancel_dt=order_data.get('cancel_dt', None),
             hope_delv_date=order_data.get('hope_delv_date', None),
-            inv_send_dt=order_data.get('inv_send_dt', None),
+            inv_send_dm=order_data.get('inv_send_dm', None),
         )
 class BaseDownFormOrder(BaseFormOrder):
     __tablename__ = "down_form_orders"
