@@ -29,7 +29,7 @@ class DownFormOrderDto(BaseDTO):
     delivery_confirm_date: Optional[str] = Field(None, max_length=14, description="출고 완료일자")
     cancel_dt: Optional[str] = Field(None, max_length=14, description="취소 완료일자")
     hope_delv_date: Optional[str] = Field(None, max_length=14, description="배송희망일자")
-    inv_send_dt: Optional[str] = Field(None, max_length=14, description="송장전송일자")
+    inv_send_dm: Optional[str] = Field(None, max_length=14, description="송장전송일자")
 
     # 주문 정보
     order_id: Optional[str] = Field(None, max_length=100, description="주문번호(쇼핑몰)")
