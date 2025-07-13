@@ -3,7 +3,7 @@ from datetime import datetime
 from models.base_model import Base
 from schemas.order.order_dto import OrderDto
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import TIMESTAMP, Integer, String, Text, Numeric
+from sqlalchemy import TIMESTAMP, Integer, String, Text, Numeric, DateTime
 
 
 
@@ -61,6 +61,15 @@ class BaseDownFormOrder(Base):
     invoice_no: Mapped[str | None] = mapped_column(Text)
     fld_dsp: Mapped[str | None] = mapped_column(Text)
     order_etc_6: Mapped[str | None] = mapped_column(Text)
+    order_date: Mapped[datetime | None] = mapped_column(DateTime)
+    reg_date: Mapped[str | None] = mapped_column(String(14))
+    ord_confirm_date: Mapped[str | None] = mapped_column(String(14))
+    rtn_dt: Mapped[str | None] = mapped_column(String(14))
+    chng_dt: Mapped[str | None] = mapped_column(String(14))
+    delivery_confirm_date: Mapped[str | None] = mapped_column(String(14))
+    cancel_dt: Mapped[str | None] = mapped_column(String(14))
+    hope_delv_date: Mapped[str | None] = mapped_column(String(14))
+    inv_send_dt: Mapped[str | None] = mapped_column(String(14))
 
     @classmethod
     def build_erp(cls, order_dto: OrderDto) -> "BaseDownFormOrder":
@@ -115,6 +124,15 @@ class BaseDownFormOrder(Base):
             barcode=order_data.get('barcode', None),
             etc_cost=order_data.get('etc_cost', None),
             delivery_id=order_data.get('delivery_id', None),
+            order_date=order_data.get('order_date', None),
+            reg_date=order_data.get('reg_date', None),
+            ord_confirm_date=order_data.get('ord_confirm_date', None),
+            rtn_dt=order_data.get('rtn_dt', None),
+            chng_dt=order_data.get('chng_dt', None),
+            delivery_confirm_date=order_data.get('delivery_confirm_date', None),
+            cancel_dt=order_data.get('cancel_dt', None),
+            hope_delv_date=order_data.get('hope_delv_date', None),
+            inv_send_dt=order_data.get('inv_send_dt', None),
         )
     
     @classmethod
