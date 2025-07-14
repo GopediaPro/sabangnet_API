@@ -54,8 +54,8 @@ class GmarketAuctionMacro:
 
         # C열(인덱스 2), B열(인덱스 1) 순서로 정렬
         if len(self.df.columns) > 2:
-            self.df = self.ex.sort_dataframe_by_c_b(
-                self.df, col_list=['사이트', '수취인명'])
+            self.df = self.ex.sort_dataframe_by_col(
+                self.df, col_list=['사이트', '수취인명','금액', '주문번호', '제품명'])
 
             # 워크시트에 정렬된 데이터 덮어쓰기
             for row_idx, row_data in enumerate(self.df.itertuples(index=False), start=2):
@@ -200,7 +200,11 @@ class GmarketAuctionMacro:
         """
 
         # A열 수식 값 변환
-        if not ws.title == "OK,CL,BB" or not ws.title == "IY":
+        if ws.title == "OK,CL,BB" or ws.title == "IY":
+            for row in range(2, ws.max_row + 1):
+                ws[f'A{row}'].number_format = 'General'
+                ws[f"A{row}"].value = row - 1
+        else:
             self.ex.set_row_number(ws)
 
         # 테두리 제거 & 격자 제거
