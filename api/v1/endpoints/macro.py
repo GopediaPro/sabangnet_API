@@ -10,6 +10,7 @@ from services.batch_info_service import build_and_save_batch
 from schemas.order.response.order_response import ExcelRunMacroResponse
 from services.batch_info_service import BatchInfoService
 import json
+from schemas.order.response.excel_list_response import ExcelListResponse, ExcelItem
 
 logger = get_logger(__name__)
 
@@ -70,3 +71,32 @@ async def db_run_macro(
         logger.error(f"db_run_macro error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/get-batch-info-all")
+async def get_batch_info_all(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=1000),
+    batch_info_service: BatchInfoService = Depends(get_batch_info_service),
+):
+    items, total = await batch_info_service.get_batch_info_paginated(page, page_size)
+    dto_items = [BatchProcessDto.model_validate(item) for item in items]
+    return ExcelListResponse[BatchProcessDto](
+        total=total,
+        page=page,
+        page_size=page_size,
+        items=[ExcelItem[BatchProcessDto](data=dto_items)]
+    )
+
+@router.get("/get-batch-info-latest")
+async def get_batch_info_latest(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=1000),
+    batch_info_service: BatchInfoService = Depends(get_batch_info_service),
+):
+    items, total = await batch_info_service.get_batch_info_latest(page, page_size)
+    dto_items = [BatchProcessDto.model_validate(item) for item in items]
+    return ExcelListResponse[BatchProcessDto](
+        total=total,
+        page=page,
+        page_size=page_size,
+        items=[ExcelItem[BatchProcessDto](data=dto_items)]
+    )
