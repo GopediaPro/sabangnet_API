@@ -1,8 +1,8 @@
 from core.db import get_async_session
-from fastapi import APIRouter, Depends, Form
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from services.usecase.product_one_one_price_usecase import ProductOneOnePriceUsecase
-from schemas.one_one_price.request.one_one_price_request import OneOnePriceCreate, OneOnePriceBulkCreate, OneOnePriceBulkFormCreate
+from schemas.one_one_price.request.one_one_price_request import OneOnePriceCreate, OneOnePriceBulkCreate
 from schemas.one_one_price.response.one_one_price_response import OneOnePriceResponse, OneOnePriceBulkResponse
 
 
