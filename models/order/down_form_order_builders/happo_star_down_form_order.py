@@ -1,4 +1,4 @@
-from schemas.order.order_dto import OrderDto
+from schemas.order.receive_orders_dto import ReceiveOrdersDto
 from models.order.down_form_order import BaseDownFormOrder
 
 

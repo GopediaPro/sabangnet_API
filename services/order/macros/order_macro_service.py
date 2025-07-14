@@ -53,7 +53,7 @@ MACRO_MAP = {
 async def run_macro(session: AsyncSession, template_code: str, file_path: str):
     template_config_repository = TemplateConfigRepository(session)
     logger.info(f"run_macro called with template_code={template_code}, file_path={file_path}")
-    macro_name = await template_config_repository.get_template_config_by_template_code(template_code)
+    macro_name = await template_config_repository.get_macro_name_by_template_code(template_code)
     logger.info(f"macro_name from DB: {macro_name}")
     if macro_name:
         macro_func = MACRO_MAP.get(macro_name)

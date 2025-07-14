@@ -3,16 +3,13 @@ Product Category Repository
 상품 카테고리 데이터 저장소 클래스
 """
 
-from decimal import Decimal
-from sqlalchemy.engine import Row
-from typing import List, Optional, Tuple
+from typing import Optional
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, insert, update, delete, func
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
-from models.product.product_mycategory_data import ProductMycategoryData
-from schemas.product.product_mycategory_dto import ProductMycategoryCreateDto
 from utils.sabangnet_logger import get_logger
+from models.product.product_mycategory_data import ProductMycategoryData
+
 
 logger = get_logger(__name__)
 

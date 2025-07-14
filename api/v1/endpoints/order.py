@@ -1,18 +1,21 @@
+# core
 from core.db import get_async_session
+# fastapi
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
+# sql
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Depends, Request, Query
+# service
 from services.order.order_read_service import OrderReadService
 from services.order.order_create_service import OrderCreateService
-from schemas.order.request.order_xml_template_request import OrderXmlTemplateRequest
-from schemas.order.response.order_response import OrderResponse, OrderResponseList, OrderBulkCreateResponse
-from services.order.data_processing_pipeline import DataProcessingPipeline
-from schemas.order.data_processing import ProcessDataRequest, ProcessDataResponse
-from repository.receive_order_repository import ReceiveOrderRepository
-from typing import Optional
-from services.order.down_form_order_template_service import DownFormOrderTemplateService
-from schemas.order.down_form_order_dto import DownFormOrderRequest, DownFormOrderResponse
-from repository.template_config_repository import TemplateConfigRepository
+from services.usecase.down_form_order_save_usecase import DownFormOrderSaveUsecase
+from services.usecase.down_form_order_template_usecase import DownFormOrderTemplateUsecase
+# schema
+from schemas.order.request.receive_orders_request import ReceiveOrdersRequest
+from schemas.order.response.receive_orders_response import \
+ReceiveOrdersResponse,\
+ReceiveOrdersResponseList,\
+ReceiveOrdersBulkCreateResponse
 
 
 router = APIRouter(
@@ -29,9 +32,16 @@ def get_order_create_service(session: AsyncSession = Depends(get_async_session))
     return OrderCreateService(session=session)
 
 
-@router.get("/all", response_model=OrderResponseList)
+def get_down_form_order_template_usecase(session: AsyncSession = Depends(get_async_session)) -> DownFormOrderTemplateUsecase:
+    return DownFormOrderTemplateUsecase(session=session)
+
+
+def get_down_form_order_save_usecase(session: AsyncSession = Depends(get_async_session)) -> DownFormOrderSaveUsecase:
+    return DownFormOrderSaveUsecase(session=session)
+
+
+@router.get("/all", response_model=ReceiveOrdersResponseList)
 async def get_orders(
-    request: Request,
     skip: int = Query(0, ge=0, description="건너뛸 건수"),
     limit: int = Query(200, ge=1, le=200, description="조회할 건수"),
     order_read_service: OrderReadService = Depends(get_order_read_service),
@@ -39,12 +49,11 @@ async def get_orders(
     """
     주문 수집 데이터 전체 조회 (한 번에 최대 200건 까지만 조회 가능)
     """
-    return OrderResponseList.from_dto(await order_read_service.get_orders(skip, limit))
+    return ReceiveOrdersResponseList.from_dto(await order_read_service.get_orders(skip, limit))
 
 
-@router.get("/pagination", response_model=OrderResponseList)
+@router.get("/pagination", response_model=ReceiveOrdersResponseList)
 async def get_orders_pagination(
-    request: Request,
     page: int = Query(1, ge=1, description="페이지 번호"),
     page_size: int = Query(20, ge=1, description="페이지 당 조회할 건수"),
     order_read_service: OrderReadService = Depends(get_order_read_service),
@@ -52,7 +61,7 @@ async def get_orders_pagination(
     """
     주문 수집 데이터 페이징 조회
     """
-    return OrderResponseList.from_dto(await order_read_service.get_orders_pagination(page, page_size))
+    return ReceiveOrdersResponseList.from_dto(await order_read_service.get_orders_pagination(page, page_size))
 
 
 @router.get("/example")
@@ -77,14 +86,13 @@ async def example_usage():
 
 @router.get("/{idx}", response_model=OrderResponse)
 async def get_order(
-    request: Request,
     idx: str,
     order_read_service: OrderReadService = Depends(get_order_read_service),
 ):
     """
     주문 수집 데이터 단건 조회
     """
-    return OrderResponse.from_dto(await order_read_service.get_order_by_idx(idx))
+    return ReceiveOrdersResponse.from_dto(await order_read_service.get_order_by_idx(idx))
 
 
 @router.post("/process-data", response_model=ProcessDataResponse)
@@ -151,31 +159,33 @@ async def process_down_form_orders(
 
 @router.post("/order-xml-template", response_class=StreamingResponse)
 def make_and_get_order_xml_template(
-    request: OrderXmlTemplateRequest = Depends(),
-    order_create_service: OrderCreateService = Depends(get_order_create_service),
+    request: ReceiveOrdersRequest = Depends(),
+    order_create_service: OrderCreateService = Depends(
+        get_order_create_service),
 ) -> StreamingResponse:
     """
     주문 수집 데이터 XML 템플릿만 생성하고 내려받음 (요청은 안함.)
     """
     return order_create_service.get_order_xml_template(
-        ord_st_date=request.start_date,
-        ord_ed_date=request.end_date,
-        order_status=request.order_status
+        ord_st_date=request.get_start_date_yyyymmdd(),
+        ord_ed_date=request.get_end_date_yyyymmdd(),
+        order_status=request.get_order_status_code()
     )
 
 
-@router.post("/orders-from-xml", response_model=OrderBulkCreateResponse)
+@router.post("/orders-from-xml", response_model=ReceiveOrdersBulkCreateResponse)
 async def save_orders_to_db(
-    request: OrderXmlTemplateRequest = Depends(),
-    order_create_service: OrderCreateService = Depends(get_order_create_service),
+    request: ReceiveOrdersRequest = Depends(),
+    order_create_service: OrderCreateService = Depends(
+        get_order_create_service),
 ):
     """
     주문 수집 데이터 XML 파일을 업로드하여 주문 데이터를 생성함.
     """
     xml_file_path = order_create_service.create_request_xml(
-        ord_st_date=request.start_date,
-        ord_ed_date=request.end_date,
-        order_status=request.order_status
+        ord_st_date=request.get_start_date_yyyymmdd(),
+        ord_ed_date=request.get_end_date_yyyymmdd(),
+        order_status=request.get_order_status_code()
     )
     xml_url = order_create_service.get_xml_url_from_minio(xml_file_path)
     xml_content = order_create_service.get_orders_from_sabangnet(xml_url)

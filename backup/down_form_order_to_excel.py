@@ -1,11 +1,16 @@
-from sqlalchemy.ext.asyncio import AsyncSession
 from utils.convert_xlsx import ConvertXlsx
+from sqlalchemy.ext.asyncio import AsyncSession
+from models.order.down_form_order import BaseDownFormOrder
+from schemas.order.down_form_order_dto import DownFormOrderDto
+from repository.down_form_order_repository import DownFormOrderRepository
+from repository.template_config_repository import TemplateConfigRepository
 
 
 class DownFormOrderToExcel:
     def __init__(self, session: AsyncSession):
         self.session = session
-
+        self.down_form_order_repository = DownFormOrderRepository(self.session)
+        self.template_config_repository = TemplateConfigRepository(self.session)
 
     async def down_form_order_to_excel(self, template_code: str, file_path: str, file_name: str):
         """
@@ -24,7 +29,6 @@ class DownFormOrderToExcel:
         convert_xlsx = ConvertXlsx()
         file_path = convert_xlsx.export_translated_to_excel(down_form_orders, mapping_field, file_name, file_path="./files/excel")
         return file_path
-        
     
     async def _get_template_config(self, template_code: str) -> list[dict]:
         """
@@ -34,24 +38,24 @@ class DownFormOrderToExcel:
         returns:
             template_config: template_column_mappings data
         """
-        from repository.template_config_repository import TemplateConfigRepository
-
-        template_config_repository = TemplateConfigRepository(self.session)
-        template_config = await template_config_repository.get_template_config(template_code=template_code)
+        
+        template_config = await self.template_config_repository.get_template_config_by_template_code(template_code=template_code)
         template_config = template_config["column_mappings"]
 
         return template_config
 
-    async def _get_down_form_orders(self, template_code: str) -> list[dict]:
+    async def _get_down_form_orders(self, template_code: str) -> list[DownFormOrderDto]:
         """
         get down_form_orders
         returns:
             down_form_orders: down_form_orders SQLAlchemy ORM 인스턴스
         """
-        from repository.down_form_order_repository import DownFormOrderRepository
 
-        down_form_order_repository = DownFormOrderRepository(self.session)
-        down_form_orders = await down_form_order_repository.get_down_form_orders(template_code=template_code)
+        down_form_orders: list[DownFormOrderDto] = []
+
+        down_form_order_models: list[BaseDownFormOrder] = await self.down_form_order_repository.get_down_form_orders(template_code=template_code)
+        for down_form_order_model in down_form_order_models:
+            down_form_orders.append(DownFormOrderDto.model_validate(down_form_order_model))
 
         return down_form_orders
     

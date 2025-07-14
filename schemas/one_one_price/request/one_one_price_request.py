@@ -16,5 +16,6 @@ class OneOnePriceBulkCreate(RootModel[dict[str, OneOnePriceCreate]]):
 
     def to_dto(self) -> list[OneOnePriceCreate]:
         """Dict 데이터를 DTO로 변환"""
-        # [{"product_nm": "상품명1", "gubun": "구분1"}, {"product_nm": "상품명2", "gubun": "구분2"} ... ]
+
+        # 이렇게 나옴 -> [{"product_nm": "상품명1", "gubun": "구분1"}, {"product_nm": "상품명2", "gubun": "구분2"} ... ]
         return list(self.root.values())

@@ -1,7 +1,8 @@
-from datetime import datetime
+from typing import Optional
 from decimal import Decimal
-from typing import Optional, List, Dict, Any
+from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict
+
 
 # BaseDTO 정의 (없으면 추가)
 class BaseDTO(BaseModel):
@@ -100,15 +101,15 @@ class DownFormOrderDto(BaseDTO):
     )
 
 
-class DownFormOrderRequest(BaseModel):
-    template_code: str = Field(..., description="템플릿 코드")
-    raw_data: List[Dict[str, Any]] = Field(..., description="원본 주문 데이터")
+class DownFormOrdersBulkDto(BaseDTO):
+    success: Optional[bool] = Field(None, description="성공 여부")
+    template_code: Optional[str] = Field(None, description="템플릿 코드")
+    processed_count: Optional[int] = Field(None, description="처리된 데이터 수")
+    saved_count: Optional[int] = Field(None, description="저장된 데이터 수")
+    message: Optional[str] = Field(None, description="메시지")
 
-class DownFormOrderResponse(BaseModel):
-    saved_count: int
-    message: str
 
-class DownFormOrderFilter(BaseModel):
-    template_code: Optional[str]
-    date_from: Optional[datetime]
-    date_to: Optional[datetime]
+# class DownFormOrderFilter(BaseModel):
+#     template_code: Optional[str]
+#     date_from: Optional[datetime]
+#     date_to: Optional[datetime]

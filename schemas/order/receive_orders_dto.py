@@ -1,11 +1,10 @@
 from decimal import Decimal
+from typing import Optional
 from datetime import datetime
-from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
-from models.order.receive_order import ReceiveOrder
 
 
-class OrderDto(BaseModel):
+class ReceiveOrdersDto(BaseModel):
     """
     주문 수집 데이터 전송 객체
     """
@@ -130,22 +129,9 @@ class OrderDto(BaseModel):
     order_etc_12: Optional[str] = Field(None, description="주문 기타12")
     order_etc_13: Optional[str] = Field(None, description="주문 기타13")
     order_etc_14: Optional[str] = Field(None, description="주문 기타14")
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "OrderDto":
-        """dict에서 OrderDto 생성"""
-        return cls.model_validate(data)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """OrderDto를 dict로 변환"""
-        return self.model_dump()
-    
-    def to_model(self) -> "ReceiveOrder":
-        """OrderDto를 ReceiveOrder 모델로 변환"""
-        return ReceiveOrder(**self.model_dump())
 
 
-class OrderBulkDto(BaseModel):
+class ReceiveOrdersBulkDto(BaseModel):
     """
     주문 수집 데이터 대량 전송 객체
     """
@@ -155,15 +141,6 @@ class OrderBulkDto(BaseModel):
 
     success_count: Optional[int] = Field(None, description="성공 건수")
     error_count: Optional[int] = Field(None, description="실패 건수")
-    success_idx: Optional[List[str]] = Field(None, description="성공 인덱스")
-    errors: Optional[List[str]] = Field(None, description="실패 에러")
-    success_data: Optional[List[OrderDto]] = Field(None, description="성공 데이터")
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "OrderBulkDto":
-        """dict에서 OrderBulkDto 생성"""
-        return cls.model_validate(data)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """OrderBulkDto를 dict로 변환"""
-        return self.model_dump()
+    success_idx: Optional[list[str]] = Field(None, description="성공 인덱스")
+    errors: Optional[list[str]] = Field(None, description="실패 에러")
+    success_data: Optional[list[ReceiveOrdersDto]] = Field(None, description="성공 데이터")
