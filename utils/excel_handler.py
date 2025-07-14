@@ -312,13 +312,13 @@ class ExcelHandler:
                     cell.alignment = right
 
 
-    def sort_dataframe_by_c_b(self, df, col_list: list[str]):
+    def sort_dataframe_by_col(self, df, col_list: list[str]):
         """
         DataFrame을 B열 → C열 순서로 오름차순 정렬
         예시:
             df = sort_dataframe_by_c_b(df)
         """
-        if col_list in df.columns:
+        if all(col in df.columns for col in col_list):
             return df.sort_values(by=col_list).reset_index(drop=True)
         return df
     
