@@ -1,5 +1,11 @@
-<img width="663" height="538" alt="image" src="https://github.com/user-attachments/assets/b8bbf393-484a-479b-81ae-23caa79786b3" /><img width="782" height="246" alt="image" src="https://github.com/user-attachments/assets/ba49a0d3-a6e6-4632-85a8-4145d6869819" />테스트 
-    ~/project/sabangnet_API/test_macro/cmp.py
+테스트관련 소스는 ~/project/sabangnet_API/test_macro/cmp.py 만 있으면 되므로 이것만 다운 받아서 사용하세요.
+아래는 실행방법이고, 실행 Command 아래쪽에는 엑셀과 리브레오피스에서 시트 복사하는 방법 설명입니다.
+
+cmp.py 수정한 다음 사용하시면 되십니다.<br/>
+  Line 182 : excel_file : 확인할 파일명<br/>
+  Line 183 : compare_selected_sheet_pairs의  2번째 파라미터 (비교할 시트쌍의 개수)<p/>
+실행:<br/>
+  python cmp.py<p/>
 
 엑셀 파일 1개에 파이선시트[시트1, 시트2, 시트3], 매크로 시트[시트1_m, 시트2_m, 시트3_m) 순서로 엑셀 통합(시트 선택한 다음 시트복사 하시면 됩니다.)
 시트 복사 방법
@@ -26,10 +32,3 @@
     5. 아래쪽의 파일에서 작성에서 읽어올 시트 선택(shift를 사용하면 여러개 선택 가능)
        <img width="663" height="538" alt="image" src="https://github.com/user-attachments/assets/18f1a210-cf91-4f75-aa36-7a1dfa6c449c" />
     6. 확인하면  => 여기까지 완료하면 시트가 복사된 것을 확인할 수 있습니다.
-
-cmp.py 수정한 다음 사용하시면 되십니다.
-  Line 182 : excel_file : 확인할 파일명
-  Line 183 : compare_selected_sheet_pairs의  2번째 파라미터 (비교할 시트쌍의 개수)
-
-실행:
-  python cmp.py
