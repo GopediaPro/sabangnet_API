@@ -3,7 +3,7 @@ from openpyxl import load_workbook
 import os
 import warnings
 
-def step1to4_full_process(file_path):
+def reform_order_ali(file_path):
     # UserWarning 유형의 경고를 무시합니다. (openpyxl 관련 경고)
     warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -85,12 +85,13 @@ def step1to4_full_process(file_path):
         base, ext = os.path.splitext(file_path)
         new_file_path = f"{base}_reformed{ext}"
         workbook.save(new_file_path)
-
     except FileNotFoundError:
         print(f"오류: 파일을 찾을 수 없습니다: {file_path}")
     except Exception as e:
         print(f"처리 중 오류 발생: {e}")
+    finally:
+        return new_file_path
 
 if __name__ == "__main__":
     excel_file = "/home/okuser/project/sabangnet_API/test_macro/o_ali_data.xlsx"
-    step1to4_full_process(excel_file)
+    reform_order_ali(excel_file)
