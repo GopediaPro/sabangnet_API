@@ -55,6 +55,26 @@ async def get_orders_pagination(
     return OrderResponseList.from_dto(await order_read_service.get_orders_pagination(page, page_size))
 
 
+@router.get("/example")
+async def example_usage():
+    return {
+        "workflow": "원본 데이터 -> 템플릿별 변환 -> down_form_orders 저장",
+        "step1": "POST /process-data with template_code='gmarket_erp'",
+        "step2": "원본 receive_orders 데이터를 G마켓 ERP 형식으로 변환",
+        "step3": "변환된 데이터를 down_form_orders에 저장",
+        "step4": "GET /down-form-orders?template_code=gmarket_erp로 결과 확인",
+        "example_request": {
+            "template_code": "gmarket_erp",
+            "filters": {
+                "order_date_from": "2025-04-23",
+                "order_date_to": "2025-04-30",
+                "mall_id": "ESM지마켓",
+                # "order_status" : "출고완료" 비우면 모든 상태 조회
+            }
+        }
+    } 
+
+
 @router.get("/{idx}", response_model=OrderResponse)
 async def get_order(
     request: Request,
@@ -118,7 +138,7 @@ async def get_down_form_orders(
 
 @router.post("/down-form-orders/process", response_model=DownFormOrderResponse)
 async def process_down_form_orders(
-    request: DownFormOrderRequest,
+    request: DownFormOrderRequest = Depends(),
     session: AsyncSession = Depends(get_async_session)
 ):
     service = DownFormOrderTemplateService(session)
@@ -129,29 +149,9 @@ async def process_down_form_orders(
         return DownFormOrderResponse(saved_count=0, message=f"Error: {str(e)}")
 
 
-@router.get("/example")
-async def example_usage():
-    return {
-        "workflow": "원본 데이터 -> 템플릿별 변환 -> down_form_orders 저장",
-        "step1": "POST /process-data with template_code='gmarket_erp'",
-        "step2": "원본 receive_orders 데이터를 G마켓 ERP 형식으로 변환",
-        "step3": "변환된 데이터를 down_form_orders에 저장",
-        "step4": "GET /down-form-orders?template_code=gmarket_erp로 결과 확인",
-        "example_request": {
-            "template_code": "gmarket_erp",
-            "filters": {
-                "order_date_from": "2025-04-23",
-                "order_date_to": "2025-04-30",
-                "mall_id": "ESM지마켓",
-                # "order_status" : "출고완료" 비우면 모든 상태 조회
-            }
-        }
-    } 
-
-
 @router.post("/order-xml-template", response_class=StreamingResponse)
 def make_and_get_order_xml_template(
-    request: OrderXmlTemplateRequest,
+    request: OrderXmlTemplateRequest = Depends(),
     order_create_service: OrderCreateService = Depends(get_order_create_service),
 ) -> StreamingResponse:
     """
@@ -166,7 +166,7 @@ def make_and_get_order_xml_template(
 
 @router.post("/orders-from-xml", response_model=OrderBulkCreateResponse)
 async def save_orders_to_db(
-    request: OrderXmlTemplateRequest,
+    request: OrderXmlTemplateRequest = Depends(),
     order_create_service: OrderCreateService = Depends(get_order_create_service),
 ):
     """

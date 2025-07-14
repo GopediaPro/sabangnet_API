@@ -2,7 +2,6 @@
 메인 앱 테스트
 """
 import pytest
-from httpx import AsyncClient
 from fastapi.testclient import TestClient
 from utils.sabangnet_logger import get_logger
 
@@ -15,6 +14,7 @@ def test_app_creation(test_app):
     """FastAPI 앱 생성 테스트"""
 
     try:
+        logger.info("FastAPI 앱 생성 테스트 시작")
         assert test_app is not None
         assert test_app.title == "SabangNet API <-> n8n 연결 테스트"
         assert test_app.version == "0.1.2"
@@ -29,6 +29,7 @@ def test_root_endpoint(client: TestClient):
     """루트 테스트"""
 
     try:
+        logger.info("루트 엔드포인트 테스트 시작")
         response = client.get("/")
         assert response.status_code == 200
         assert response.json() == "FastAPI 메인페이지 입니다."
@@ -42,6 +43,7 @@ def test_root_endpoint(client: TestClient):
 def test_docs_endpoint(client: TestClient):
     """Swagger UI 테스트"""
     try:
+        logger.info("Swagger UI 엔드포인트 테스트 시작")
         response = client.get("/docs")
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
@@ -55,6 +57,7 @@ def test_docs_endpoint(client: TestClient):
 def test_redoc_endpoint(client: TestClient):
     """ReDoc 테스트"""
     try:
+        logger.info("ReDoc 엔드포인트 테스트 시작")
         response = client.get("/redoc")
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
@@ -68,6 +71,7 @@ def test_redoc_endpoint(client: TestClient):
 def test_cors_middleware(client: TestClient):
     """CORS 미들웨어 테스트"""
     try:
+        logger.info("CORS 미들웨어 테스트 시작")
         headers = {
             "Origin": "http://localhost:3000",
             "Access-Control-Request-Method": "GET",
@@ -96,6 +100,7 @@ def test_api_prefix_endpoints(client: TestClient):
     # OpenAPI 스키마에서 사용 가능한 경로 확인
 
     try:
+        logger.info("API 프리픽스 엔드포인트 존재 확인 테스트 시작")
         response = client.get("/openapi.json")
         
         assert response.status_code == 200
@@ -122,11 +127,12 @@ def test_api_prefix_endpoints(client: TestClient):
             else:
                 not_api_paths.append(path)
         
-        logger.info(f"api_paths={api_paths}")
-        logger.info(f"api_v1_paths={api_v1_paths}")
-        logger.info(f"not_api_paths={not_api_paths}")
+        logger.debug(f"api_paths={api_paths}")
+        logger.debug(f"api_v1_paths={api_v1_paths}")
+        logger.debug(f"not_api_paths={not_api_paths}")
+        assert len(api_v1_paths) > 0 and len(api_paths) > 0, "API 엔드포인트가 존재하지 않습니다."
         
-        assert len(api_v1_paths) > 0 and len(api_paths) > 0, "API 엔드포인트가 존재하지 않스비낟"
+        logger.info("API 프리픽스 엔드포인트 존재 확인 테스트 완료")
     except Exception as e:
         logger.error(f"API 프리픽스 엔드포인트 존재 확인 테스트 실패: {e}")
         raise e
