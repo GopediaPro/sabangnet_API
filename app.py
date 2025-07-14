@@ -258,6 +258,17 @@ def create_order_xlsx():
     except Exception as e:
         logger.error(f"주문 목록 엑셀 변환 중 오류 발생: {e}")
 
+@app.command(help="알리양식변경")
+def test_reform_macro():
+    from controller.reform_order import test_reform_macro
+    """
+    양식변경 자동화 CLI 메뉴 실행
+    """
+    try:
+        test_reform_macro()
+    except Exception as e:
+        logger.error(f"주문양식 변경 매크로 실행 중 오류 발생: {e}")
+        handle_error(e)
 
 @app.command(help="테스트 ERP 매크로 실행")
 def test_erp_macro():
