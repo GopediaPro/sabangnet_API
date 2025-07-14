@@ -1,10 +1,7 @@
-from sqlalchemy import select
+from sqlalchemy import select, delete, func, update, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.order.down_form_order import BaseDownFormOrder
 from schemas.order.down_form_order_dto import DownFormOrderDto
-from sqlalchemy import func
-
-
 class DownFormOrderRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -68,7 +65,16 @@ class DownFormOrderRepository:
     async def bulk_update(self, objects: list[BaseDownFormOrder]):
         try:
             for obj in objects:
-                self.session.merge(obj)
+                values = obj.__dict__.copy()
+                values.pop('_sa_instance_state', None)
+                idx = values.pop('idx', None)
+                values.pop('created_at', None)
+                values.pop('process_dt', None)
+                if idx is None:
+                    continue  # idx 없으면 skip
+                values['updated_at'] = func.now()
+                stmt = update(BaseDownFormOrder).where(BaseDownFormOrder.idx == idx).values(**values)
+                await self.session.execute(stmt)
             await self.session.commit()
             return len(objects)
         except Exception as e:
@@ -90,6 +96,43 @@ class DownFormOrderRepository:
             raise e
         finally:
             await self.session.close()
+
+    async def delete_all(self):
+        try:
+            await self.session.execute(delete(BaseDownFormOrder))
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+
+    async def delete_duplicate(self):
+        try:
+            # 중복 제거 쿼리
+            stmt = text("""
+            DELETE FROM down_form_orders
+            WHERE id IN (
+                SELECT id FROM (
+                    SELECT id,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY idx
+                            ORDER BY updated_at DESC, id DESC
+                        ) as row_num
+                    FROM down_form_orders
+                ) ranked
+                WHERE row_num > 1
+            )
+        """)
+
+            result = await self.session.execute(stmt)
+            deleted_count = result.rowcount
+            await self.session.commit()
+
+            print(f"중복 제거 완료: {deleted_count}개 행 삭제됨")
+            return deleted_count
+
+        except Exception as e:
+            await self.session.rollback()
+            print(f"중복 제거 실패: {e}")
+            raise e
 
     async def count_all(self, template_code: str = None) -> int:
         try:

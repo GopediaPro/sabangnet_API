@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, Body
+from fastapi import APIRouter, Depends, Query, Body, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from core.db import get_async_session
@@ -9,7 +9,9 @@ from schemas.order.response.down_form_order_response import DownFormOrderListRes
 from schemas.order.down_form_order_dto import DownFormOrderDto
 from utils.response_status import make_row_result, RowStatus
 from utils.sabangnet_logger import get_logger
-
+from minio_handler import upload_and_get_url, temp_file_to_object_name
+from services.order.data_processing_pipeline import DataProcessingPipeline
+from utils.excel_handler import ExcelHandler
 logger = get_logger(__name__)
 
 router = APIRouter(
@@ -105,3 +107,49 @@ async def bulk_delete_down_form_orders(
     except Exception as e:
         logger.error(f"[bulk_delete] 실패: {str(e)}", e)
         raise
+
+@router.delete("/delete-all")
+async def delete_all_down_form_orders(
+    down_form_order_create_service: DownFormOrderCreateService = Depends(get_down_form_order_create_service),
+):
+    try:
+        await down_form_order_create_service.delete_all_down_form_orders()
+        return {"message": "모든 데이터 삭제 완료"}
+    except Exception as e:
+        logger.error(f"[delete_all] 실패: {str(e)}", e)
+        raise
+
+@router.delete("/delete-duplicate")
+async def delete_duplicate_down_form_orders(
+    down_form_order_create_service: DownFormOrderCreateService = Depends(get_down_form_order_create_service),
+):
+    deleted_count = await down_form_order_create_service.delete_duplicate_down_form_orders()
+    return {"message": f"중복 데이터 삭제 완료: {deleted_count}개 행 삭제됨"}
+
+@router.post("/upload-excel-file")
+async def upload_excel_file(
+    template_code: str = Form(...),
+    file: UploadFile = File(...)
+):
+    """
+    프론트에서 template_code와 엑셀 파일을 받아 MinIO에 업로드하고 presigned URL을 반환합니다.
+    """
+    file_name = file.filename
+    file_path = temp_file_to_object_name(file)
+    file_url, minio_object_name = upload_and_get_url(file_path, template_code, file_name)
+    return {"file_url": file_url, "object_name": minio_object_name, "template_code": template_code}
+
+
+@router.post("/get-excel-to-db")
+async def get_excel_to_db(
+    template_code: str = Form(...),
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """
+    프론트에서 template_code와 엑셀 파일을 받아 DB에 저장
+    """
+    pipeline = DataProcessingPipeline(session)
+    dataframe = ExcelHandler.from_upload_file_to_dataframe(file)
+    saved_count = await pipeline.process_excel_to_down_form_orders(dataframe, template_code)
+    return {"saved_count": saved_count}

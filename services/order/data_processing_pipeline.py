@@ -4,8 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models.order.down_form_order import BaseDownFormOrder
 from typing import Dict, List, Any
 from datetime import datetime
-from schemas.order.down_form_order_mapper import map_raw_to_down_form, map_aggregated_to_down_form
+from schemas.order.down_form_order_mapper import map_raw_to_down_form, map_aggregated_to_down_form, map_excel_to_down_form
 from repository.template_config_repository import TemplateConfigRepository
+import requests
+import tempfile
+from utils.excel_handler import ExcelHandler
+import os
 class DataProcessingPipeline:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -96,7 +100,7 @@ class DataProcessingPipeline:
             processed_row.update(map_aggregated_to_down_form(group_rows, config))
             processed_data.append(processed_row)
         return processed_data
-    
+       
     async def _save_to_down_form_orders(self, processed_data: List[Dict[str, Any]], template_code: str) -> int:
         logger.info(f"[START] _save_to_down_form_orders | processed_data_count={len(processed_data)} | template_code={template_code}")
         if not processed_data:
@@ -112,7 +116,43 @@ class DataProcessingPipeline:
             await self.session.rollback()
             logger.error(f"Exception during _save_to_down_form_orders: {e}")
             raise
+
+    async def _process_excel_data(self, df, config):
+        """
+        DataFrame과 config(column_mappings)를 받아 DB 저장용 dict 리스트로 변환
+        """
+        raw_data = map_excel_to_down_form(df, config)
+        processed_data = []
+        for seq, raw_row in enumerate(raw_data, start=1):
+            processed_row = {
+                'process_dt': datetime.now(),
+                'form_name': config['template_code'],
+                'seq': seq,
+            }
+            processed_row.update(raw_row)
+            processed_data.append(processed_row)
+        return processed_data
     
+    async def process_excel_to_down_form_orders(self, df, template_code: str) -> int:
+        """
+        Excel 파일을 읽어 config 매핑에 따라 데이터를 DB에 저장
+        Args:
+            excel_file: Excel 파일
+            template_code: 템플릿 코드
+        Returns:
+            저장된 레코드 수
+        """
+        logger.info(f"[START] process_excel_to_down_form_orders | template_code={template_code} | df_count={len(df)}")
+        # 1. config 매핑 정보 조회
+        config = await self.template_config_repo.get_template_config(template_code)
+        logger.info(f"Loaded template config: {config}")
+        # 2. 엑셀 데이터 변환
+        raw_data = await self._process_excel_data(df, config)
+        # 3. DB 저장
+        saved_count = await self._save_to_down_form_orders(raw_data, template_code)
+        logger.info(f"[END] process_excel_to_down_form_orders | saved_count={saved_count}")
+        return saved_count
+
     # 변환 함수들
     def _convert_delivery_method(self, value: Any, context: Dict[str, Any]) -> str:
         if not value:
