@@ -1,5 +1,3 @@
-from typing import List
-from decimal import Decimal
 from sqlalchemy import select, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.one_one_price.one_one_price import OneOnePrice
@@ -23,21 +21,8 @@ class OneOnePriceRepository:
             raise e
         finally:
             await self.session.close()
-    
-    # async def bulk_create_one_one_price_data(self, data_list: List[OneOnePriceDto]) -> List[int]:
-    #     """쇼핑몰별 1+1 가격 데이터 대량 생성"""
-    #     try:
-    #         data_dict_list = [data.model_dump(exclude_none=True) for data in data_list]
-    #         query = insert(OneOnePrice).values(data_dict_list).returning(OneOnePrice.id)
-    #         result = await self.session.execute(query)
-    #         created_ids = [row[0] for row in result.fetchall()]
-    #         await self.session.commit()
-    #         return created_ids
-    #     except Exception as e:
-    #         await self.session.rollback()
-    #         raise e
-    
-    async def find_all_one_one_price_data(self) -> List[OneOnePrice]:
+
+    async def find_all_one_one_price_data(self) -> list[OneOnePrice]:
         """쇼핑몰별 1+1 가격 데이터 전체 조회"""
         try:
             query = select(OneOnePrice).order_by(OneOnePrice.id)
@@ -67,6 +52,24 @@ class OneOnePriceRepository:
             query = select(OneOnePrice).where(OneOnePrice.product_nm == product_nm)
             result = await self.session.execute(query)
             return result.scalar_one_or_none()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+        finally:
+            await self.session.close()
+
+    async def update_one_one_price_data(self, data: OneOnePriceDto) -> OneOnePrice:
+        """쇼핑몰별 1+1 가격 데이터 수정"""
+        try:
+            one_one_price_data = await self.find_one_one_price_data_by_test_product_raw_data_id(data.test_product_raw_data_id)
+            if one_one_price_data is None:
+                raise ValueError(f"OneOnePrice data not found: {data.test_product_raw_data_id}")
+            for field in OneOnePrice.__table__.columns.keys():
+                if field == "id":
+                    continue
+                setattr(one_one_price_data, field, getattr(data, field))
+            await self.session.commit()
+            return one_one_price_data
         except Exception as e:
             await self.session.rollback()
             raise e

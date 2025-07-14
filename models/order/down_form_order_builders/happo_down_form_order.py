@@ -1,4 +1,4 @@
-from schemas.order.order_dto import OrderDto
+from schemas.order.receive_orders_dto import ReceiveOrdersDto
 from models.order.down_form_order import BaseDownFormOrder
 
 
@@ -6,14 +6,14 @@ class GmarketAuctionHappoBuilder(BaseDownFormOrder):
     """G마켓, 옥션 양식"""
     
     @classmethod
-    def build_happo(cls, order_dto_list: list[OrderDto]) -> BaseDownFormOrder:
+    def build_happo(cls, receive_orders_dto_list: list[ReceiveOrdersDto]) -> BaseDownFormOrder:
         
         sum_p_ea = 0
         sum_pay_cost = 0
         sum_expected_payout = 0
 
-        for order_dto in order_dto_list:
-            order_data = order_dto.model_dump()
+        for receive_orders_dto in receive_orders_dto_list:
+            order_data = receive_orders_dto.model_dump()
 
             sale_cnt = order_data['sale_cnt']
             order_etc_7 = order_data['order_etc_7']
@@ -26,7 +26,7 @@ class GmarketAuctionHappoBuilder(BaseDownFormOrder):
             delivery_payment_type = order_data['delivery_method_str']
             erp_model_name = f"{order_data['barcode']} {sale_cnt}개"
 
-        down_form_order_model = super().build_happo(order_dto)
+        down_form_order_model = super().build_happo(receive_orders_dto)
         down_form_order_model.price_formula = price_formula
         down_form_order_model.item_name = item_name
         down_form_order_model.delivery_payment_type = delivery_payment_type

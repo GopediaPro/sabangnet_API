@@ -45,7 +45,7 @@ def run_tests():
 def main():
     """메인 함수"""
 
-    logger.debug("---------- 테스트 시작 ----------")
+    logger.debug("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 테스트 시작 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
     logger.debug(f"플랫폼: {platform.system()} {platform.release()}")
     logger.debug(f"Python: {sys.version}")
     
@@ -59,13 +59,13 @@ def main():
         
         if success:
             logger.debug("모든 테스트 통과")
-            logger.debug("---------- 테스트 완료 ----------")
+            logger.debug("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 테스트 완료 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
         else:
             logger.error("일부 테스트 실패")
             sys.exit(1)
             
     except KeyboardInterrupt:
-        logger.debug("---------- 테스트 중단됨 ----------")
+        logger.debug("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 테스트 중단됨 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
         sys.exit(1)
     except Exception as e:
         logger.error(f"오류 발생: {str(e)}")

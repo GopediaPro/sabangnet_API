@@ -1,14 +1,14 @@
 import re
-from schemas.order.order_dto import OrderDto
+from schemas.order.receive_orders_dto import ReceiveOrdersDto
 from models.order.down_form_order import BaseDownFormOrder
 
 class GmarketAuctionErpDownFormOrder(BaseDownFormOrder):
     """G마켓, 옥션 양식"""
     
     @classmethod
-    def build_erp(cls, order_dto: OrderDto) -> BaseDownFormOrder:
+    def build_erp(cls, receive_orders_dto: ReceiveOrdersDto) -> BaseDownFormOrder:
         # 추출하기 위해 dict로 변환
-        order_data = order_dto.model_dump()
+        order_data = receive_orders_dto.model_dump()
 
         sale_cnt = order_data['sale_cnt']
         expected_payout = order_data['mall_won_cost'] * sale_cnt
@@ -17,7 +17,7 @@ class GmarketAuctionErpDownFormOrder(BaseDownFormOrder):
         delivery_payment_type = order_data['delivery_method_str']
         erp_model_name = f"{order_data['barcode']} {sale_cnt}개"
 
-        down_form_order_model = super().build_erp(order_dto)
+        down_form_order_model = super().build_erp(receive_orders_dto)
         down_form_order_model.price_formula = price_formula
         down_form_order_model.item_name = item_name
         down_form_order_model.delivery_payment_type = delivery_payment_type
@@ -65,7 +65,7 @@ class ErpFactory:
     }
     
     @classmethod
-    def create_order(cls, order_dto: OrderDto) -> BaseDownFormOrder:
+    def create_order(cls, receive_orders_dto: ReceiveOrdersDto) -> BaseDownFormOrder:
         """
         쇼핑몰에 따라 적절한 ERP 양식 객체 생성
         
@@ -75,10 +75,10 @@ class ErpFactory:
         Returns:
             DownFormOrder: 생성된 다운폼 모델 객체
         """
-        extracted_fld_dsp: str = re.sub(r'\[.*?\]', '', order_dto.fld_dsp)
+        extracted_fld_dsp: str = re.sub(r'\[.*?\]', '', receive_orders_dto.fld_dsp)
         cleaned_fld_dsp = extracted_fld_dsp.strip()
-        down_form_order: BaseDownFormOrder = cls._models.get(cleaned_fld_dsp, cls._models['기본양식'])
-        return down_form_order.build(order_dto)
+        down_form_orders: BaseDownFormOrder = cls._models.get(cleaned_fld_dsp, cls._models['기본양식'])
+        return down_form_orders.build_erp(receive_orders_dto)
     
     @classmethod
     def get_supported_sites(cls) -> list[str]:

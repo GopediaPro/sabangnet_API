@@ -1,7 +1,8 @@
+from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.order.receive_order import ReceiveOrder
-from schemas.order.order_dto import OrderDto, OrderBulkDto
-from repository.receive_order_repository import ReceiveOrderRepository
+from schemas.order.receive_orders_dto import ReceiveOrdersDto, ReceiveOrdersBulkDto
+from repository.receive_orders_repository import ReceiveOrdersRepository
 
 
 class OrderReadService:
@@ -9,30 +10,30 @@ class OrderReadService:
         self,
         session: AsyncSession,
     ):
-        self.receive_order_repository = ReceiveOrderRepository(session)
+        self.receive_orders_repository = ReceiveOrdersRepository(session)
 
-    async def get_order_by_idx(self, idx: str) -> OrderDto:
-        return OrderDto.model_validate(await self.receive_order_repository.get_order_by_idx(idx))
+    async def get_order_by_idx(self, idx: str) -> ReceiveOrdersDto:
+        return ReceiveOrdersDto.model_validate(await self.receive_orders_repository.get_order_by_idx(idx))
 
-    async def get_orders(self, skip: int = None, limit: int = None) -> OrderBulkDto:
+    async def get_orders(self, skip: int = None, limit: int = None) -> ReceiveOrdersBulkDto:
         success_count: int = 0
         error_count: int = 0
         success_idx: list[str] = []
         errors: list[str] = []
-        success_data: list[OrderDto] = []
+        success_data: list[ReceiveOrdersDto] = []
 
-        orders: list[ReceiveOrder] = await self.receive_order_repository.get_orders(skip, limit)
-        for order in orders:
+        receive_orders: list[ReceiveOrder] = await self.receive_orders_repository.get_orders(skip, limit)
+        for receive_orders in receive_orders:
             try:
-                order_dto = OrderDto.model_validate(order)
+                receive_orders_dto = ReceiveOrdersDto.model_validate(receive_orders)
                 success_count += 1
-                success_idx.append(order_dto.idx)
-                success_data.append(order_dto)
+                success_idx.append(receive_orders_dto.idx)
+                success_data.append(receive_orders_dto)
             except Exception as e:
                 error_count += 1
                 errors.append(str(e))
                 continue
-        return OrderBulkDto(
+        return ReceiveOrdersBulkDto(
             success_count=success_count,
             error_count=error_count,
             success_idx=success_idx,
@@ -40,28 +41,31 @@ class OrderReadService:
             success_data=success_data,
         )
 
-    async def get_orders_pagination(self, page: int = 1, page_size: int = 20) -> OrderBulkDto:
+    async def get_orders_pagination(self, page: int = 1, page_size: int = 20) -> ReceiveOrdersBulkDto:
         success_count: int = 0
         error_count: int = 0
         success_idx: list[str] = []
         errors: list[str] = []
-        success_data: list[OrderDto] = []
+        success_data: list[ReceiveOrdersDto] = []
 
-        orders = await self.receive_order_repository.get_orders_pagination(page=page, page_size=page_size)
-        for order in orders:
+        receive_orders = await self.receive_orders_repository.get_orders_pagination(page=page, page_size=page_size)
+        for receive_orders in receive_orders:
             try:
-                order_dto = OrderDto.model_validate(order)
+                receive_orders_dto = ReceiveOrdersDto.model_validate(receive_orders)
                 success_count += 1
-                success_idx.append(order_dto.idx)
-                success_data.append(order_dto)
+                success_idx.append(receive_orders_dto.idx)
+                success_data.append(receive_orders_dto)
             except Exception as e:
                 error_count += 1
                 errors.append(str(e))
                 continue
-        return OrderBulkDto(
+        return ReceiveOrdersBulkDto(
             success_count=success_count,
             error_count=error_count,
             success_idx=success_idx,
             errors=errors,
             success_data=success_data,
         )
+    
+    async def get_receive_orders_by_filters(self, filters: dict[str, Any]) -> list[ReceiveOrder]:
+        return await self.receive_orders_repository.get_receive_orders_by_filters(filters)

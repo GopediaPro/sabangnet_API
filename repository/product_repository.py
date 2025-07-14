@@ -1,7 +1,6 @@
-from core.db import get_async_session
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, insert, update, delete, func
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from sqlalchemy import select, insert, update, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.inspection import inspect
 from typing import List,Optional
 from models.product.product_raw_data import ProductRawData

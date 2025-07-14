@@ -16,10 +16,10 @@ from utils.sabangnet_logger import get_logger
 from utils.sabangnet_path_utils import SabangNetPathUtils
 from utils.make_xml.order_create_xml import OrderCreateXml
 from minio_handler import upload_file_to_minio, get_minio_file_url
-from repository.receive_order_repository import ReceiveOrderRepository
+from repository.receive_orders_repository import ReceiveOrdersRepository
 
-from schemas.order.order_dto import OrderDto
-from schemas.order.response.order_response import OrderBulkCreateResponse
+from schemas.order.receive_orders_dto import ReceiveOrdersDto
+from schemas.order.response.receive_orders_response import ReceiveOrdersBulkCreateResponse
 
 
 logger = get_logger(__name__)
@@ -64,7 +64,7 @@ class OrderCreateService:
 
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.receive_order_repository = ReceiveOrderRepository(session)
+        self.receive_orders_repository = ReceiveOrdersRepository(session)
 
     def create_request_xml(self, ord_st_date: str, ord_ed_date: str, order_status: str, dst_path_name: str = None) -> Path:
         order_create_xml = OrderCreateXml(
@@ -268,7 +268,7 @@ class OrderCreateService:
 
         return value
 
-    async def save_orders_to_db_from_xml(self, xml_content: str, safe_mode: bool = True) -> OrderBulkCreateResponse:
+    async def save_orders_to_db_from_xml(self, xml_content: str, safe_mode: bool = True) -> ReceiveOrdersBulkCreateResponse:
         """
         XML을 파싱하여 주문 리스트를 DB에 저장하는 함수.
         """
@@ -277,9 +277,9 @@ class OrderCreateService:
         logger.info(f"총 {len(order_dict_list)}개의 주문을 DB에 저장합니다.")
         
         try:
-            success_models = await self.receive_order_repository.bulk_insert_orders(order_dict_list)
+            success_models = await self.receive_orders_repository.bulk_insert_orders(order_dict_list)
             
-            return OrderBulkCreateResponse(
+            return ReceiveOrdersBulkCreateResponse(
                 total_count=len(order_dict_list),
                 success_count=len(success_models),
                 duplicated_count=len(order_dict_list) - len(success_models),
@@ -291,36 +291,36 @@ class OrderCreateService:
             logger.error(f"DB 저장 중 오류: {e}")
             raise
 
-    def save_orders_to_json_from_xml(self, xml_content: str, safe_mode: bool = True) -> OrderBulkCreateResponse:
+    def save_orders_to_json_from_xml(self, xml_content: str, safe_mode: bool = True) -> ReceiveOrdersBulkCreateResponse:
         """
         XML을 파싱하여 주문 리스트를 JSON 파일로 저장하고 반환하는 함수.
         """
 
-        order_dict_list = self._parse_xml_to_order_list(xml_content, safe_mode)
-        logger.info(f"총 {len(order_dict_list)}개의 주문을 JSON 파일로 저장합니다.")
+        receive_orders_dict_list = self._parse_xml_to_order_list(xml_content, safe_mode)
+        logger.info(f"총 {len(receive_orders_dict_list)}개의 주문을 JSON 파일로 저장합니다.")
 
         try:
             # dict 리스트를 DTO로 변환
-            order_dto_list: list[OrderDto] = []
-            for order_dict in order_dict_list:
+            receive_orders_dto_list: list[ReceiveOrdersDto] = []
+            for receive_orders_dict in receive_orders_dict_list:
                 try:
-                    order_dto = OrderDto.from_dict(order_dict)
-                    order_dto_list.append(order_dto)
+                    receive_orders_dto = ReceiveOrdersDto.model_validate(receive_orders_dict)
+                    receive_orders_dto_list.append(receive_orders_dto)
                 except Exception as e:
-                    logger.error(f"DTO 변환 실패: {e} (data: {order_dict})")
+                    logger.error(f"DTO 변환 실패: {e} (data: {receive_orders_dict})")
                     continue
             
             # DTO를 JSON으로 직렬화 가능한 형태로 변환
-            json_data = [order_dto.to_dict() for order_dto in order_dto_list]
+            json_data = [receive_orders_dto.model_dump() for receive_orders_dto in receive_orders_dto_list]
             
             dst_json_path = self._JSON_PATH / "order_list.json"
             with open(dst_json_path, 'w', encoding='utf-8') as f:
                 json.dump(json_data, f, ensure_ascii=False, indent=4, default=str)
             logger.info(f"주문 데이터가 {dst_json_path}에 저장되었습니다.")
-            return OrderBulkCreateResponse(
-                total_count=len(order_dict_list),
-                success_count=len(order_dto_list),
-                duplicated_count=len(order_dict_list) - len(order_dto_list),
+            return ReceiveOrdersBulkCreateResponse(
+                total_count=len(receive_orders_dict_list),
+                success_count=len(receive_orders_dto_list),
+                duplicated_count=len(receive_orders_dict_list) - len(receive_orders_dto_list),
             )
         except ET.ParseError as e:
             logger.error(f"XML 파싱 오류: {e}")
@@ -329,7 +329,7 @@ class OrderCreateService:
             logger.error(f"응답 파싱 중 오류: {e}")
             raise
 
-    async def save_orders_to_db_from_json(self, json_file_name: str) -> OrderBulkCreateResponse:
+    async def save_orders_to_db_from_json(self, json_file_name: str) -> ReceiveOrdersBulkCreateResponse:
         """
         JSON 파일에서 주문 데이터를 읽어 DB에 저장하는 함수.
         """
@@ -345,10 +345,10 @@ class OrderCreateService:
             raw_order_data_list: list[dict] = json.load(f)
         
         order_data_list = self._convert_json_to_order_list(raw_order_data_list)
-        success_models = await self.receive_order_repository.bulk_insert_orders(order_data_list)
+        success_models = await self.receive_orders_repository.bulk_insert_orders(order_data_list)
         logger.info(f"저장된 주문 수: {len(success_models)}")
 
-        return OrderBulkCreateResponse(
+        return ReceiveOrdersBulkCreateResponse(
             total_count=len(order_data_list),
             success_count=len(success_models),
             duplicated_count=len(order_data_list) - len(success_models),

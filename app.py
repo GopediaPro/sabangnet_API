@@ -250,10 +250,10 @@ def import_product_registration_excel(
 
 @app.command(help="주문 목록을 엑셀로 변환")
 def create_order_xlsx():
-    from repository.receive_order_repository import ReceiveOrderRepository
+    from repository.receive_orders_repository import ReceiveOrdersRepository
     from utils.convert_xlsx import ConvertXlsx
     from utils.order_basic_erp_excel_field_mapping import ORDER_BASIC_ERP_EXCEL_FIELD_MAPPING
-    inserter = ReceiveOrderRepository()
+    inserter = ReceiveOrdersRepository()
     convert_xlsx = ConvertXlsx()
     try:
         orders = asyncio.run(inserter.read_all())

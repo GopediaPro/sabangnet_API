@@ -1,5 +1,4 @@
-from typing import List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, RootModel
 
 
 class OneOnePriceCreate(BaseModel):
@@ -12,10 +11,10 @@ class OneOnePriceCreate(BaseModel):
         from_attributes = True
 
 
-class OneOnePriceBulkCreate(BaseModel):
+class OneOnePriceBulkCreate(RootModel[dict[str, OneOnePriceCreate]]):
     """1+1 상품 가격 계산을 위한 데이터 대량 생성"""
 
-    product_nm_and_gubun_list: List[OneOnePriceCreate] = Field(..., description="생성할 상품명 및 구분 리스트")
-
-    class Config:
-        from_attributes = True
+    def to_dto(self) -> list[OneOnePriceCreate]:
+        """Dict 데이터를 DTO로 변환"""
+        # 이렇게 나옴 -> [{"product_nm": "상품명1", "gubun": "구분1"}, {"product_nm": "상품명2", "gubun": "구분2"} ... ]
+        return list(self.root.values())

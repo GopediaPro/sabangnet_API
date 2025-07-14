@@ -1,32 +1,105 @@
-from fastapi import APIRouter, Depends, Query, Body, UploadFile, File, Form
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
+# std
+from typing import Optional, Any
+# core
 from core.db import get_async_session
-from services.order.down_form_order_read_service import DownFormOrderReadService
-from services.order.down_form_order_create_service import DownFormOrderCreateService
-from schemas.order.request.down_form_order_request import DownFormOrderCreate, DownFormOrderUpdate, DownFormOrderDelete
-from schemas.order.response.down_form_order_response import DownFormOrderListResponse, DownFormOrderBulkResponse, DownFormOrderItem
-from schemas.order.down_form_order_dto import DownFormOrderDto
-from utils.response_status import make_row_result, RowStatus
-from utils.sabangnet_logger import get_logger
-from minio_handler import upload_and_get_url, temp_file_to_object_name
-from services.order.data_processing_pipeline import DataProcessingPipeline
+# sql
+from sqlalchemy.ext.asyncio import AsyncSession
+# fastapi
+from fastapi import APIRouter, Depends, Query, Body, UploadFile, File, Form
+# service
+from services.usecase.down_form_order_save_usecase import DownFormOrderSaveUsecase
+from services.usecase.down_form_order_template_usecase import DownFormOrderTemplateUsecase
+from services.order.down_form_order.down_form_order_read_service import DownFormOrderReadService
+from services.order.down_form_order.down_form_order_create_service import DownFormOrderCreateService
+from services.order.down_form_order.down_form_order_delete_service import DownFormOrderDeleteService
+from services.order.down_form_order.down_form_order_update_service import DownFormOrderUpdateService
+# schema
+from schemas.order.down_form_order_dto import DownFormOrderDto, DownFormOrdersBulkDto
+from schemas.order.response.down_form_orders_response import \
+DownFormOrderBulkResponse,\
+DownFormOrderPaginationResponse,\
+DownFormOrderBulkCreateResponse,\
+DownFormOrderResponse
+from schemas.order.request.down_form_orders_request import \
+DownFormOrderBulkCreateJsonRequest,\
+DownFormOrderBulkUpdateJsonRequest,\
+DownFormOrderBulkDeleteJsonRequest,\
+DownFormOrderCreateJsonRequest,\
+DownFormOrderBulkCreateFilterRequest
+# util
+from utils.response_status import RowStatus
 from utils.excel_handler import ExcelHandler
+from utils.sabangnet_logger import get_logger
+# minio
+from minio_handler import upload_and_get_url, temp_file_to_object_name
+
+
 logger = get_logger(__name__)
+
 
 router = APIRouter(
     prefix="/down-form-orders",
     tags=["down-form-orders"],
 )
 
+
 def get_down_form_order_create_service(session: AsyncSession = Depends(get_async_session)) -> DownFormOrderCreateService:
     return DownFormOrderCreateService(session=session)
+
 
 def get_down_form_order_read_service(session: AsyncSession = Depends(get_async_session)) -> DownFormOrderReadService:
     return DownFormOrderReadService(session=session)
 
-@router.get("", response_model=DownFormOrderListResponse)
-async def list_down_form_orders(
+
+def get_down_form_order_update_service(session: AsyncSession = Depends(get_async_session)) -> DownFormOrderUpdateService:
+    return DownFormOrderUpdateService(session=session)
+
+
+def get_down_form_order_delete_service(session: AsyncSession = Depends(get_async_session)) -> DownFormOrderDeleteService:
+    return DownFormOrderDeleteService(session=session)
+
+
+def get_down_form_order_save_usecase(session: AsyncSession = Depends(get_async_session)) -> DownFormOrderSaveUsecase:
+    return DownFormOrderSaveUsecase(session=session)
+
+
+def get_down_form_order_template_usecase(session: AsyncSession = Depends(get_async_session)) -> DownFormOrderTemplateUsecase:
+    return DownFormOrderTemplateUsecase(session=session)
+
+
+@router.get("", response_model=DownFormOrderBulkResponse)
+async def down_form_orders(
+    skip: int = Query(0, ge=0, description="건너뛸 건수"),
+    limit: int = Query(200, ge=1, le=200, description="조회할 건수"),
+    down_form_order_read_service: DownFormOrderReadService = Depends(get_down_form_order_read_service),
+):
+    down_form_orders: list[DownFormOrderDto] = await down_form_order_read_service.get_down_form_orders(skip=skip, limit=limit)
+    response = DownFormOrderBulkResponse(
+        items=[]
+    )
+    logger.info(f"[down_form_orders] 요청: {skip}, {limit}")
+    for down_form_order in down_form_orders:
+        try:
+            response.items.append(
+                DownFormOrderResponse(
+                    item=DownFormOrderDto.model_validate(down_form_order),
+                    status=RowStatus.SUCCESS,
+                    message=None
+                )
+            )
+        except Exception as e:
+            response.items.append(
+                DownFormOrderResponse(
+                    item=None,
+                    status=RowStatus.ERROR,
+                    message=str(e)
+                )
+            )
+    return response
+
+
+@router.get("/pagination", response_model=DownFormOrderPaginationResponse)
+async def down_form_orders_pagination(
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=1000),
     template_code: Optional[str] = Query(
@@ -36,95 +109,103 @@ async def list_down_form_orders(
     down_form_order_read_service: DownFormOrderReadService = Depends(get_down_form_order_read_service),
 ):
     items, total = await down_form_order_read_service.get_down_form_orders_paginated(page, page_size, template_code)
-    dto_items = [DownFormOrderDto.model_validate(item) for item in items]
-    return DownFormOrderListResponse(
+    dto_items: list[DownFormOrderDto] = [DownFormOrderDto.model_validate(item) for item in items]
+    return DownFormOrderPaginationResponse(
         total=total,
         page=page,
         page_size=page_size,
-        items=[{
-            "data": [dto.model_dump() for dto in dto_items],
-            "status": None,
-            "message": None
-        }]
+        items=[
+            DownFormOrderResponse(
+                item=dto,
+                status=RowStatus.SUCCESS,
+                message=None
+            ) for dto in dto_items
+        ]
     )
+
 
 @router.post("/bulk", response_model=DownFormOrderBulkResponse)
 async def bulk_create_down_form_orders(
-    request: DownFormOrderCreate,
+    request: DownFormOrderBulkCreateJsonRequest,
     down_form_order_create_service: DownFormOrderCreateService = Depends(get_down_form_order_create_service),
 ):
     logger.info(f"[bulk_create] 요청: {request}")
     try:
-        result = await down_form_order_create_service.bulk_create_down_form_orders(request.items)
+        result: int = await down_form_order_create_service.bulk_create_down_form_orders(request.items)
         logger.info(f"[bulk_create] 성공: {len(request.items)}건 생성")
-        return DownFormOrderBulkResponse(results=[
-            DownFormOrderItem(
-                data=[item],
+        return DownFormOrderBulkResponse(items=[
+            DownFormOrderResponse(
+                item=None,
                 status=RowStatus.SUCCESS,
                 message=None
-            ) for item in request.items
+            ) for _ in range(result)
         ])
     except Exception as e:
         logger.error(f"[bulk_create] 실패: {str(e)}", e)
         raise
 
+
 @router.put("/bulk", response_model=DownFormOrderBulkResponse)
 async def bulk_update_down_form_orders(
-    request: DownFormOrderUpdate,
-    down_form_order_create_service: DownFormOrderCreateService = Depends(get_down_form_order_create_service),
+    request: DownFormOrderBulkUpdateJsonRequest,
+    down_form_order_update_service: DownFormOrderUpdateService = Depends(get_down_form_order_update_service),
 ):
     logger.info(f"[bulk_update] 요청: {request}")
     try:
-        result = await down_form_order_create_service.bulk_update_down_form_orders(request.items)
+        result: int = await down_form_order_update_service.bulk_update_down_form_orders(request.items)
         logger.info(f"[bulk_update] 성공: {len(request.items)}건 수정")
-        return DownFormOrderBulkResponse(results=[
-            DownFormOrderItem(
-                data=[item],
+        return DownFormOrderBulkResponse(items=[
+            DownFormOrderResponse(
+                item=None,
                 status=RowStatus.SUCCESS,
                 message=None
-            ) for item in request.items
+            ) for _ in range(result)
         ])
     except Exception as e:
         logger.error(f"[bulk_update] 실패: {str(e)}", e)
         raise
 
+
 @router.delete("/bulk", response_model=DownFormOrderBulkResponse)
 async def bulk_delete_down_form_orders(
-    request: DownFormOrderDelete = Body(...),
-    down_form_order_create_service: DownFormOrderCreateService = Depends(get_down_form_order_create_service),
+    request: DownFormOrderBulkDeleteJsonRequest = Body(...),
+    down_form_order_delete_service: DownFormOrderDeleteService = Depends(get_down_form_order_delete_service),
 ):
     logger.info(f"[bulk_delete] 요청: {request}")
     try:
-        result = await down_form_order_create_service.bulk_delete_down_form_orders(request.ids)
+        result: int = await down_form_order_delete_service.bulk_delete_down_form_orders(request.ids)
         logger.info(f"[bulk_delete] 성공: {len(request.ids)}건 삭제")
-        return DownFormOrderBulkResponse(results=[
-            DownFormOrderItem(
-                data=[],
+        return DownFormOrderBulkResponse(items=[
+            DownFormOrderResponse(
+                item=None,
                 status=RowStatus.SUCCESS,
                 message=None
-            ) for id in request.ids
+            ) for _ in range(result)
         ])
     except Exception as e:
         logger.error(f"[bulk_delete] 실패: {str(e)}", e)
         raise
 
+
 @router.delete("/delete-all")
 async def delete_all_down_form_orders(
-    down_form_order_create_service: DownFormOrderCreateService = Depends(get_down_form_order_create_service),
+    down_form_order_delete_service: DownFormOrderDeleteService = Depends(get_down_form_order_delete_service),
 ):
     try:
-        await down_form_order_create_service.delete_all_down_form_orders()
+        await down_form_order_delete_service.delete_all_down_form_orders()
         return {"message": "모든 데이터 삭제 완료"}
     except Exception as e:
         logger.error(f"[delete_all] 실패: {str(e)}", e)
         raise
 
+
 @router.delete("/delete-duplicate")
 async def delete_duplicate_down_form_orders(
-    down_form_order_create_service: DownFormOrderCreateService = Depends(get_down_form_order_create_service),
+    down_form_order_delete_service: DownFormOrderDeleteService = Depends(get_down_form_order_delete_service),
 ):
-    deleted_count = await down_form_order_create_service.delete_duplicate_down_form_orders()
+    deleted_count = await down_form_order_delete_service.delete_duplicate_down_form_orders()
     return {"message": f"중복 데이터 삭제 완료: {deleted_count}개 행 삭제됨"}
+
 
 @router.post("/upload-excel-file")
 async def upload_excel_file(
@@ -144,12 +225,79 @@ async def upload_excel_file(
 async def get_excel_to_db(
     template_code: str = Form(...),
     file: UploadFile = File(...),
-    session: AsyncSession = Depends(get_async_session)
+    down_form_order_save_usecase: DownFormOrderSaveUsecase = Depends(get_down_form_order_save_usecase),
 ):
     """
     프론트에서 template_code와 엑셀 파일을 받아 DB에 저장
     """
-    pipeline = DataProcessingPipeline(session)
     dataframe = ExcelHandler.from_upload_file_to_dataframe(file)
-    saved_count = await pipeline.process_excel_to_down_form_orders(dataframe, template_code)
+    saved_count = await down_form_order_save_usecase.process_excel_to_down_form_orders(dataframe, template_code)
     return {"saved_count": saved_count}
+
+
+@router.get("/example")
+async def example_usage():
+    return {
+        "workflow": "원본 데이터 -> 템플릿별 변환 -> down_form_orders 저장",
+        "step1": "POST /process-data with template_code='gmarket_erp'",
+        "step2": "원본 receive_orders 데이터를 G마켓 ERP 형식으로 변환",
+        "step3": "변환된 데이터를 down_form_orders에 저장",
+        "step4": "GET /down-form-orders?template_code=gmarket_erp로 결과 확인",
+        "example_request": {
+            "template_code": "gmarket_erp",
+            "filters": {
+                "start_date": "2025-06-02",
+                "end_date": "2025-06-06",
+                "mall_id": "ESM지마켓",
+                # "order_status" : "출고완료" 비우면 모든 상태 조회
+            }
+        }
+    }
+
+
+@router.post("/bulk/filter", response_model=DownFormOrderBulkCreateResponse)
+async def bulk_create_down_form_orders_by_filter(
+    request: DownFormOrderBulkCreateFilterRequest = Depends(),
+    down_form_order_save_usecase: DownFormOrderSaveUsecase = Depends(
+        get_down_form_order_save_usecase)
+):
+    try:
+        template_code: str = request.template_code
+        filters: dict[str, Any] = request.filters.model_dump() if request.filters else {}
+        down_form_order_bulk_dto: DownFormOrdersBulkDto = await down_form_order_save_usecase.save_down_form_orders_from_receive_orders_by_filter(filters, template_code)
+        return DownFormOrderBulkCreateResponse.from_dto(down_form_order_bulk_dto)
+    except Exception as e:
+        return DownFormOrderBulkCreateResponse.from_dto(DownFormOrdersBulkDto(
+            success=False,
+            template_code=template_code,
+            processed_count=0,
+            saved_count=0,
+            message=f"Error: {str(e)}"
+        ))
+
+
+@router.post("/bulk/without-filter", response_model=DownFormOrderBulkCreateResponse)
+async def bulk_create_down_form_orders_without_filter(
+    request: DownFormOrderCreateJsonRequest,
+    down_form_order_template_usecase: DownFormOrderTemplateUsecase = Depends(
+        get_down_form_order_template_usecase)
+):
+    try:
+        template_code: str = request.template_code
+        raw_data: list[dict[str, Any]] = request.raw_data
+        saved_count = await down_form_order_template_usecase.process_and_save(template_code, raw_data)
+        return DownFormOrderBulkCreateResponse(
+            success=True,
+            template_code=template_code,
+            processed_count=len(raw_data),
+            saved_count=saved_count,
+            message="Success"
+        )
+    except Exception as e:
+        return DownFormOrderBulkCreateResponse(
+            success=False,
+            template_code=template_code,
+            processed_count=len(raw_data),
+            saved_count=0,
+            message=f"Error: {str(e)}"
+        )

@@ -1,7 +1,7 @@
 from decimal import Decimal
 from datetime import datetime
 from models.base_model import Base
-from schemas.order.order_dto import OrderDto
+from schemas.order.receive_orders_dto import ReceiveOrdersDto
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import TIMESTAMP, Integer, String, Text, Numeric, DateTime
 
@@ -68,8 +68,8 @@ class BaseFormOrder(Base):
     inv_send_dm: Mapped[str | None] = mapped_column(String(14))
 
     @classmethod
-    def build_erp(cls, order_dto: OrderDto):
-        order_data = order_dto.model_dump()
+    def build_erp(cls, receive_orders_dto: ReceiveOrdersDto):
+        order_data = receive_orders_dto.model_dump()
         return cls(
             process_dt=order_data.get('process_dt', datetime.now()),
             form_name=order_data.get('form_name', None),
@@ -129,16 +129,19 @@ class BaseFormOrder(Base):
             hope_delv_date=order_data.get('hope_delv_date', None),
             inv_send_dm=order_data.get('inv_send_dm', None),
         )
+
+
 class BaseDownFormOrder(BaseFormOrder):
     __tablename__ = "down_form_orders"
 
     @classmethod
-    def build_happo(cls, order_dto_list: list[OrderDto]) -> "BaseDownFormOrder":
+    def build_happo(cls, receive_orders_dto_list: list[ReceiveOrdersDto]) -> "BaseDownFormOrder":
         """order 데이터 기반으로 각 케이스별 ERP 데이터 생성"""
         
         ...
+        
     @classmethod
-    def build_erp(cls, order_dto: OrderDto) -> "BaseDownFormOrder":
+    def build_erp(cls, receive_orders_dto: ReceiveOrdersDto) -> "BaseDownFormOrder":
         """order 데이터 기반으로 각 케이스별 ERP 데이터 생성"""
-        order_data = order_dto.model_dump()
+        order_data = receive_orders_dto.model_dump()
         return cls(**order_data)

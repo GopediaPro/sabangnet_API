@@ -1,5 +1,6 @@
 from enum import Enum
-from typing import Optional, Any, Dict
+from typing import Optional, Any
+
 
 class RowStatus(str, Enum):
     SUCCESS = "success"
@@ -13,7 +14,7 @@ def make_row_result(
     id: Optional[Any],
     status: RowStatus,
     message: Optional[str] = None,
-    extra: Optional[Dict[str, Any]] = None
+    extra: Optional[dict[str, Any]] = None
 ) -> dict:
     result = {
         "id": id,

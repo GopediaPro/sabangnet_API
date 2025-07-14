@@ -1,4 +1,3 @@
-import asyncio
 from pathlib import Path
 from core.db import get_async_session
 
@@ -69,9 +68,9 @@ async def test_erp_macro():
         elif choice == "5":
             # down_form_order table to excel
             from utils.macros.ERP.Gmarket_auction_erp_macro import GmarketAuctionMacro
-            from utils.down_form_order_to_excel import DownFormOrderToExcel
-            down_form_order_to_excel = DownFormOrderToExcel(await get_async_session())
-            file_path = await down_form_order_to_excel.down_form_order_to_excel(template_code="gmarket_erp", file_path="./files/excel/er", file_name="gmarket_erp")
+            from services.usecase.down_form_order_save_usecase import DownFormOrderSaveUsecase
+            down_form_order_save_usecase = DownFormOrderSaveUsecase(await get_async_session())
+            file_path = await down_form_order_save_usecase.down_form_order_to_excel(template_code="gmarket_erp", file_path="./files/excel/er", file_name="gmarket_erp")
 
             # # G,옥_ERP_자동화
             gmarket_auction_macro = GmarketAuctionMacro(file_path)

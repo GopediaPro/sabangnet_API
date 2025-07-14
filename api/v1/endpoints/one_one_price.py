@@ -29,9 +29,12 @@ async def one_one_price_setting(
 
 @router.post("/bulk", response_model=OneOnePriceBulkResponse)
 async def one_one_price_bulk_setting(
-    payload: OneOnePriceBulkCreate = Depends(),
+    request: OneOnePriceBulkCreate,
     product_one_one_price_usecase: ProductOneOnePriceUsecase = Depends(get_product_one_one_price_usecase)
 ) -> OneOnePriceBulkResponse:
+    # JSON 데이터를 DTO로 변환
+    product_nm_and_gubun_list = request.to_dto()
+    
     return OneOnePriceBulkResponse.from_dto(await product_one_one_price_usecase.calculate_and_save_one_one_prices_bulk(
-        product_nm_and_gubun_list=payload.product_nm_and_gubun_list,
+        product_nm_and_gubun_list=product_nm_and_gubun_list,
     ))
