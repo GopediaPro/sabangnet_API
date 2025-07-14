@@ -194,7 +194,7 @@ class ExcelHandler:
         """
         for row in self.ws.iter_rows(min_row=2):
             for cell in row:
-                cell.fill = PatternFill(fill_type=None)
+                cell.fill = PatternFill()
 
     def format_phone_number(self, val):
         """
@@ -312,15 +312,14 @@ class ExcelHandler:
                     cell.alignment = right
 
 
-    def sort_dataframe_by_c_b(self, df, c_col='C', b_col='B'):
+    def sort_dataframe_by_col(self, df, col_list: list[str]):
         """
-        DataFrame을 C열 → B열 순서로 오름차순 정렬
+        DataFrame을 B열 → C열 순서로 오름차순 정렬
         예시:
             df = sort_dataframe_by_c_b(df)
         """
-        if c_col in df.columns and b_col in df.columns:
-            print(c_col, b_col)
-            return df.sort_values(by=[c_col, b_col]).reset_index(drop=True)
+        if all(col in df.columns for col in col_list):
+            return df.sort_values(by=col_list).reset_index(drop=True)
         return df
     
     def sort_by_columns(self, key_columns: List[int], start_row: int = 2) -> None:
