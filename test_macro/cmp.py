@@ -1,3 +1,4 @@
+import sys
 import openpyxl
 from openpyxl.styles import PatternFill, Font, Border, Side # Font, Border, Side는 사용되지 않지만 import는 유지
 from openpyxl.styles.colors import COLOR_INDEX
@@ -112,7 +113,7 @@ def compare_excel_sheets(workbook, sheet1_name, sheet2_name, red_fill):
     print(f"--- '{sheet1_name}' 와 '{sheet2_name}' 비교 완료 ---")
     return found_diff
 
-def compare_selected_sheet_pairs(excel_filename, l):
+def compare_selected_sheet_pairs(excel_filename):
     try:
         # 1. 엑셀 파일 로드
         # data_only=False가 기본값이므로 명시적으로 지정하지 않아도 됩니다.
@@ -130,6 +131,7 @@ def compare_selected_sheet_pairs(excel_filename, l):
     
     # no_fill은 compare_excel_sheets 함수 내에서 PatternFill()로 직접 처리하므로 여기서 정의할 필요 없습니다.
 
+    l = len(workbook.sheetnames) // 2
     pairs_of_indices = [(x+1, x+l+1) for x in range(l)]
 
     compares = []
@@ -179,5 +181,11 @@ def compare_selected_sheet_pairs(excel_filename, l):
 
 # --- 사용 예시 ---
 if __name__ == "__main__":
-    excel_file = "G옥_합포장_자동화_g_happo_data_20250714_sorted.xlsx"
-    compare_selected_sheet_pairs(excel_file, 3) # filename, pairs_length
+    excel_file = ""
+
+    if len(sys.argv) > 1:
+        excel_file = sys.argv[1]
+    else:
+        excel_file = "G옥_합포장_자동화_g_happo_data_20250714_sorted.xlsx"
+
+    compare_selected_sheet_pairs(excel_file)
