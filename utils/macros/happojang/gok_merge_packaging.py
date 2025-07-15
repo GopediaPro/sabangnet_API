@@ -184,10 +184,10 @@ class GokSheetManager:
         # 8. C→B 2단계 정렬
         ex.sort_by_columns([2, 3])
         
-        # 9. D열 계산값 설정 (정렬 후 O+P+V)
+        # 9. D열 수식 설정
+        # ex.autofill_d_column(formula="=O{row}+P{row}+V{row}")
         ex.calculate_d_column_values(first_col='O', second_col='P', third_col='V')
 
-        
         # 10. 서식 초기화
         ex.clear_fills_from_second_row()
         ex.clear_borders()
