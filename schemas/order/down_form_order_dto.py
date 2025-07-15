@@ -20,6 +20,17 @@ class DownFormOrderDto(BaseDTO):
     seq: Optional[int] = Field(None, description="순번")
     idx: str = Field(..., max_length=50, description="사방넷주문번호")
 
+    # 날짜 정보
+    order_date: Optional[datetime] = Field(None, description="주문 일자")
+    reg_date: Optional[str] = Field(None, max_length=14, description="수집일자 (형식: 년월일시분초 예: 20190305115959)")
+    ord_confirm_date: Optional[str] = Field(None, max_length=14, description="주문 확인일자")
+    rtn_dt: Optional[str] = Field(None, max_length=14, description="반품 완료일자")
+    chng_dt: Optional[str] = Field(None, max_length=14, description="교환 완료일자")
+    delivery_confirm_date: Optional[str] = Field(None, max_length=14, description="출고 완료일자")
+    cancel_dt: Optional[str] = Field(None, max_length=14, description="취소 완료일자")
+    hope_delv_date: Optional[str] = Field(None, max_length=14, description="배송희망일자")
+    inv_send_dm: Optional[str] = Field(None, max_length=14, description="송장전송일자")
+
     # 주문 정보
     order_id: Optional[str] = Field(None, max_length=100, description="주문번호(쇼핑몰)")
     mall_order_id: Optional[str] = Field(None, description="부주문번호")

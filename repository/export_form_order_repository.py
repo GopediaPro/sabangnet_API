@@ -1,31 +1,21 @@
 from sqlalchemy import select, delete, func, update, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.order.down_form_order import BaseDownFormOrder
-from schemas.order.down_form_order_dto import DownFormOrderDto
-class DownFormOrderRepository:
+from models.order.export_form_order import BaseExportFormOrder
+from schemas.order.export_form_order_dto import ExportFormOrderDto
+
+class ExportFormOrderRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_down_form_order_by_idx(self, idx: str) -> BaseDownFormOrder:
+    async def get_export_form_orders(self, skip: int = None, limit: int = None, template_code: str = None) -> list[BaseExportFormOrder]:
         try:
-            query = select(BaseDownFormOrder).where(BaseDownFormOrder.idx == idx)
-            result = await self.session.execute(query)
-            return result.scalar_one_or_none()
-        except Exception as e:
-            await self.session.rollback()
-            raise e
-        finally:
-            await self.session.close()
-
-    async def get_down_form_orders(self, skip: int = None, limit: int = None, template_code: str = None) -> list[BaseDownFormOrder]:
-        try:
-            query = select(BaseDownFormOrder).order_by(BaseDownFormOrder.id)
+            query = select(BaseExportFormOrder).order_by(BaseExportFormOrder.id)
             if template_code == 'all':
                 pass  # no filter, fetch all
             elif template_code is None or template_code == '':
-                query = query.where((BaseDownFormOrder.form_name == None) | (BaseDownFormOrder.form_name == ''))
+                query = query.where((BaseExportFormOrder.form_name == None) | (BaseExportFormOrder.form_name == ''))
             else:
-                query = query.where(BaseDownFormOrder.form_name == template_code)
+                query = query.where(BaseExportFormOrder.form_name == template_code)
             if skip:
                 query = query.offset(skip)
             if limit:
@@ -39,13 +29,13 @@ class DownFormOrderRepository:
         finally:
             await self.session.close()
 
-    async def get_down_form_orders_pagination(self, page: int = 1, page_size: int = 20, template_code: str = None) -> list[BaseDownFormOrder]:
+    async def get_export_form_orders_pagination(self, page: int = 1, page_size: int = 20, template_code: str = None) -> list[BaseExportFormOrder]:
         skip = (page - 1) * page_size
         limit = page_size
-        return await self.get_down_form_orders(skip, limit, template_code)
+        return await self.get_export_form_orders(skip, limit, template_code)
 
-    async def create_down_form_order(self, obj_in: DownFormOrderDto) -> BaseDownFormOrder:
-        obj_in = BaseDownFormOrder(**obj_in.model_dump())
+    async def create_export_form_order(self, obj_in: ExportFormOrderDto) -> BaseExportFormOrder:
+        obj_in = BaseExportFormOrder(**obj_in.model_dump())
         try:
             self.session.add(obj_in)
             await self.session.commit()
@@ -57,12 +47,12 @@ class DownFormOrderRepository:
         finally:
             await self.session.close()
 
-    async def bulk_insert(self, objects: list[BaseDownFormOrder]):
+    async def bulk_insert(self, objects: list[BaseExportFormOrder]):
         self.session.add_all(objects)
         await self.session.commit()
         return len(objects)
 
-    async def bulk_update(self, objects: list[BaseDownFormOrder]):
+    async def bulk_update(self, objects: list[BaseExportFormOrder]):
         try:
             for obj in objects:
                 values = obj.__dict__.copy()
@@ -73,7 +63,7 @@ class DownFormOrderRepository:
                 if idx is None:
                     continue  # idx 없으면 skip
                 values['updated_at'] = func.now()
-                stmt = update(BaseDownFormOrder).where(BaseDownFormOrder.idx == idx).values(**values)
+                stmt = update(BaseExportFormOrder).where(BaseExportFormOrder.idx == idx).values(**values)
                 await self.session.execute(stmt)
             await self.session.commit()
             return len(objects)
@@ -86,7 +76,7 @@ class DownFormOrderRepository:
     async def bulk_delete(self, ids: list[int]):
         try:
             for id in ids:
-                db_obj = await self.session.get(BaseDownFormOrder, id)
+                db_obj = await self.session.get(BaseExportFormOrder, id)
                 if db_obj:
                     await self.session.delete(db_obj)
             await self.session.commit()
@@ -99,7 +89,7 @@ class DownFormOrderRepository:
 
     async def delete_all(self):
         try:
-            await self.session.execute(delete(BaseDownFormOrder))
+            await self.session.execute(delete(BaseExportFormOrder))
             await self.session.commit()
         except Exception as e:
             await self.session.rollback()
@@ -108,7 +98,7 @@ class DownFormOrderRepository:
         try:
             # 중복 제거 쿼리
             stmt = text("""
-            DELETE FROM down_form_orders
+            DELETE FROM export_form_orders
             WHERE id IN (
                 SELECT id FROM (
                     SELECT id,
@@ -116,7 +106,7 @@ class DownFormOrderRepository:
                             PARTITION BY idx
                             ORDER BY updated_at DESC, id DESC
                         ) as row_num
-                    FROM down_form_orders
+                    FROM export_form_orders
                 ) ranked
                 WHERE row_num > 1
             )
@@ -136,13 +126,13 @@ class DownFormOrderRepository:
 
     async def count_all(self, template_code: str = None) -> int:
         try:
-            query = select(func.count()).select_from(BaseDownFormOrder)
+            query = select(func.count()).select_from(BaseExportFormOrder)
             if template_code == 'all':
                 pass  # no filter, fetch all
             elif template_code is None or template_code == '':
-                query = query.where((BaseDownFormOrder.form_name == None) | (BaseDownFormOrder.form_name == ''))
+                query = query.where((BaseExportFormOrder.form_name == None) | (BaseExportFormOrder.form_name == ''))
             else:
-                query = query.where(BaseDownFormOrder.form_name == template_code)
+                query = query.where(BaseExportFormOrder.form_name == template_code)
             result = await self.session.execute(query)
             return result.scalar_one()
         except Exception as e:

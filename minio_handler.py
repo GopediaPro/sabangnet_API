@@ -94,6 +94,20 @@ def get_minio_file_url(object_name):
     except S3Error as e:
         raise RuntimeError(f"MinIO get URL failed: {e}")
 
+def get_minio_file_url_and_size(object_name):
+    """
+    Get a public URL and file size for the uploaded object.
+    """
+    try:
+        url = minio_client.presigned_get_object(MINIO_BUCKET_NAME, object_name)
+        return_url = remove_port_from_url(url)
+        stat = minio_client.stat_object(MINIO_BUCKET_NAME, object_name)
+        file_size = stat.size  # content_length
+        logger.info(f"get_minio_file_url_and_size MinIO에 업로드된 파일 URL: {return_url}, size: {file_size}")
+        return return_url, file_size
+    except S3Error as e:
+        raise RuntimeError(f"MinIO get URL/size failed: {e}")
+
 def temp_file_to_object_name(file):
     # 임시 파일로 저장
     temp_dir = "/tmp"
@@ -123,3 +137,18 @@ def upload_and_get_url(file_path, template_code, file_name=None):
     delete_temp_file(file_path)
     file_url = get_minio_file_url(object_name)
     return file_url, minio_object_name
+
+def upload_and_get_url_and_size(file_path, template_code, file_name=None):
+    """
+    1. file_name이 없으면 file_path에서 추출
+    2. 날짜 기반 minio_object_name 생성
+    3. MinIO 업로드
+    4. 임시 파일 삭제
+    5. presigned url 반환 (쿼리스트링 제거)
+    """
+    date_now = datetime.now().strftime("%Y%m%d%H%M%S")
+    minio_object_name = f"excel/{template_code}/{date_now}_{file_name}"
+    object_name = upload_file_to_minio(file_path, minio_object_name)
+    delete_temp_file(file_path)
+    file_url, file_size = get_minio_file_url_and_size(object_name)
+    return file_url, minio_object_name, file_size

@@ -41,7 +41,7 @@ async def test_happojang_macro():
                 file_path="./files/excel", file_name="test_down_form_order"
             )
 
-            macro_file_path = brandy_merge_packaging(file_path)
+            macro_file_path = etc_site_merge_packaging(file_path)
             print("기타사이트 합포장 자동화")
 
         elif choice == "2":
@@ -54,7 +54,7 @@ async def test_happojang_macro():
                                                                                 file_path="./files/excel",
                                                                                 file_name="test_down_form_order")
 
-            macro_file_path = brandy_merge_packaging(file_path)
+            macro_file_path = zigzag_merge_packaging(file_path)
             print("지그재그 합포장 자동화")
 
         elif choice == "3":
@@ -84,7 +84,7 @@ async def test_happojang_macro():
             #                                                                     file_name="test_down_form_order")
 
             # macro_file_path = brandy_merge_packaging(file_path)
-            macro_file_path = ali_merge_packaging(xlsx_file_path)
+            macro_file_path = brandy_merge_packaging(xlsx_file_path)
 
             print("브랜디 합포장 자동화")
 

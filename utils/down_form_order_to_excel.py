@@ -18,7 +18,7 @@ class DownFormOrderToExcel:
             file_path: file path
         """
         template_config = await self._get_template_config(template_code)
-        down_form_orders = await self._get_down_form_orders()
+        down_form_orders = await self._get_down_form_orders(template_code)
         mapping_field = await self._create_mapping_field(template_config)
 
         convert_xlsx = ConvertXlsx()
@@ -42,7 +42,7 @@ class DownFormOrderToExcel:
 
         return template_config
 
-    async def _get_down_form_orders(self) -> list[dict]:
+    async def _get_down_form_orders(self, template_code: str) -> list[dict]:
         """
         get down_form_orders
         returns:
@@ -51,7 +51,7 @@ class DownFormOrderToExcel:
         from repository.down_form_order_repository import DownFormOrderRepository
 
         down_form_order_repository = DownFormOrderRepository(self.session)
-        down_form_orders = await down_form_order_repository.get_down_form_orders()
+        down_form_orders = await down_form_order_repository.get_down_form_orders(template_code=template_code)
 
         return down_form_orders
     

@@ -10,6 +10,8 @@ import requests
 import tempfile
 from utils.excel_handler import ExcelHandler
 import os
+import pandas as pd
+
 class DataProcessingPipeline:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -21,7 +23,24 @@ class DataProcessingPipeline:
             "calculate_service_fee": self._calculate_service_fee,
         }
         self.template_config_repo = TemplateConfigRepository(session)
-    
+
+    def _extract_datetime_fields(self, raw_row: dict) -> dict:
+        """
+        raw_row에서 날짜/시간 관련 필드만 추출하여 dict로 반환
+        """
+        datetime_fields = [
+            'order_date',
+            'reg_date',
+            'ord_confirm_date',
+            'rtn_dt',
+            'chng_dt',
+            'delivery_confirm_date',
+            'cancel_dt',
+            'hope_delv_date',
+            'inv_send_dm',
+        ]
+        return {field: raw_row.get(field) for field in datetime_fields if field in raw_row}
+
     async def process_raw_data_to_down_form_orders(self, 
                                                   raw_data: List[Dict[str, Any]], 
                                                   template_code: str) -> int:
@@ -68,6 +87,8 @@ class DataProcessingPipeline:
                 'form_name': config['template_code'],
                 'seq': seq,
             }
+            # 날짜/시간 필드 추가
+            processed_row.update(self._extract_datetime_fields(raw_row))
             processed_row.update(map_raw_to_down_form(raw_row, config))
             processed_data.append(processed_row)
         return processed_data
@@ -97,6 +118,8 @@ class DataProcessingPipeline:
                 'form_name': config['template_code'],
                 'seq': seq,
             }
+            # 대표 row에서 날짜/시간 필드 추출 (첫 row 기준)
+            processed_row.update(self._extract_datetime_fields(group_rows[0]))
             processed_row.update(map_aggregated_to_down_form(group_rows, config))
             processed_data.append(processed_row)
         return processed_data
@@ -133,7 +156,7 @@ class DataProcessingPipeline:
             processed_data.append(processed_row)
         return processed_data
     
-    async def process_excel_to_down_form_orders(self, excel_file: str, template_code: str) -> int:
+    async def process_excel_to_down_form_orders(self, df, template_code: str) -> int:
         """
         Excel 파일을 읽어 config 매핑에 따라 데이터를 DB에 저장
         Args:
@@ -142,25 +165,33 @@ class DataProcessingPipeline:
         Returns:
             저장된 레코드 수
         """
-        # 1. 엑셀 파일 저장
-        with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp:
-            tmp.write(excel_file.file.read())
-            tmp_path = tmp.name
-
-        # 2. 엑셀 데이터 읽기
-        ex = ExcelHandler.from_file(tmp_path)
-        df = ex.to_dataframe()
-
-        # 3. config 매핑 정보 조회
+        logger.info(f"[START] process_excel_to_down_form_orders | template_code={template_code} | df_count={len(df)}")
+        # 1. config 매핑 정보 조회
         config = await self.template_config_repo.get_template_config(template_code)
-        # 4. 엑셀 데이터 변환
+        logger.info(f"Loaded template config: {config}")
+        # 2. 엑셀 데이터 변환
         raw_data = await self._process_excel_data(df, config)
-
-        # 5. DB 저장
+        # 3. DB 저장
         saved_count = await self._save_to_down_form_orders(raw_data, template_code)
-        # 6. tmp 파일 삭제
-        os.remove(tmp_path)
+        logger.info(f"[END] process_excel_to_down_form_orders | saved_count={saved_count}")
         return saved_count
+    
+    def _from_db_to_df(self, db_data: list[dict], config: dict) -> pd.DataFrame:
+        """
+        DB 데이터를 DataFrame으로 변환 (config의 source_field→target_column 매핑 적용)
+        """
+        column_mappings = config.get('column_mappings', [])
+        # source_field → target_column 매핑 dict 생성
+        field_to_column = {m['source_field']: m['target_column'] for m in column_mappings}
+        # 변환된 row 리스트 생성
+        converted_rows = []
+        for row in db_data:
+            converted_row = {}
+            for source_field, target_column in field_to_column.items():
+                converted_row[target_column] = row.get(source_field)
+            converted_rows.append(converted_row)
+        df = pd.DataFrame(converted_rows)
+        return df
 
     # 변환 함수들
     def _convert_delivery_method(self, value: Any, context: Dict[str, Any]) -> str:

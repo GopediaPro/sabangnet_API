@@ -1,7 +1,7 @@
 from core.db import get_async_session
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Depends, Request, Query
+from fastapi import APIRouter, Depends, Request, Query, Body
 from services.order.order_read_service import OrderReadService
 from services.order.order_create_service import OrderCreateService
 from schemas.order.request.order_xml_template_request import OrderXmlTemplateRequest
@@ -13,21 +13,18 @@ from typing import Optional
 from services.order.down_form_order_template_service import DownFormOrderTemplateService
 from schemas.order.down_form_order_dto import DownFormOrderRequest, DownFormOrderResponse
 from repository.template_config_repository import TemplateConfigRepository
-
+import os
 
 router = APIRouter(
     prefix="/order",
     tags=["order"],
 )
 
-
 def get_order_read_service(session: AsyncSession = Depends(get_async_session)) -> OrderReadService:
     return OrderReadService(session=session)
 
-
 def get_order_create_service(session: AsyncSession = Depends(get_async_session)) -> OrderCreateService:
     return OrderCreateService(session=session)
-
 
 @router.get("/all", response_model=OrderResponseList)
 async def get_orders(
@@ -72,8 +69,11 @@ async def process_data(
     request: ProcessDataRequest,
     session: AsyncSession = Depends(get_async_session)
 ):
+    """
+    주문 수집 데이터를(receive_orders)DB에서 가져와 템플릿에 따라 변환하고 down_form_orders 테이블에 저장.
+    """
     try:
-        raw_data = await ReceiveOrderRepository(session).fetch_raw_data_from_receive_orders(request.filters.dict() if request.filters else {})
+        raw_data = await ReceiveOrderRepository(session).fetch_raw_data_from_receive_orders(request.filters.model_dump() if request.filters else {})
         if not raw_data:
             return ProcessDataResponse(
                 success=False,
@@ -146,8 +146,7 @@ async def example_usage():
                 # "order_status" : "출고완료" 비우면 모든 상태 조회
             }
         }
-    } 
-
+    }
 
 @router.post("/order-xml-template", response_class=StreamingResponse)
 def make_and_get_order_xml_template(
@@ -179,4 +178,5 @@ async def save_orders_to_db(
     )
     xml_url = order_create_service.get_xml_url_from_minio(xml_file_path)
     xml_content = order_create_service.get_orders_from_sabangnet(xml_url)
-    return await order_create_service.save_orders_to_db_from_xml(xml_content)
+    safe_mode = os.getenv("DEPLOY_ENV", "production") != "production"
+    return await order_create_service.save_orders_to_db_from_xml(xml_content, safe_mode)
