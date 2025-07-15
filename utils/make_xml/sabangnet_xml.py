@@ -1,7 +1,7 @@
+from datetime import datetime
 from core.settings import SETTINGS
 import xml.etree.ElementTree as ET
-from datetime import datetime
-import os
+
 
 class SabangnetXml:
     
@@ -10,7 +10,7 @@ class SabangnetXml:
     _SEND_GOODS_CD_RT = SETTINGS.SABANG_SEND_GOODS_CD_RT
 
     
-    def _create_header(self, root):
+    def _create_product_header(self, root: ET.Element) -> ET.Element:
         
         header = ET.SubElement(root, "HEADER")
         
@@ -28,5 +28,16 @@ class SabangnetXml:
         
         result_type = ET.SubElement(header, "RESULT_TYPE")
         result_type.text = "XML"
+    
+    def _create_order_header(self, root: ET.Element) -> ET.Element:
         
-        return header
+        header = ET.SubElement(root, "HEADER")
+        
+        send_company_id = ET.SubElement(header, "SEND_COMPAYNY_ID")
+        send_company_id.text = self._COMPAYNY_ID
+        
+        send_auth_key = ET.SubElement(header, "SEND_AUTH_KEY")
+        send_auth_key.text = self._AUTH_KEY
+        
+        send_date = ET.SubElement(header, "SEND_DATE")
+        send_date.text = datetime.now().strftime("%Y%m%d")

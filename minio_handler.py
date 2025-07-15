@@ -2,13 +2,20 @@ import os
 from minio import Minio
 from minio.error import S3Error
 from urllib.parse import urlparse, urlunparse
+from utils.sabangnet_logger import get_logger
+from core.settings import SETTINGS
+import shutil
+from datetime import datetime
 
-MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT')
-MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY')
-MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY')
-MINIO_BUCKET_NAME = os.getenv('MINIO_BUCKET_NAME')
-MINIO_USE_SSL = os.getenv('MINIO_USE_SSL', 'false').lower() == 'true'
-MINIO_PORT = os.getenv('MINIO_PORT')
+logger = get_logger(__name__)
+
+
+MINIO_ENDPOINT = SETTINGS.MINIO_ENDPOINT
+MINIO_ACCESS_KEY = SETTINGS.MINIO_ACCESS_KEY
+MINIO_SECRET_KEY = SETTINGS.MINIO_SECRET_KEY
+MINIO_BUCKET_NAME = SETTINGS.MINIO_BUCKET_NAME
+MINIO_USE_SSL = SETTINGS.MINIO_USE_SSL
+MINIO_PORT = SETTINGS.MINIO_PORT
 
 if MINIO_PORT:
     endpoint = f"{MINIO_ENDPOINT}:{MINIO_PORT}"
@@ -51,8 +58,8 @@ def upload_file_to_minio(local_file_path, object_name=None):
             object_name,
             local_file_path
         )
-        print(f"MinIO에 업로드된 XML 파일 이름: {object_name}")
-        print(f"MinIO에 업로드된 XML 파일 경로: {local_file_path}")
+        logger.info(f"MinIO에 업로드된 XML 파일 이름: {object_name}")
+        logger.info(f"MinIO에 업로드된 XML 파일 경로: {local_file_path}")
         return object_name
     except S3Error as e:
         raise RuntimeError(f"MinIO upload failed: {e}")
@@ -82,7 +89,66 @@ def get_minio_file_url(object_name):
     try:
         url = minio_client.presigned_get_object(MINIO_BUCKET_NAME, object_name)
         return_url = remove_port_from_url(url)
-        print(f"get_minio_file_url MinIO에 업로드된 XML 파일 URL: {return_url}")
+        logger.info(f"get_minio_file_url MinIO에 업로드된 XML 파일 URL: {return_url}")
         return return_url
     except S3Error as e:
-        raise RuntimeError(f"MinIO get URL failed: {e}") 
+        raise RuntimeError(f"MinIO get URL failed: {e}")
+
+def get_minio_file_url_and_size(object_name):
+    """
+    Get a public URL and file size for the uploaded object.
+    """
+    try:
+        url = minio_client.presigned_get_object(MINIO_BUCKET_NAME, object_name)
+        return_url = remove_port_from_url(url)
+        stat = minio_client.stat_object(MINIO_BUCKET_NAME, object_name)
+        file_size = stat.size  # content_length
+        logger.info(f"get_minio_file_url_and_size MinIO에 업로드된 파일 URL: {return_url}, size: {file_size}")
+        return return_url, file_size
+    except S3Error as e:
+        raise RuntimeError(f"MinIO get URL/size failed: {e}")
+
+def temp_file_to_object_name(file):
+    # 임시 파일로 저장
+    temp_dir = "/tmp"
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_file_path = os.path.join(temp_dir, file.filename)
+    with open(temp_file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return temp_file_path
+
+def delete_temp_file(temp_file_path):
+    os.remove(temp_file_path)
+
+def url_arrange(url):
+    return url.split("?", 1)[0]
+
+def upload_and_get_url(file_path, template_code, file_name=None):
+    """
+    1. file_name이 없으면 file_path에서 추출
+    2. 날짜 기반 minio_object_name 생성
+    3. MinIO 업로드
+    4. 임시 파일 삭제
+    5. presigned url 반환 (쿼리스트링 제거)
+    """
+    date_now = datetime.now().strftime("%Y%m%d%H%M%S")
+    minio_object_name = f"excel/{template_code}/{date_now}_{file_name}"
+    object_name = upload_file_to_minio(file_path, minio_object_name)
+    delete_temp_file(file_path)
+    file_url = get_minio_file_url(object_name)
+    return file_url, minio_object_name
+
+def upload_and_get_url_and_size(file_path, template_code, file_name=None):
+    """
+    1. file_name이 없으면 file_path에서 추출
+    2. 날짜 기반 minio_object_name 생성
+    3. MinIO 업로드
+    4. 임시 파일 삭제
+    5. presigned url 반환 (쿼리스트링 제거)
+    """
+    date_now = datetime.now().strftime("%Y%m%d%H%M%S")
+    minio_object_name = f"excel/{template_code}/{date_now}_{file_name}"
+    object_name = upload_file_to_minio(file_path, minio_object_name)
+    delete_temp_file(file_path)
+    file_url, file_size = get_minio_file_url_and_size(object_name)
+    return file_url, minio_object_name, file_size

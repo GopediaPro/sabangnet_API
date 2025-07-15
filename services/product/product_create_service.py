@@ -3,7 +3,7 @@ from urllib.parse import urljoin
 from core.settings import SETTINGS
 from pathlib import Path
 from utils.sabangnet_logger import get_logger
-from utils.product_create.excel_processor import ExcelProcessor
+from utils.make_xml.product_create_xml import ProductCreateXml
 
 
 logger = get_logger(__name__)
@@ -32,9 +32,5 @@ class ProductCreateService:
             raise
 
     @staticmethod
-    def excel_to_xml_file(file_name: str, sheet_name: str) -> str | Path:
-        return ExcelProcessor().excel_to_xml_file(file_name, sheet_name)
-    
-    @staticmethod
-    def excel_to_xml_string(file_name: str, sheet_name: str) -> str:
-        return ExcelProcessor().excel_to_xml_string(file_name, sheet_name)
+    def excel_to_xml_file(file_name: str, sheet_name: str, dst_path_name: str = None) -> Path:
+        return ProductCreateXml(file_name, sheet_name).make_product_create_xml(dst_path_name=dst_path_name)

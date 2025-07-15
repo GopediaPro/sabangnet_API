@@ -3,8 +3,13 @@ from decimal import Decimal
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict
 
+# BaseDTO 정의 (없으면 추가)
+class BaseDTO(BaseModel):
+    def to_orm(self, orm_class):
+        return orm_class(**self.model_dump())
 
-class DownFormOrderDto(BaseModel):
+
+class DownFormOrderDto(BaseDTO):
     """
     다운폼 주문 DTO (DB 스키마와 1:1 매핑)
     """
@@ -14,6 +19,17 @@ class DownFormOrderDto(BaseModel):
     form_name: Optional[str] = Field(None, max_length=30, description="폼 이름 (G마켓/옥션, 기본양식, 브랜디, 카카오 등)")
     seq: Optional[int] = Field(None, description="순번")
     idx: str = Field(..., max_length=50, description="사방넷주문번호")
+
+    # 날짜 정보
+    order_date: Optional[datetime] = Field(None, description="주문 일자")
+    reg_date: Optional[str] = Field(None, max_length=14, description="수집일자 (형식: 년월일시분초 예: 20190305115959)")
+    ord_confirm_date: Optional[str] = Field(None, max_length=14, description="주문 확인일자")
+    rtn_dt: Optional[str] = Field(None, max_length=14, description="반품 완료일자")
+    chng_dt: Optional[str] = Field(None, max_length=14, description="교환 완료일자")
+    delivery_confirm_date: Optional[str] = Field(None, max_length=14, description="출고 완료일자")
+    cancel_dt: Optional[str] = Field(None, max_length=14, description="취소 완료일자")
+    hope_delv_date: Optional[str] = Field(None, max_length=14, description="배송희망일자")
+    inv_send_dm: Optional[str] = Field(None, max_length=14, description="송장전송일자")
 
     # 주문 정보
     order_id: Optional[str] = Field(None, max_length=100, description="주문번호(쇼핑몰)")
@@ -37,20 +53,20 @@ class DownFormOrderDto(BaseModel):
     pay_cost: Optional[Decimal] = Field(None, description="결제금액")
     delv_cost: Optional[Decimal] = Field(None, description="배송비(수집)")
     total_cost: Optional[Decimal] = Field(None, description="주문금액")
-    total_delv_cost: Optional[str] = Field(None, description="주문금액/배송비(수집)")
+    total_delv_cost: Optional[Decimal] = Field(None, description="주문금액/배송비(수집)")
     expected_payout: Optional[Decimal] = Field(None, description="정산예정금액")
-    etc_cost: Optional[Decimal] = Field(None, description="etc 금액 - 설명2")
+    etc_cost: Optional[str] = Field(None, description="etc 금액 - 설명2")
 
     # 계산된 금액 정보
     price_formula: Optional[str] = Field(None, max_length=50, description="금액 계산 공식")
-    service_fee: Optional[str] = Field(None, description="서비스이용료")
+    service_fee: Optional[Decimal] = Field(None, description="서비스이용료")
 
     # 합포장용 합계 정보
-    sum_p_ea: Optional[int] = Field(None, description="EA(확정)(합포합계)")
+    sum_p_ea: Optional[Decimal] = Field(None, description="EA(확정)(합포합계)")
     sum_expected_payout: Optional[Decimal] = Field(None, description="공급단가*수량(합포합계)")
-    sum_pay_cost: Optional[str] = Field(None, description="결제금액(합포합계)")
-    sum_delv_cost: Optional[str] = Field(None, description="배송비(합포합계)")
-    sum_total_cost: Optional[str] = Field(None, description="주문금액(합포합계)")
+    sum_pay_cost: Optional[Decimal] = Field(None, description="결제금액(합포합계)")
+    sum_delv_cost: Optional[Decimal] = Field(None, description="배송비(합포합계)")
+    sum_total_cost: Optional[Decimal] = Field(None, description="주문금액(합포합계)")
 
     # 수취인 정보
     receive_name: Optional[str] = Field(None, max_length=100, description="수취인명")

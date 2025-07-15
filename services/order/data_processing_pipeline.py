@@ -1,11 +1,17 @@
 from utils.sabangnet_logger import get_logger
 logger = get_logger(__name__)
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.order.down_form_order import DownFormOrder
+from models.order.down_form_order import BaseDownFormOrder
 from typing import Dict, List, Any
 from datetime import datetime
-from schemas.order.down_form_order_mapper import map_raw_to_down_form, map_aggregated_to_down_form
+from schemas.order.down_form_order_mapper import map_raw_to_down_form, map_aggregated_to_down_form, map_excel_to_down_form
 from repository.template_config_repository import TemplateConfigRepository
+import requests
+import tempfile
+from utils.excel_handler import ExcelHandler
+import os
+import pandas as pd
+
 class DataProcessingPipeline:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -17,7 +23,24 @@ class DataProcessingPipeline:
             "calculate_service_fee": self._calculate_service_fee,
         }
         self.template_config_repo = TemplateConfigRepository(session)
-    
+
+    def _extract_datetime_fields(self, raw_row: dict) -> dict:
+        """
+        raw_row에서 날짜/시간 관련 필드만 추출하여 dict로 반환
+        """
+        datetime_fields = [
+            'order_date',
+            'reg_date',
+            'ord_confirm_date',
+            'rtn_dt',
+            'chng_dt',
+            'delivery_confirm_date',
+            'cancel_dt',
+            'hope_delv_date',
+            'inv_send_dm',
+        ]
+        return {field: raw_row.get(field) for field in datetime_fields if field in raw_row}
+
     async def process_raw_data_to_down_form_orders(self, 
                                                   raw_data: List[Dict[str, Any]], 
                                                   template_code: str) -> int:
@@ -64,6 +87,8 @@ class DataProcessingPipeline:
                 'form_name': config['template_code'],
                 'seq': seq,
             }
+            # 날짜/시간 필드 추가
+            processed_row.update(self._extract_datetime_fields(raw_row))
             processed_row.update(map_raw_to_down_form(raw_row, config))
             processed_data.append(processed_row)
         return processed_data
@@ -93,17 +118,19 @@ class DataProcessingPipeline:
                 'form_name': config['template_code'],
                 'seq': seq,
             }
+            # 대표 row에서 날짜/시간 필드 추출 (첫 row 기준)
+            processed_row.update(self._extract_datetime_fields(group_rows[0]))
             processed_row.update(map_aggregated_to_down_form(group_rows, config))
             processed_data.append(processed_row)
         return processed_data
-    
+       
     async def _save_to_down_form_orders(self, processed_data: List[Dict[str, Any]], template_code: str) -> int:
         logger.info(f"[START] _save_to_down_form_orders | processed_data_count={len(processed_data)} | template_code={template_code}")
         if not processed_data:
             logger.warning("No processed data to save.")
             return 0
         try:
-            objects = [DownFormOrder(**row) for row in processed_data]
+            objects = [BaseDownFormOrder(**row) for row in processed_data]
             self.session.add_all(objects)
             await self.session.commit()
             logger.info(f"[END] _save_to_down_form_orders | saved_count={len(objects)}")
@@ -112,7 +139,60 @@ class DataProcessingPipeline:
             await self.session.rollback()
             logger.error(f"Exception during _save_to_down_form_orders: {e}")
             raise
+
+    async def _process_excel_data(self, df, config):
+        """
+        DataFrame과 config(column_mappings)를 받아 DB 저장용 dict 리스트로 변환
+        """
+        raw_data = map_excel_to_down_form(df, config)
+        processed_data = []
+        for seq, raw_row in enumerate(raw_data, start=1):
+            processed_row = {
+                'process_dt': datetime.now(),
+                'form_name': config['template_code'],
+                'seq': seq,
+            }
+            processed_row.update(raw_row)
+            processed_data.append(processed_row)
+        return processed_data
     
+    async def process_excel_to_down_form_orders(self, df, template_code: str) -> int:
+        """
+        Excel 파일을 읽어 config 매핑에 따라 데이터를 DB에 저장
+        Args:
+            excel_file: Excel 파일
+            template_code: 템플릿 코드
+        Returns:
+            저장된 레코드 수
+        """
+        logger.info(f"[START] process_excel_to_down_form_orders | template_code={template_code} | df_count={len(df)}")
+        # 1. config 매핑 정보 조회
+        config = await self.template_config_repo.get_template_config(template_code)
+        logger.info(f"Loaded template config: {config}")
+        # 2. 엑셀 데이터 변환
+        raw_data = await self._process_excel_data(df, config)
+        # 3. DB 저장
+        saved_count = await self._save_to_down_form_orders(raw_data, template_code)
+        logger.info(f"[END] process_excel_to_down_form_orders | saved_count={saved_count}")
+        return saved_count
+    
+    def _from_db_to_df(self, db_data: list[dict], config: dict) -> pd.DataFrame:
+        """
+        DB 데이터를 DataFrame으로 변환 (config의 source_field→target_column 매핑 적용)
+        """
+        column_mappings = config.get('column_mappings', [])
+        # source_field → target_column 매핑 dict 생성
+        field_to_column = {m['source_field']: m['target_column'] for m in column_mappings}
+        # 변환된 row 리스트 생성
+        converted_rows = []
+        for row in db_data:
+            converted_row = {}
+            for source_field, target_column in field_to_column.items():
+                converted_row[target_column] = row.get(source_field)
+            converted_rows.append(converted_row)
+        df = pd.DataFrame(converted_rows)
+        return df
+
     # 변환 함수들
     def _convert_delivery_method(self, value: Any, context: Dict[str, Any]) -> str:
         if not value:

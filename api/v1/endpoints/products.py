@@ -14,7 +14,7 @@ from pathlib import Path
 from services.product.product_read_service import ProductReadService
 from services.product.product_write_service import ProductWriteService
 from services.product.product_db_xml_service import ProductDbXmlService
-from services.product.product_cli_service import ProductCreateService
+from services.product.product_create_service import ProductCreateService
 from services.usecase.product_db_excel_usecase import ProductDbExcelUsecase
 
 # schemas
@@ -41,6 +41,17 @@ router = APIRouter(
 
 def get_product_write_service(session: AsyncSession = Depends(get_async_session)) -> ProductWriteService:
     return ProductWriteService(session=session)
+
+
+def get_product_read_service(session: AsyncSession = Depends(get_async_session)) -> ProductReadService:
+    return ProductReadService(session=session)
+
+
+def get_product_create_db_to_excel_usecase(
+    product_read_service: ProductReadService = Depends(get_product_read_service)
+) -> ProductDbExcelUsecase:
+    return ProductDbExcelUsecase(product_read_service=product_read_service)
+
 
 @router.post("/db-to-xml-all", response_model=DbToXmlResponse)
 async def db_to_xml_all():
@@ -76,15 +87,6 @@ async def db_to_xml_all():
     except Exception as e:
         logger.error(f"DB to XML 변환 중 오류: {e}")
         raise HTTPException(status_code=500, detail=f"DB to XML 변환 중 오류가 발생했습니다: {str(e)}")
-
-def get_product_read_service(session: AsyncSession = Depends(get_async_session)) -> ProductReadService:
-    return ProductReadService(session=session)
-
-
-def get_product_create_db_to_excel_usecase(
-    product_read_service: ProductReadService = Depends(get_product_read_service)
-) -> ProductDbExcelUsecase:
-    return ProductDbExcelUsecase(product_read_service=product_read_service)
 
 
 @router.post("/excel-to-xml-n8n-test", response_model=dict)

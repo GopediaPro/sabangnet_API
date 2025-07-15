@@ -16,12 +16,10 @@ PRODUCT_CREATE_FIELD_MAPPING = {
     "자체상품코드": "COMPAYNY_GOODS_CD",
     "사이트검색어": "GOODS_SEARCH",
 
-
     # 분류·구분 코드
     # "표준카테고리": "", -> 디자인업무일지 O 명세서 X
     "상품구분": "GOODS_GUBUN",
     "마이카테고리": ("CLASS_CD1", "CLASS_CD2", "CLASS_CD3", "CLASS_CD4"), # -> 디자인업무일지 O 명세서 X, 그러나 분리되서 들어가짐
-
 
     # 거래처
     "매입처ID": "PARTNER_ID",
@@ -49,7 +47,6 @@ PRODUCT_CREATE_FIELD_MAPPING = {
     "원가": "GOODS_COST",
     "판매가": "GOODS_PRICE",
     "TAG가": "GOODS_CONSUMER_PRICE",
-
 
     # 옵션
     "옵션제목(1)": "CHAR_1_NM",
