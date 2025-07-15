@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from openpyxl.worksheet.worksheet import Worksheet
+from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
 from utils.excel_handler import ExcelHandler
 
@@ -162,7 +163,8 @@ class GokSheetManager:
         # 2. P열 슬래시(/) 금액 합산
         ex.sum_prow_with_slash()
         
-        # 3. V열 슬래시(/) 정제
+        # 3. V열 슬래시(/) 정제 
+        # TODO - 변경 필요
         process_slash_values(ws)
         
         # 4. F열 모델명 정리
@@ -177,17 +179,21 @@ class GokSheetManager:
         ex.set_row_number(ws)
         
         # 7. 문자열→숫자 변환
-        ex.convert_numeric_strings(cols=("E", "M", "Q", "W"))
+        ex.convert_numeric_strings(cols=("E", "F", "M", "Q", "W"))
         
         # 8. C→B 2단계 정렬
-        ex.sort_by_columns([3, 2])
+        ex.sort_by_columns([2, 3])
         
-        # 9. D열 수식 설정
-        ex.autofill_d_column(formula="=O{row}+P{row}+V{row}")
+        # 9. D열 계산값 설정 (정렬 후 O+P+V)
+        ex.calculate_d_column_values(first_col='O', second_col='P', third_col='V')
+
         
         # 10. 서식 초기화
         ex.clear_fills_from_second_row()
         ex.clear_borders()
+        # F열 왼쪽정렬 
+        for row in range(1, ws.max_row + 1):
+            ws[f"F{row}"].alignment = Alignment(horizontal='left')
         clear_l_column(ws)
 
     def copy_to_new_sheet(self, 
