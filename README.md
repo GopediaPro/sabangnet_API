@@ -5,7 +5,7 @@ cmp.py 수정한 다음 사용하시면 되십니다.<br/>
   Line 182 : excel_file : 확인할 파일명<br/>
   Line 183 : compare_selected_sheet_pairs의  2번째 파라미터 (비교할 시트쌍의 개수)<p/>
 실행:<br/>
-  python cmp.py<p/>
+  python cmp.py [/filepath/compare_excel_filename.xlsx] <p/>
 
 엑셀 파일 1개에 파이선시트[시트1, 시트2, 시트3], 매크로 시트[시트1_m, 시트2_m, 시트3_m) 순서로 엑셀 통합(시트 선택한 다음 시트복사 하시면 됩니다.)
 시트 복사 방법
