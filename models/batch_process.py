@@ -13,7 +13,7 @@ class BatchProcess(Base):
     batch_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     original_filename: Mapped[str | None] = mapped_column(String(255))
     file_name: Mapped[str | None] = mapped_column(String(255))
-    file_path: Mapped[str | None] = mapped_column(Text)
+    file_url: Mapped[str | None] = mapped_column(Text)
     file_size: Mapped[int | None] = mapped_column(Integer)
     order_date_from: Mapped[datetime | None] = mapped_column(DateTime)
     order_date_to: Mapped[datetime | None] = mapped_column(DateTime)

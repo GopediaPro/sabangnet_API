@@ -120,7 +120,7 @@ def map_excel_to_down_form(df: pd.DataFrame, config: dict) -> Dict[str, Any]:
     logger.info(f"col_map: {col_map}")
     raw_data = []
     # 엑셀 데이터 → DB 저장용 dict 변환
-    is_test_env = os.environ.get('DEPLOY_ENV') == 'development'
+    is_test_env = os.getenv("DEPLOY_ENV", "production") != "production"
     for _, row in df.iterrows():
         mapped_row = {col_map.get(col, col): row[col] for col in df.columns if col in col_map}
         # idx를 str로 변환
