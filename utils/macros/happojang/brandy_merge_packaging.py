@@ -91,16 +91,16 @@ class BrandyOrderMerger:
                     total_d += float(cell_val or 0)
             self.ws[f"D{base_row}"].value = total_d
             
-            # G열 수량 합산
-            total_g = 0
-            for row in rows:
-                g_val = self.ws[f"G{row}"].value
-                if g_val is not None:
-                    try:
-                        total_g += float(str(g_val).strip() or 0)
-                    except ValueError:
-                        pass  # 숫자로 변환할 수 없는 경우 무시
-            self.ws[f"G{base_row}"].value = total_g
+            # G열 수량 합산 2025-07-16 수량은 합산처리 대상 제외
+            # total_g = 0
+            # for row in rows:
+            #     g_val = self.ws[f"G{row}"].value
+            #     if g_val is not None:
+            #         try:
+            #             total_g += float(str(g_val).strip() or 0)
+            #         except ValueError:
+            #             pass  # 숫자로 변환할 수 없는 경우 무시
+            # self.ws[f"G{base_row}"].value = total_g
             
             # F열 모델명 결합
             models = []
@@ -166,7 +166,7 @@ class BrandySheetProcessor:
         
         # 3. D열에 O+P+V 값 계산하여 입력
         self.calculate_d_column_values(ws)
-        
+
 
         # 4. D열 기준 숫자 오름차순 정렬
         self.sort_by_d_column_numeric(ws)
@@ -205,8 +205,8 @@ class BrandySheetProcessor:
             if j_value and "제주" in str(j_value):
                 ex.process_jeju_address(row)
 
-        # 10. 문자열→숫자 변환 
-        ex.convert_numeric_strings(cols=("F","E", "P", "W", "H", "I", "Q"))
+        # 10. 문자열→숫자 변환 2025-07-16 숫자처리 대상 조정
+        ex.convert_numeric_strings(cols=("D", "O", "P", "U", "V"))
         # H열 왼쪽정렬 
         for row in range(1, ws.max_row + 1):
             ws[f"H{row}"].alignment = Alignment(horizontal='left')
@@ -310,6 +310,9 @@ class BrandySheetProcessor:
         # 정렬된 데이터를 다시 시트에 쓰기
         for idx, (original_row, row_data, d_numeric) in enumerate(data_rows, start=2):
             for col_idx, value in enumerate(row_data, start=1):
+                # 2025-07-16 엑셀에서 None이 입력되면 이전 값으로 처리되어 빈값으로 대치
+                if value is None:
+                    value = ""
                 ws.cell(row=idx, column=col_idx, value=value)
 
 def brandy_merge_packaging(input_path: str) -> str:
