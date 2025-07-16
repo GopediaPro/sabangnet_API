@@ -92,12 +92,12 @@ async def test_happojang_macro():
             from utils.macros.happojang.gok_merge_packaging import gok_merge_packaging
             from utils.down_form_order_to_excel import DownFormOrderToExcel
 
-            down_form_order_to_excel = DownFormOrderToExcel(await get_async_session())
-            file_path = await down_form_order_to_excel.down_form_order_to_excel(template_code="gmarket_bundle",
-                                                                                file_path="./files/excel",
-                                                                                file_name="test_down_form_order")
+            # down_form_order_to_excel = DownFormOrderToExcel(await get_async_session())
+            # file_path = await down_form_order_to_excel.down_form_order_to_excel(template_code="gmarket_bundle",
+            #                                                                     file_path="./files/excel",
+            #                                                                     file_name="test_down_form_order")
 
-            macro_file_path = gok_merge_packaging(file_path)
+            macro_file_path = gok_merge_packaging(xlsx_file_path)
             print("G,옥 합포장 자동화")
         else:
             print("마켓을 선택해 주세요. 1~5")

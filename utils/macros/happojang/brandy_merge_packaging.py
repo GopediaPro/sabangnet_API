@@ -160,15 +160,23 @@ class BrandySheetProcessor:
         ex = ExcelHandler(ws)
         ex.set_basic_format()
         
-        # 2. C열(수취인) 기준 정렬
-        ex.sort_by_columns([3])
+        # 2. P, V열 "/" 구분자 합산 처리
+        self.process_p_column_slash_values(ws)
+        self.process_v_column_slash_values(ws)
         
-        # 3. 그룹핑 및 병합
+        # 3. D열에 O+P+V 값 계산하여 입력
+        self.calculate_d_column_values(ws)
+        
+
+        # 4. D열 기준 숫자 오름차순 정렬
+        self.sort_by_d_column_numeric(ws)
+        
+        # 5. 그룹핑 및 병합
         merger = BrandyOrderMerger(ws)
         merger.group_by_product_and_receiver()
         rows_to_delete = merger.merge_rows()
 
-        # 4. F열 모델명 정리 (모든 행에 대해 "1개" 제거)
+        # 6. F열 모델명 정리 (모든 행에 대해 "1개" 제거)
         left_alignment = Alignment(horizontal='left')
         
         for row in range(2, ws.max_row + 1):
@@ -181,32 +189,38 @@ class BrandySheetProcessor:
         # 중복 행 삭제 (역순으로)
         for row_idx in rows_to_delete:
             ws.delete_rows(row_idx)
-        
-        # 5. D열 수식 재설정
-        ex.autofill_d_column(formula="=O{row}+P{row}+V{row}")
 
-        # 6. A열 순번 재설정
+        # 7. A열 순번 재설정
         ex.set_row_number(ws)
         
-        # 7. 전화번호 처리 (H열, I열)
+        # 8. 전화번호 처리 (H열, I열)
         for row in range(2, self.last_row + 1):
             for col in ('H', 'I'):
                 cell_value = ws[f'{col}{row}'].value
                 ws[f'{col}{row}'].value = ex.format_phone_number(cell_value)
         
-        # 8. 제주도 주문 처리
+        # 9. 제주도 주문 처리
         for row in range(2, self.last_row + 1):
             j_value = ws[f'J{row}'].value
             if j_value and "제주" in str(j_value):
                 ex.process_jeju_address(row)
 
-        # 9. 문자열→숫자 변환 
-        ex.convert_numeric_strings(cols=("F","E", "P", "W"))      # 텍스트 서식
+        # 10. 문자열→숫자 변환 
+        ex.convert_numeric_strings(cols=("F","E", "P", "W", "H", "I", "Q"))
+        # H열 왼쪽정렬 
+        for row in range(1, ws.max_row + 1):
+            ws[f"H{row}"].alignment = Alignment(horizontal='left')
+        # I열 왼쪽정렬 
+        for row in range(1, ws.max_row + 1):
+            ws[f"I{row}"].alignment = Alignment(horizontal='left')
+        # Q열 왼쪽정렬 
+        for row in range(1, ws.max_row + 1):
+            ws[f"Q{row}"].alignment = Alignment(horizontal='left')
 
-        # 10. 열 정렬
+        # 11. 열 정렬
         ex.set_column_alignment()
         
-        # 11. 배경·테두리 제거
+        # 12. 배경·테두리 제거
         ex.clear_fills_from_second_row()
         ex.clear_borders()
 
@@ -218,6 +232,85 @@ class BrandySheetProcessor:
         new_ws = self.create_empty_sheet(wb, sheet_name)
         self.copy_sheet_data(new_ws)
         self.apply_automation_logic(new_ws)  # ex 인자 제거
+
+    def calculate_d_column_values(self, ws: Worksheet) -> None:
+        """
+        D열에 O+P+V 합계값 계산하여 직접 입력 (수식이 아닌 값)
+        """
+        for row in range(2, ws.max_row + 1):
+            # O, P, V 열 값 읽기
+            o_val = float(ws[f'O{row}'].value or 0)
+            p_val = float(ws[f'P{row}'].value or 0)
+            v_val = float(ws[f'V{row}'].value or 0)
+            
+            # D열에 합계 값 입력
+            ws[f'D{row}'].value = o_val + p_val + v_val
+            ws[f'D{row}'].number_format = 'General'
+
+    def process_p_column_slash_values(self, ws: Worksheet) -> None:
+        """
+        P열의 "/" 구분자로 나뉜 숫자들의 합계 계산 
+        예: "2600/308" → 2908
+        """
+        for row in range(2, ws.max_row + 1):
+            cell_val = ws[f'P{row}'].value
+            if cell_val and "/" in str(cell_val):
+                parts = str(cell_val).split("/")
+                total = 0.0
+                for part in parts:
+                    part = part.strip()
+                    if part and part.replace('.', '').replace('-', '').isdigit():
+                        try:
+                            total += float(part)
+                        except ValueError:
+                            continue
+                ws[f'P{row}'].value = total
+        
+    def process_v_column_slash_values(self, ws: Worksheet) -> None:
+        """
+        P열의 "/" 구분자로 나뉜 숫자들의 합계 계산 
+        예: "2600/308" → 2908
+        """
+        for row in range(2, ws.max_row + 1):
+            cell_val = ws[f'V{row}'].value
+            if cell_val and "/" in str(cell_val):
+                parts = str(cell_val).split("/")
+                total = 0.0
+                for part in parts:
+                    part = part.strip()
+                    if part and part.replace('.', '').replace('-', '').isdigit():
+                        try:
+                            total += float(part)
+                        except ValueError:
+                            continue
+                ws[f'V{row}'].value = total
+
+    def sort_by_d_column_numeric(self, ws: Worksheet) -> None:
+        """
+        D열을 숫자 기준으로 오름차순 정렬
+        문자열 정렬이 아닌 실제 숫자값 기준으로 정렬
+        """
+        # 데이터를 읽어서 (행번호, 전체행데이터, D열숫자값) 튜플로 구성
+        data_rows = []
+        for row in range(2, ws.max_row + 1):
+            row_data = [ws.cell(row=row, column=c).value for c in range(1, ws.max_column + 1)]
+            d_value = ws.cell(row=row, column=4).value  # D열 (4번째 열)
+            
+            # D열 값을 숫자로 변환 시도
+            try:
+                d_numeric = float(d_value) if d_value is not None else 0.0
+            except (ValueError, TypeError):
+                d_numeric = 0.0
+                
+            data_rows.append((row, row_data, d_numeric))
+        
+        # D열 숫자값 기준으로 오름차순 정렬
+        data_rows.sort(key=lambda x: x[2])
+        
+        # 정렬된 데이터를 다시 시트에 쓰기
+        for idx, (original_row, row_data, d_numeric) in enumerate(data_rows, start=2):
+            for col_idx, value in enumerate(row_data, start=1):
+                ws.cell(row=idx, column=col_idx, value=value)
 
 def brandy_merge_packaging(input_path: str) -> str:
     """브랜디 주문 합포장 자동화 처리"""

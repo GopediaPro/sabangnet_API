@@ -217,16 +217,26 @@ class ExcelHandler:
 
     def sum_prow_with_slash(self):
         """
-        P열 "/" 금액 합산
-        예시:
+        P열 "/" 금액 합산 (음수 지원)
+        예시: "216/-56" → 160
             sum_prow_with_slash(ws)
         """
         last_row = self.ws.max_row
         for r in range(2, last_row + 1):
-            p_raw = str(self.ws[f"P{r}"].value or "")
+            p_raw = str(self.ws[f"P{r}"].value or "").strip()
             if "/" in p_raw:
-                nums = [float(n)
-                        for n in p_raw.split("/") if n.strip().isdigit()]
+                nums = []
+                for n in p_raw.split("/"):
+                    n = n.strip()
+                    if n:  # 빈 문자열이 아닌 경우
+                        try:
+                            # 숫자 변환 시도 (음수 포함)
+                            nums.append(float(n))
+                        except ValueError:
+                            # 숫자가 아닌 경우 to_num 메서드로 처리
+                            converted = self.to_num(n)
+                            if converted != 0 or n == '0':  # 0은 유효한 값으로 처리
+                                nums.append(converted)
                 self.ws[f"P{r}"].value = sum(nums) if nums else 0
             else:
                 self.ws[f"P{r}"].value = self.to_num(p_raw)
@@ -590,3 +600,55 @@ class ExcelHandler:
             if tmp_path and os.path.exists(tmp_path):
                 os.remove(tmp_path)
         return df
+
+    def calculate_d_column_values(self, ws=None, start_row=2, end_row=None, first_col=None, second_col=None, third_col=None):
+        """
+        D열에 지정된 열들의 실제 계산된 값을 입력 (수식이 아닌 값)
+        - 2개 열: first_col + second_col
+        - 3개 열: first_col + second_col + third_col
+        
+        예시:
+            # 3개 열 합산 (O+P+V)
+            calculate_d_column_values(ws, first_col='O', second_col='P', third_col='V')
+            
+            # 2개 열 합산 (M+N)
+            calculate_d_column_values(ws, first_col='M', second_col='N')
+            
+            # 다른 열 조합 (U+W+X)
+            calculate_d_column_values(ws, first_col='U', second_col='W', third_col='X')
+            
+            # 행 범위 지정
+            calculate_d_column_values(ws, start_row=3, end_row=100, first_col='A', second_col='B')
+        """
+        if ws is None:
+            ws = self.ws
+        if not end_row:
+            end_row = self.last_row
+            
+        # 최소 2개 열은 필요
+        if first_col is None or second_col is None:
+            raise ValueError("first_col과 second_col은 필수 파라미터입니다.")
+        
+        for row in range(start_row, end_row + 1):
+            # 각 열의 원본 값 확인
+            first_raw = ws[f'{first_col}{row}'].value
+            second_raw = ws[f'{second_col}{row}'].value
+            third_raw = ws[f'{third_col}{row}'].value if third_col else None
+            
+            # 각 열의 값을 가져와서 숫자로 처리
+            first_val = first_raw if isinstance(first_raw, (int, float)) else 0
+            second_val = second_raw if isinstance(second_raw, (int, float)) else 0
+            third_val = third_raw if isinstance(third_raw, (int, float)) else 0
+            
+            # 2개 열 또는 3개 열 합산
+            if third_col is None:
+                # 2개 열 합산
+                total = first_val + second_val
+            else:
+                # 3개 열 합산
+                total = first_val + second_val + third_val
+            
+            # 합계를 D열에 입력
+            ws[f'D{row}'].value = total
+            ws[f'D{row}'].number_format = 'General'
+
