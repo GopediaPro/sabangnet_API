@@ -60,12 +60,17 @@ class BrandyOrderMerger:
         
     def group_by_product_and_receiver(self) -> None:
         """C열(상품번호)와 J열(수령인) 기준으로 그룹핑"""
+        print("🔍 그룹핑 시작...")
         for row in range(2, self.ws.max_row + 1):
-            key = (
-                f"{str(self.ws[f'C{row}'].value).strip()}"
-                f"|{str(self.ws[f'J{row}'].value).strip()}"
-            )
+            c_value = str(self.ws[f'C{row}'].value).strip()
+            j_value = str(self.ws[f'J{row}'].value).strip()
+            key = f"{c_value}|{j_value}"
+            
             self.groups[key].append(row)
+            if len(self.groups[key]) > 1:
+                print(f"📦 중복 발견: {key} - 행번호: {self.groups[key]}")
+        
+        print(f"📊 총 그룹 수: {len(self.groups)}, 중복 그룹: {sum(1 for g in self.groups.values() if len(g) > 1)}")
             
     def merge_rows(self) -> List[int]:
         """그룹별 데이터 병합 처리"""
@@ -161,17 +166,15 @@ class BrandySheetProcessor:
         ex.set_basic_format()
         
         # 2. P, V열 "/" 구분자 합산 처리
-        self.process_p_column_slash_values(ws)
+        ex.sum_prow_with_slash()
         self.process_v_column_slash_values(ws)
         
         # 3. D열에 O+P+V 값 계산하여 입력
-        self.calculate_d_column_values(ws)
+        ex.calculate_d_column_values(first_col='O', second_col='P', third_col='V')
 
-
-        # 4. D열 기준 숫자 오름차순 정렬
         self.sort_by_d_column_numeric(ws)
-        
-        # 5. 그룹핑 및 병합
+
+        # 4. 그룹핑 및 병합 (정렬은 나중에)
         merger = BrandyOrderMerger(ws)
         merger.group_by_product_and_receiver()
         rows_to_delete = merger.merge_rows()
