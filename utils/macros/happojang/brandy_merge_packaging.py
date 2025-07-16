@@ -60,12 +60,17 @@ class BrandyOrderMerger:
         
     def group_by_product_and_receiver(self) -> None:
         """C열(상품번호)와 J열(수령인) 기준으로 그룹핑"""
+        print("🔍 그룹핑 시작...")
         for row in range(2, self.ws.max_row + 1):
-            key = (
-                f"{str(self.ws[f'C{row}'].value).strip()}"
-                f"|{str(self.ws[f'J{row}'].value).strip()}"
-            )
+            c_value = str(self.ws[f'C{row}'].value).strip()
+            j_value = str(self.ws[f'J{row}'].value).strip()
+            key = f"{c_value}|{j_value}"
+            
             self.groups[key].append(row)
+            if len(self.groups[key]) > 1:
+                print(f"📦 중복 발견: {key} - 행번호: {self.groups[key]}")
+        
+        print(f"📊 총 그룹 수: {len(self.groups)}, 중복 그룹: {sum(1 for g in self.groups.values() if len(g) > 1)}")
             
     def merge_rows(self) -> List[int]:
         """그룹별 데이터 병합 처리"""
@@ -91,16 +96,16 @@ class BrandyOrderMerger:
                     total_d += float(cell_val or 0)
             self.ws[f"D{base_row}"].value = total_d
             
-            # G열 수량 합산
-            total_g = 0
-            for row in rows:
-                g_val = self.ws[f"G{row}"].value
-                if g_val is not None:
-                    try:
-                        total_g += float(str(g_val).strip() or 0)
-                    except ValueError:
-                        pass  # 숫자로 변환할 수 없는 경우 무시
-            self.ws[f"G{base_row}"].value = total_g
+            # G열 수량 합산 2025-07-16 수량은 합산처리 대상 제외
+            # total_g = 0
+            # for row in rows:
+            #     g_val = self.ws[f"G{row}"].value
+            #     if g_val is not None:
+            #         try:
+            #             total_g += float(str(g_val).strip() or 0)
+            #         except ValueError:
+            #             pass  # 숫자로 변환할 수 없는 경우 무시
+            # self.ws[f"G{base_row}"].value = total_g
             
             # F열 모델명 결합
             models = []
@@ -161,17 +166,15 @@ class BrandySheetProcessor:
         ex.set_basic_format()
         
         # 2. P, V열 "/" 구분자 합산 처리
-        self.process_p_column_slash_values(ws)
+        ex.sum_prow_with_slash()
         self.process_v_column_slash_values(ws)
         
         # 3. D열에 O+P+V 값 계산하여 입력
-        self.calculate_d_column_values(ws)
-        
+        ex.calculate_d_column_values(first_col='O', second_col='P', third_col='V')
 
-        # 4. D열 기준 숫자 오름차순 정렬
         self.sort_by_d_column_numeric(ws)
-        
-        # 5. 그룹핑 및 병합
+
+        # 4. 그룹핑 및 병합 (정렬은 나중에)
         merger = BrandyOrderMerger(ws)
         merger.group_by_product_and_receiver()
         rows_to_delete = merger.merge_rows()
@@ -205,8 +208,8 @@ class BrandySheetProcessor:
             if j_value and "제주" in str(j_value):
                 ex.process_jeju_address(row)
 
-        # 10. 문자열→숫자 변환 
-        ex.convert_numeric_strings(cols=("F","E", "P", "W", "H", "I", "Q"))
+        # 10. 문자열→숫자 변환 2025-07-16 숫자처리 대상 조정
+        ex.convert_numeric_strings(cols=("D", "O", "P", "U", "V"))
         # H열 왼쪽정렬 
         for row in range(1, ws.max_row + 1):
             ws[f"H{row}"].alignment = Alignment(horizontal='left')
@@ -310,6 +313,9 @@ class BrandySheetProcessor:
         # 정렬된 데이터를 다시 시트에 쓰기
         for idx, (original_row, row_data, d_numeric) in enumerate(data_rows, start=2):
             for col_idx, value in enumerate(row_data, start=1):
+                # 2025-07-16 엑셀에서 None이 입력되면 이전 값으로 처리되어 빈값으로 대치
+                if value is None:
+                    value = ""
                 ws.cell(row=idx, column=col_idx, value=value)
 
 def brandy_merge_packaging(input_path: str) -> str:

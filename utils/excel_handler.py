@@ -223,10 +223,17 @@ class ExcelHandler:
         """
         last_row = self.ws.max_row
         for r in range(2, last_row + 1):
-            p_raw = str(self.ws[f"P{r}"].value or "").strip()
-            if "/" in p_raw:
+            p_cell = self.ws[f"P{r}"]
+            p_raw = p_cell.value
+            
+            # 이미 숫자인 경우 그대로 유지
+            if isinstance(p_raw, (int, float)):
+                continue
+                
+            p_str = str(p_raw or "").strip()
+            if "/" in p_str:
                 nums = []
-                for n in p_raw.split("/"):
+                for n in p_str.split("/"):
                     n = n.strip()
                     if n:  # 빈 문자열이 아닌 경우
                         try:
@@ -237,9 +244,11 @@ class ExcelHandler:
                             converted = self.to_num(n)
                             if converted != 0 or n == '0':  # 0은 유효한 값으로 처리
                                 nums.append(converted)
-                self.ws[f"P{r}"].value = sum(nums) if nums else 0
-            else:
-                self.ws[f"P{r}"].value = self.to_num(p_raw)
+                p_cell.value = sum(nums) if nums else p_raw  # 변환 실패시 원본 유지
+            elif p_str and p_str != "0":  # 빈 값이 아니고 "0"이 아닌 경우만 변환
+                converted = self.to_num(p_str)
+                if converted != 0:  # 변환 결과가 0이 아닌 경우만 적용
+                    p_cell.value = converted
 
     def to_num(self, val) -> int:
         """
