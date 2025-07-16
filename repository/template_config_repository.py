@@ -65,25 +65,15 @@ class TemplateConfigRepository:
         return merged
 
     async def get_template_config(self, template_code: str) -> Optional[dict]:
-        # 1. Get 'default' template meta and columns
-        default_meta = await self._get_template_meta("default")
-        if not default_meta:
-            return None
-        default_id = default_meta["id"]
-        default_columns = await self._get_column_mappings(default_id)
-        # 2. Get input template meta and columns
+        # Get input template meta and columns
         input_meta = await self._get_template_meta(template_code)
         if not input_meta:
-            merged_meta = default_meta
-            merged_columns = default_columns
-        else:
-            input_id = input_meta["id"]
-            input_columns = await self._get_column_mappings(input_id)
-            merged_columns = self._merge_columns(default_columns, input_columns)
-            merged_meta = self._merge_meta(default_meta, input_meta)
+            return None
+        input_id = input_meta["id"]
+        input_columns = await self._get_column_mappings(input_id)
         return {
-            **{k: v for k, v in merged_meta.items() if k != "id"},
-            "column_mappings": merged_columns
+            **{k: v for k, v in input_meta.items() if k != "id"},
+            "column_mappings": input_columns
         }
 
     async def get_down_form_orders(self, template_code: Optional[str], limit: int = 100, offset: int = 0) -> List[dict]:
