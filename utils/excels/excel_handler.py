@@ -33,7 +33,7 @@ class ExcelHandler:
         wb = openpyxl.load_workbook(file_path)
         ws = wb.worksheets[sheet_index]
         return cls(ws, wb)
-    
+
     def save_file(self, file_path):
         """
         엑셀 파일 저장
@@ -50,37 +50,37 @@ class ExcelHandler:
     def happojang_save_file(self, output_dir="files/excel/happojang", base_name=None, suffix="_매크로_완료"):
         """
         엑셀 파일 저장 (happojang 규칙 적용)
-        
+
         Args:
             output_dir: 저장할 디렉토리 (프로젝트 루트 기준)
             base_name: 기본 파일명 (확장자 제외). None이면 현재 시트명 사용
             suffix: 파일명 접미사
-            
+
         Returns:
             str: 저장된 파일의 전체 경로
-            
+
         예시:
             ex.save_file()  # 기본값으로 저장
             ex.save_file(base_name="브랜디_주문데이터")  # 특정 파일명으로 저장
         """
         from pathlib import Path
-        
+
         # 기본 파일명 결정
         if base_name is None:
             base_name = self.ws.title or "output"
-            
+
         # 출력 디렉토리 생성
         project_root = Path(__file__).parent.parent
         output_path_dir = project_root / output_dir
         output_path_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # 최종 파일 경로
         output_path = str(output_path_dir / f"{base_name}{suffix}.xlsx")
-        
+
         # 파일 저장
         self.wb.save(output_path)
         return output_path
-    
+
     def set_auto_filter(self, ws=None):
         """
         A1 행 자동 필터 설정
@@ -142,7 +142,7 @@ class ExcelHandler:
             else:
                 ws[f'D{row}'].value = formula
 
-    def set_row_number(self,ws, start_row=2, end_row=None):
+    def set_row_number(self, ws, start_row=2, end_row=None):
         """
         A열 순번 자동 생성 (=ROW()-1)
         예시:
@@ -183,7 +183,6 @@ class ExcelHandler:
             ws.sheet_view.showGridLines = False
             for cell in row:
                 cell.border = Border()
-
 
     def clear_fills_from_second_row(self):
         """
@@ -311,7 +310,6 @@ class ExcelHandler:
                 elif col_letter in align_map['right']:
                     cell.alignment = right
 
-
     def sort_dataframe_by_col(self, df, col_list: list[str]):
         """
         DataFrame을 B열 → C열 순서로 오름차순 정렬
@@ -321,26 +319,26 @@ class ExcelHandler:
         if all(col in df.columns for col in col_list):
             return df.sort_values(by=col_list).reset_index(drop=True)
         return df
-    
+
     def sort_by_columns(self, key_columns: List[int], start_row: int = 2) -> None:
         """
         지정된 열들을 기준으로 워크시트 데이터 정렬
-        
+
         :param key_columns: 정렬 기준 열 번호 리스트 (1-based indexing)
                         예: [2, 3]은 B열, C열 순서로 정렬
         :param start_row: 정렬 시작 행 번호 (기본값: 2, 첫 행은 헤더)
-        
+
         예시:
             # B열, C열 순서로 2단계 정렬
             ex = ExcelHandler.from_file("example.xlsx")
             ex.sort_by_columns([2, 3])
-            
+
             # D열 기준 단일 정렬, 3행부터
             ex.sort_by_columns([4], start_row=3)
-            
+
             # 여러 열 조합 정렬 (A → C → B)
             ex.sort_by_columns([1, 3, 2])
-        
+
         주의:
         - 열 번호는 1부터 시작 (A열=1, B열=2, ...)
         - 정렬은 문자열 비교 기준 ('123' > '1000')
@@ -348,26 +346,26 @@ class ExcelHandler:
         필요시 set_row_number() 별도 호출
         """
         rows = [
-            [self.ws.cell(row=r, column=c).value 
-            for c in range(1, self.ws.max_column + 1)]
+            [self.ws.cell(row=r, column=c).value
+             for c in range(1, self.ws.max_column + 1)]
             for r in range(start_row, self.last_row + 1)
         ]
-        
+
         # 정렬 키 함수: 각 열을 문자열로 변환하여 비교
         rows.sort(key=lambda x: tuple(str(x[i-1]) for i in key_columns))
-        
+
         # 기존 데이터 삭제 후 정렬된 데이터 재기록
         self.ws.delete_rows(start_row, self.last_row - start_row + 1)
         for ridx, row in enumerate(rows, start=start_row):
             for cidx, val in enumerate(row, start=1):
                 self.ws.cell(row=ridx, column=cidx, value=val)
-        
+
         # last_row 업데이트
         self.last_row = self.ws.max_row
 
     # 특수 처리 Method
 
-    def process_jeju_address(self, row,ws=None, f_col='F', j_col='J'):
+    def process_jeju_address(self, row, ws=None, f_col='F', j_col='J'):
         """
         제주도 주소: '[3000원 연락해야함]' 추가, 연한 파란색 배경 및 빨간 글씨 적용
         예시:
@@ -454,15 +452,14 @@ class ExcelHandler:
         """
         white_font = Font(name='맑은 고딕', size=9, color="FFFFFF", bold=True)
         center_alignment = Alignment(horizontal='center')
-        green_fill = PatternFill(start_color="008000", end_color="008000", fill_type="solid")
+        green_fill = PatternFill(start_color="008000",
+                                 end_color="008000", fill_type="solid")
         for cell in ws[1]:
             cell.fill = green_fill
             cell.font = white_font
             cell.alignment = center_alignment
             cell.border = Border()
             ws.row_dimensions[1].height = 15
-
-
 
     def convert_to_number(self, cell_value):
         """
@@ -536,7 +533,7 @@ class ExcelHandler:
     def split_sheets_by_site(self, df, ws_map, site_mapping):
         """
         공통 시트 분리 메서드
-        
+
         Args:
             rules (dict): 간단한 규칙 딕셔너리
                         예: {"OK": ["오케이마트"], "IY": ["아이예스"], "OK,CL,BB": ["오케이마트", "클로버프", "베이지베이글"]}
@@ -544,29 +541,31 @@ class ExcelHandler:
         # 각 시트별 행 인덱스 초기화
         site_rows = {sheet: 2 for sheet in site_mapping.keys()}
         font = Font(name='맑은 고딕', size=9)
-        
+
         for row_data in df.itertuples(index=False):
             # 계정명 추출
-            site_value = str(getattr(row_data, '사이트')) if pd.notna(getattr(row_data, '사이트')) else ""
+            site_value = str(getattr(row_data, '사이트')) if pd.notna(
+                getattr(row_data, '사이트')) else ""
             account_name = ""
-            
+
             if "]" in site_value and site_value.startswith("["):
                 try:
                     account_name = site_value[1:site_value.index("]")]
                 except:
                     account_name = ""
-            
+
             # 매칭되는 시트 찾기
             for sheet, filters in site_mapping.items():
                 if account_name in filters and sheet in ws_map:
                     target_sheet = ws_map[sheet]
                     current_row = site_rows[sheet]
-                    
+
                     # 데이터 복사
                     for col_idx, value in enumerate(row_data, 1):
-                        cell = target_sheet.cell(row=current_row, column=col_idx, value=value)
+                        cell = target_sheet.cell(
+                            row=current_row, column=col_idx, value=value)
                         cell.font = font
-                    
+
                     target_sheet.row_dimensions[current_row].height = 15
                     site_rows[sheet] += 1
                     break
@@ -596,22 +595,12 @@ class ExcelHandler:
                 os.remove(tmp_path)
         return df
 
-    def split_and_write_ws_by_site(
-        self,
-        ws,
-        wb,
-        sheets_name: list[str],
-        site_to_sheet: dict,
-        sort_columns: list[int],
-        site_col_idx: int = 2,
-    ):
+    def preprocess_and_update_ws(self, ws, sort_columns: list[int]):
         """
-        ws: 원본 워크시트
-        wb: 워크북
-        site_col_idx: 사이트 컬럼 인덱스 (1-based)
-        sheets_name: 생성할 시트명 리스트
-        site_mapping: {시트명: [사이트명, ...]}
-        sort_columns: 정렬 기준 열 번호 리스트 (1-based, 예: [2, 3])
+        1. 헤더/데이터 추출
+        2. 데이터 정렬
+        3. 원본 시트 "자동화"로 이름 변경 및 정렬된 데이터로 업데이트
+        return: (headers, sorted_data)
         """
         # 1. 헤더와 데이터 추출
         headers, data = self._extract_headers_and_data(ws)
@@ -623,15 +612,36 @@ class ExcelHandler:
         ws.title = "자동화"
         self._update_worksheet_data(ws, data)
 
+        return headers, data
+
+    def split_and_write_ws_by_site(
+        self,
+        wb,
+        headers: list,
+        data: list[list],
+        sheets_name: list[str],
+        site_to_sheet: dict,
+        site_col_idx: int = 2,
+    ):
+        """
+        ws: 원본 워크시트
+        wb: 워크북
+        site_col_idx: 사이트 컬럼 인덱스 (1-based)
+        sheets_name: 생성할 시트명 리스트
+        site_mapping: {시트명: [사이트명, ...]}
+        sort_columns: 정렬 기준 열 번호 리스트 (1-based, 예: [2, 3])
+        """
+
         # 4. 시트들 생성
         filtered_sheets = [name for name in sheets_name if name != "자동화"]
-        ws_map = self._create_sheets(ws, headers, filtered_sheets)
+        ws_map = self._create_sheets(
+            wb.worksheets[0], headers, filtered_sheets)
 
         # 5. 각 필터링된 시트에 데이터 삽입
         self._write_data_to_sheets(data, ws_map, site_to_sheet, site_col_idx)
 
         # 6. 컬럼 너비 복사
-        self._copy_column_widths(wb) 
+        self._copy_column_widths(wb)
 
     def _extract_headers_and_data(self, ws) -> tuple[list, list[list]]:
         """
@@ -678,18 +688,18 @@ class ExcelHandler:
         """
         font = Font(name='맑은 고딕', size=9)
         empty_fill = PatternFill()
-       
+
         # 정렬된 데이터 다시 삽입 및 기본 스타일 제거
         for row_idx, row_data in enumerate(data, start=2):
             for col_idx, value in enumerate(row_data, start=1):
-                cell = ws.cell(row=row_idx, column=col_idx, value=value if value or value == 0 else "")
+                cell = ws.cell(row=row_idx, column=col_idx,
+                               value=value if value or value == 0 else "")
                 cell.fill = empty_fill
                 cell.font = font
                 cell.alignment = Alignment(wrap_text=False)
                 cell.border = Border()
             ws.row_dimensions[row_idx].height = 15
             ws.sheet_view.showGridLines = True
-
 
     def _create_sheets(self, ws, headers: list, filtered_sheets: list[str]) -> dict:
         """
@@ -708,7 +718,7 @@ class ExcelHandler:
 
             new_ws = ws.parent.create_sheet(title=sheet_name)
 
-            # 헤더 추가 
+            # 헤더 추가
             for col, header in enumerate(headers, start=1):
                 new_ws.cell(row=1, column=col, value=header)
 
@@ -761,7 +771,7 @@ class ExcelHandler:
         컬럼 너비 복사
         args:
             wb: 워크북
-        
+
         추가 : 너비 설정 확인 필요
         """
         from openpyxl.utils import get_column_letter

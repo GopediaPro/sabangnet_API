@@ -1,9 +1,10 @@
+from openpyxl.cell import Cell
 from utils.excels.excel_handler import ExcelHandler
 from utils.excels.excel_column_handler import ExcelColumnHandler
 
 
-class GmarketAuctionMacro:
-    def __init__(self, file_path):
+class ERPGmaAucMacro:
+    def __init__(self, file_path: str):
         self.ex = ExcelHandler.from_file(file_path)
         self.file_path = file_path
         self.ws = self.ex.ws
@@ -12,18 +13,18 @@ class GmarketAuctionMacro:
         self.headers = None
 
     def gauc_erp_macro_run(self):
-        macro = ExcelColumnHandler()
+        col_h = ExcelColumnHandler()
         self.basket_set = set()
 
         # 장바구니 중복 제거 & 금액 컬럼 계산 먼저 실행
         for row in range(2, self.ws.max_row + 1):
             self._basket_duplicate_column(
                 self.ws[f"Q{row}"], self.ws[f"V{row}"])
-            macro.d_column(
+            col_h.d_column(
                 self.ws[f"D{row}"], self.ws[f"O{row}"], self.ws[f"P{row}"], self.ws[f"V{row}"])
 
-        # 정렬
-        sheets_name = ["자동화", "OK,CL,BB", "IY"]
+        # 시트 설정
+        sheets_name = ["OK,CL,BB", "IY"]
         site_to_sheet = {
             "오케이마트": "OK,CL,BB",
             "클로버프": "OK,CL,BB",
@@ -32,49 +33,55 @@ class GmarketAuctionMacro:
         }
 
         # 정렬 기준: 2번째 컬럼(B) → 3번째 컬럼(C) 순으로 정렬
-        sort_columns = [2, 3]
+        sort_columns = [2, 3, 5, 6, 4]
         print("시트별 정렬, 시트 분리 시작...")
+        headers, data = self.ex.preprocess_and_update_ws(self.ws, sort_columns)
         self.ex.split_and_write_ws_by_site(
-            ws=self.ws,
             wb=self.wb,
-            site_col_idx=2,
+            headers=headers,
+            data=data,
             sheets_name=sheets_name,
             site_to_sheet=site_to_sheet,
-            sort_columns=sort_columns
+            site_col_idx=2,
         )
         print("시트별 정렬, 시트 분리 완료")
-        
+
         print("시트별 서식, 디자인 적용 시작...")
         for ws in self.wb.worksheets:
+            self.ex.set_header_style(ws)
             if ws.max_row <= 1:
                 continue
             for row in range(2, ws.max_row + 1):
                 if ws.title != "자동화":
-                    macro.a_value_column(ws[f"A{row}"])
+                    col_h.a_value_column(ws[f"A{row}"])
                 else:
-                    macro.a_formula_column(ws[f"A{row}"])
-                macro.d_column(
+                    col_h.a_formula_column(ws[f"A{row}"])
+                col_h.d_column(
                     ws[f"D{row}"], ws[f"O{row}"], ws[f"P{row}"], ws[f"V{row}"])
-                macro.f_column(ws[f"F{row}"])
-                macro.l_column(ws[f"L{row}"])
-                macro.e_column(ws[f"E{row}"])
-                macro.convert_int_column(ws[f"O{row}"])
-                macro.convert_int_column(ws[f"P{row}"])
-                macro.convert_int_column(ws[f"V{row}"])
-                macro.convert_int_column(ws[f"M{row}"])
-                macro.convert_int_column(ws[f"Q{row}"])
-                macro.convert_int_column(ws[f"W{row}"])
-                macro.convert_int_column(ws[f"R{row}"])
-                macro.convert_int_column(ws[f"S{row}"])
-                self.ex.set_header_style(ws)
-                print(f"[{ws.title}] 서식 및 디자인 적용 완료")
-
+                col_h.e_column(ws[f"E{row}"])
+                col_h.f_column(ws[f"F{row}"])
+                col_h.l_column(ws[f"L{row}"])
+                col_h.convert_int_column(ws[f"M{row}"])
+                col_h.convert_int_column(ws[f"O{row}"])
+                col_h.convert_int_column(ws[f"P{row}"])
+                col_h.convert_int_column(ws[f"Q{row}"])
+                col_h.convert_int_column(ws[f"R{row}"])
+                col_h.convert_int_column(ws[f"S{row}"])
+                col_h.convert_int_column(ws[f"V{row}"])
+                col_h.convert_int_column(ws[f"W{row}"])
+            print(f"[{ws.title}] 서식 및 디자인 적용 완료")
 
         output_path = self.ex.save_file(self.file_path)
         print(f"✓ G,옥 ERP 자동화 완료! 최종 파일: {output_path}")
         return output_path
 
-    def _basket_duplicate_column(self, basket_cell, shipping_cell):
+    def _basket_duplicate_column(self, basket_cell: Cell, shipping_cell: Cell):
+        """
+        장바구니 중복 제거 & 금액 컬럼 계산
+        args:
+            basket_cell: 장바구니 번호 셀
+            shipping_cell: 배송비 셀
+        """
         basket_no = str(basket_cell.value).strip() if basket_cell.value else ""
 
         if not basket_no:
