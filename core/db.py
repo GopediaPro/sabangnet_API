@@ -50,3 +50,26 @@ async def test_db_write(value: str) -> bool:
     async with pool.acquire() as conn:
         result = await conn.fetchval(query, value)
         return result == value
+
+async def create_tables():
+    try:
+        from models.base_model import Base
+        from models.certification_detail.certification_detail import CertificationDetail
+        from models.mall_certification_handling.mall_certification_handling import MallCertificationHandling
+        from models.mall_price.mall_price import MallPrice
+        from models.one_one_price.one_one_price import OneOnePrice
+        from models.order.receive_order import ReceiveOrder
+        from models.order.down_form_order import BaseDownFormOrder
+        from models.product.modified_product_data import ModifiedProductData
+        from models.product.product_mycategory_data import ProductMycategoryData
+        from models.product.product_raw_data import ProductRawData
+        from models.product.product_registration_data import ProductRegistrationRawData
+        
+        async with async_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        
+        logger.info("데이터베이스 테이블 생성 완료!")
+        
+    except Exception as e:
+        logger.error(f"테이블 생성 중 오류 발생: {e}")
+        raise

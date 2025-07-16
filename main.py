@@ -24,6 +24,10 @@ from api.v1.endpoints.down_form_order import router as down_form_order_router
 from api.v1.endpoints.macro import router as macro_router
 from api.v1.endpoints.export_form_order import router as export_form_order_router
 
+from core.db import create_tables
+from api.v1.endpoints.mall_certification_handling.mall_certification_handling import router as mall_certification_handling_router
+
+
 logger = get_logger(__name__)
 
 
@@ -31,6 +35,7 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # FastAPI 서버 시작 전 작업영역
+    await create_tables()
     yield
     # FastAPI 서버 종료 후 작업영역
 
@@ -60,6 +65,8 @@ master_router.include_router(order_router)
 master_router.include_router(down_form_order_router)
 master_router.include_router(macro_router)
 master_router.include_router(export_form_order_router)
+
+master_router.include_router(mall_certification_handling_router)
 
 app.include_router(master_router)
 app.include_router(product_registration_router)
