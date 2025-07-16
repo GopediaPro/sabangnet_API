@@ -67,14 +67,11 @@ async def test_erp_macro():
 
         elif choice == "5":
             # down_form_order table to excel
-            from utils.macros.ERP.Gmarket_auction_erp_macro import GmarketAuctionMacro
-            from services.usecase.data_processing_usecase import DataProcessingUsecase
-            data_processing_usecase = DataProcessingUsecase(await get_async_session())
-            file_path = await data_processing_usecase.down_form_order_to_excel(template_code="gmarket_erp", file_path="./files/excel/er", file_name="gmarket_erp")
 
+            from utils.macros.ERP.g_a_erp_macro import GmarketAuctionMacro
             # # G,옥_ERP_자동화
-            gmarket_auction_macro = GmarketAuctionMacro(file_path)
-            macro_file_path = gmarket_auction_macro.step_1_to_11()
+            gmarket_auction_macro = GmarketAuctionMacro(xlsx_file_path)
+            macro_file_path = gmarket_auction_macro.gauc_erp_macro_run()
 
             print("G,옥 ERP 자동화")
 

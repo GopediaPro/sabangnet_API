@@ -8,7 +8,7 @@ from utils.macros.happojang.ali_merge_packaging import ali_merge_packaging
 from utils.macros.happojang.brandy_merge_packaging import brandy_merge_packaging
 from utils.macros.happojang.gok_merge_packaging import gok_merge_packaging
 from repository.template_config_repository import TemplateConfigRepository
-from utils.macros.ERP.Gmarket_auction_erp_macro import GmarketAuctionMacro
+from utils.macros.ERP.g_a_erp_macro import GmarketAuctionMacro
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.logs.sabangnet_logger import get_logger
 from minio_handler import temp_file_to_object_name, delete_temp_file
@@ -36,7 +36,7 @@ def run_brandi_macro(file):
 
 def run_gmarket_auction_macro(file_path):
     macro = GmarketAuctionMacro(file_path)
-    result = macro.step_1_to_11()
+    result = macro.gauc_erp_macro_run()
     return result
 
 # macro_name과 실제 실행 함수를 매핑
