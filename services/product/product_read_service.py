@@ -8,6 +8,11 @@ class ProductReadService:
         self.session = session
         self.product_repository = ProductRepository(session)
 
+    async def get_products_by_pagenation(self, page: int) -> list[ProductRawDataDto]:
+        products = await self.product_repository.get_products(page=page)
+        dtos = [ProductRawDataDto.model_validate(product) for product in products]
+        return dtos
+
     async def get_product_by_compayny_goods_cd(self, compayny_goods_cd: str) -> ProductRawData:
         return await self.product_repository.find_product_raw_data_by_company_goods_cd(compayny_goods_cd)
     

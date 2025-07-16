@@ -20,24 +20,24 @@ from schemas.receive_orders.response.receive_orders_response import (
 
 
 router = APIRouter(
-    prefix="/order",
-    tags=["order"],
+    prefix="/receive-order",
+    tags=["receive-order"],
 )
 
 
-def get_order_read_service(session: AsyncSession = Depends(get_async_session)) -> ReceiveOrderReadService:
+def get_receive_order_read_service(session: AsyncSession = Depends(get_async_session)) -> ReceiveOrderReadService:
     return ReceiveOrderReadService(session=session)
 
 
-def get_order_create_service(session: AsyncSession = Depends(get_async_session)) -> ReceiveOrderCreateService:
+def get_receive_order_create_service(session: AsyncSession = Depends(get_async_session)) -> ReceiveOrderCreateService:
     return ReceiveOrderCreateService(session=session)
 
 
 @router.get("/all", response_model=ReceiveOrdersResponseList)
-async def get_orders(
+async def get_receive_orders_all(
     skip: int = Query(0, ge=0, description="건너뛸 건수"),
     limit: int = Query(200, ge=1, le=200, description="조회할 건수"),
-    order_read_service: ReceiveOrderReadService = Depends(get_order_read_service),
+    order_read_service: ReceiveOrderReadService = Depends(get_receive_order_read_service),
 ):
     """
     주문 수집 데이터 전체 조회 (한 번에 최대 200건 까지만 조회 가능)
@@ -46,10 +46,10 @@ async def get_orders(
 
 
 @router.get("/pagination", response_model=ReceiveOrdersResponseList)
-async def get_orders_pagination(
+async def get_receive_orders_by_pagination(
     page: int = Query(1, ge=1, description="페이지 번호"),
     page_size: int = Query(20, ge=1, description="페이지 당 조회할 건수"),
-    order_read_service: ReceiveOrderReadService = Depends(get_order_read_service),
+    order_read_service: ReceiveOrderReadService = Depends(get_receive_order_read_service),
 ):
     """
     주문 수집 데이터 페이징 조회
@@ -58,9 +58,9 @@ async def get_orders_pagination(
 
 
 @router.get("/{idx}", response_model=ReceiveOrdersResponse)
-async def get_order(
+async def get_receive_order_by_idx(
     idx: str,
-    order_read_service: ReceiveOrderReadService = Depends(get_order_read_service),
+    order_read_service: ReceiveOrderReadService = Depends(get_receive_order_read_service),
 ):
     """
     주문 수집 데이터 단건 조회
@@ -69,10 +69,10 @@ async def get_order(
 
 
 @router.post("/order-xml-template", response_class=StreamingResponse)
-def make_and_get_order_xml_template(
+def make_and_get_receive_order_xml_template(
     request: ReceiveOrdersRequest = Depends(),
     order_create_service: ReceiveOrderCreateService = Depends(
-        get_order_create_service),
+        get_receive_order_create_service),
 ) -> StreamingResponse:
     """
     주문 수집 데이터 XML 템플릿만 생성하고 내려받음 (요청은 안함.)
@@ -85,10 +85,10 @@ def make_and_get_order_xml_template(
 
 
 @router.post("/orders-from-xml", response_model=ReceiveOrdersBulkCreateResponse)
-async def save_orders_to_db(
+async def save_receive_orders_to_db(
     request: ReceiveOrdersRequest = Depends(),
     order_create_service: ReceiveOrderCreateService = Depends(
-        get_order_create_service),
+        get_receive_order_create_service),
 ):
     """
     주문 수집 데이터 XML 파일을 업로드하여 주문 데이터를 생성함.

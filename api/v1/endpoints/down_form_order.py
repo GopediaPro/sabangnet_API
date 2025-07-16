@@ -40,8 +40,8 @@ logger = get_logger(__name__)
 
 
 router = APIRouter(
-    prefix="/down-form-orders",
-    tags=["down-form-orders"],
+    prefix="/down-form-order",
+    tags=["down-form-order"],
 )
 
 
@@ -110,7 +110,7 @@ async def down_form_orders_pagination(
     ),
     down_form_order_read_service: DownFormOrderReadService = Depends(get_down_form_order_read_service),
 ):
-    items, total = await down_form_order_read_service.get_down_form_orders_paginated(page, page_size, template_code)
+    items, total = await down_form_order_read_service.get_down_form_orders_by_pagenation(page, page_size, template_code)
     dto_items: list[DownFormOrderDto] = [DownFormOrderDto.model_validate(item) for item in items]
     return DownFormOrderPaginationResponse(
         total=total,

@@ -37,8 +37,8 @@ logger = get_logger(__name__)
 
 
 router = APIRouter(
-    prefix="/export-form-orders",
-    tags=["export-form-orders"],
+    prefix="/export-form-order",
+    tags=["export-form-order"],
 )
 
 
