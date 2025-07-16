@@ -1,34 +1,40 @@
+from typing import Any
+from pathlib import Path
+from datetime import datetime
+import xml.etree.ElementTree as ET
+from core.settings import SETTINGS
+from utils.logs.sabangnet_logger import get_logger
 from utils.make_xml.sabangnet_xml import SabangnetXml
 from models.product.product_raw_data import ProductRawData
-from typing import List
-import xml.etree.ElementTree as ET
-from datetime import datetime
-from pathlib import Path
-from core.settings import SETTINGS
-from utils.sabangnet_path_utils import SabangNetPathUtils
-from utils.product_create_field_eng_mapping import get_db_to_xml_mapping
 from utils.make_xml.file_name_for_xml import sanitize_filename
+from schemas.product.product_raw_data_dto import ProductRawDataDto
+from utils.mappings.product_create_field_eng_mapping import get_db_to_xml_mapping
+
+
+logger = get_logger(__name__)
+
 
 class ProductRegistrationXml(SabangnetXml):
 
     _PATH = "./files/xml/request/product"
 
-    def create_body_product_registration(self, root, product_data: ProductRawData, row_idx: int):
+    def create_body_product_registration(self, root, product_raw_data_dto: ProductRawDataDto, row_idx: int):
         """
         상품 등록용 XML body 생성
         Args:
             root: XML 루트 엘리먼트
-            product_data: ProductRawData 인스턴스
+            product_raw_data_dto: ProductRawDataDto
             row_idx: 행 인덱스
         Returns:
             생성된 DATA 엘리먼트
         """
         data = ET.SubElement(root, "DATA")
         
+        product_raw_data = ProductRawData(**product_raw_data_dto.model_dump())
         # DB 필드와 XML 태그 매핑 처리
         for db_field, xml_tag_name in get_db_to_xml_mapping().items():
             if xml_tag_name:
-                db_value = getattr(product_data, db_field, None)
+                db_value = getattr(product_raw_data, db_field, None)
                 if SETTINGS.CONPANY_GOODS_CD_TEST_MODE:
                     self._make_test_xml_element(xml_tag_name, db_field, db_value, data, row_idx)
                 else:
@@ -37,11 +43,17 @@ class ProductRegistrationXml(SabangnetXml):
         
         return data
 
-    def make_product_registration_xml(self, product_data_list: List[ProductRawData], product_create_db_count: int, file_name: str = None) -> Path:
+    def make_product_registration_xml(
+            self,
+            product_raw_data_dto_list: list[ProductRawDataDto],
+            product_create_db_count: int,
+            file_name: str = None,
+            dst_path_name: str = None
+        ) -> Path:
         """
         상품 등록용 XML 파일 생성
         Args:
-            product_data_list: ProductRawData 리스트
+            product_data_list: ProductRawDataDto 리스트
             product_create_db_count: 이미 증가된 product_create_db 카운터 값
             file_name: 파일명 (선택사항)
         Returns:
@@ -62,10 +74,10 @@ class ProductRegistrationXml(SabangnetXml):
         self._create_product_header(root=root)
         
         # 각 상품 데이터에 대해 body 생성
-        for idx, product_data in enumerate(product_data_list):
+        for idx, product_raw_data_dto in enumerate(product_raw_data_dto_list):
             self.create_body_product_registration(
                 root=root,
-                product_data=product_data,
+                product_raw_data_dto=product_raw_data_dto,
                 row_idx=idx
             )
         
@@ -83,7 +95,7 @@ class ProductRegistrationXml(SabangnetXml):
         
         return file_path
 
-    def _make_test_xml_element(self, xml_tag_name: str, db_field: str, db_value: any, data_element: ET.Element, row_idx: int) -> None:
+    def _make_test_xml_element(self, xml_tag_name: str, db_field: str, db_value: Any, data_element: ET.Element, row_idx: int) -> None:
         """
         테스트 모드용 XML 엘리먼트 생성
         """
@@ -109,7 +121,7 @@ class ProductRegistrationXml(SabangnetXml):
         test_value = convert_dict.get(db_field, str(db_value) if db_value is not None else "")
         child.text = test_value
 
-    async def input_product_id_to_db(self, response_xml: str, session):
+    def input_product_id_to_db(self, response_xml: str) -> list[tuple[str, int]]:
         """
         사방넷 상품등록 결과 XML에서 PRODUCT_ID와 COMPAYNY_GOODS_CD를 추출해 DB에 저장
         Args:
@@ -118,8 +130,6 @@ class ProductRegistrationXml(SabangnetXml):
         Returns:
             저장된 (compayny_goods_cd, product_id) 리스트
         """
-        from repository.product_repository import ProductRepository
-
         # 1. XML 파싱하여 (COMPAYNY_GOODS_CD, PRODUCT_ID) 쌍 추출
         compayny_goods_cd_and_product_ids = []
         try:
@@ -137,11 +147,9 @@ class ProductRegistrationXml(SabangnetXml):
                         compayny_goods_cd_and_product_ids.append((compayny_goods_cd, product_id))
                     except Exception:
                         pass
+            return compayny_goods_cd_and_product_ids
         except Exception as e:
             raise RuntimeError(f"상품등록 결과 XML 파싱 오류: {e}")
 
         # 2. DB에 PRODUCT_ID update (compayny_goods_cd 기준)
-        repo = ProductRepository(session)
-        for compayny_goods_cd, product_id in compayny_goods_cd_and_product_ids:
-            await repo.update_product_id_by_compayny_goods_cd(compayny_goods_cd, product_id)
-        return compayny_goods_cd_and_product_ids
+        # >>> product_update_service로 옮겼음

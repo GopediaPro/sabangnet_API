@@ -11,7 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
 from models.product.product_registration_data import ProductRegistrationRawData
 from schemas.product_registration import ProductRegistrationCreateDto
-from utils.sabangnet_logger import get_logger
+from utils.logs.sabangnet_logger import get_logger
 
 logger = get_logger(__name__)
 

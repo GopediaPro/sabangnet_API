@@ -1,13 +1,34 @@
 from sqlalchemy import select, delete, func, update, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.order.export_form_order import BaseExportFormOrder
-from schemas.order.export_form_order_dto import ExportFormOrderDto
+from models.down_form_orders.export_form_order import BaseExportFormOrder
+from schemas.down_form_orders.export_form_order_dto import ExportFormOrderDto
 
 class ExportFormOrderRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_export_form_orders(self, skip: int = None, limit: int = None, template_code: str = None) -> list[BaseExportFormOrder]:
+    async def get_export_form_orders(self, skip: int = None, limit: int = None) -> list[BaseExportFormOrder]:
+        query = select(BaseExportFormOrder).order_by(BaseExportFormOrder.id.desc())
+        if skip is not None:
+            query = query.offset(skip)
+        if limit is not None:
+            query = query.limit(limit)
+        result = await self.session.execute(query)
+        rows = result.scalars().all()
+        return rows
+
+    async def get_export_form_order_by_idx(self, idx: str) -> BaseExportFormOrder:
+        try:
+            query = select(BaseExportFormOrder).where(BaseExportFormOrder.idx == idx)
+            result = await self.session.execute(query)
+            return result.scalar_one_or_none()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+        finally:
+            await self.session.close()
+
+    async def get_export_form_orders_by_template_code(self, skip: int = None, limit: int = None, template_code: str = None) -> list[BaseExportFormOrder]:
         try:
             query = select(BaseExportFormOrder).order_by(BaseExportFormOrder.id)
             if template_code == 'all':
@@ -32,7 +53,7 @@ class ExportFormOrderRepository:
     async def get_export_form_orders_pagination(self, page: int = 1, page_size: int = 20, template_code: str = None) -> list[BaseExportFormOrder]:
         skip = (page - 1) * page_size
         limit = page_size
-        return await self.get_export_form_orders(skip, limit, template_code)
+        return await self.get_export_form_orders_by_template_code(skip, limit, template_code)
 
     async def create_export_form_order(self, obj_in: ExportFormOrderDto) -> BaseExportFormOrder:
         obj_in = BaseExportFormOrder(**obj_in.model_dump())
@@ -47,12 +68,12 @@ class ExportFormOrderRepository:
         finally:
             await self.session.close()
 
-    async def bulk_insert(self, objects: list[BaseExportFormOrder]):
+    async def bulk_insert(self, objects: list[BaseExportFormOrder]) -> int:
         self.session.add_all(objects)
         await self.session.commit()
         return len(objects)
 
-    async def bulk_update(self, objects: list[BaseExportFormOrder]):
+    async def bulk_update(self, objects: list[BaseExportFormOrder]) -> int:
         try:
             for obj in objects:
                 values = obj.__dict__.copy()
@@ -73,7 +94,7 @@ class ExportFormOrderRepository:
         finally:
             await self.session.close()
 
-    async def bulk_delete(self, ids: list[int]):
+    async def bulk_delete(self, ids: list[int]) -> int:
         try:
             for id in ids:
                 db_obj = await self.session.get(BaseExportFormOrder, id)

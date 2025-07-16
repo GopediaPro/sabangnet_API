@@ -1,7 +1,7 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.batch_process import BatchProcess
-from schemas.batch_process_dto import BatchProcessDto
+from schemas.macros.batch_process_dto import BatchProcessDto
 from sqlalchemy import select, func
 
 
