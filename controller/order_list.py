@@ -1,8 +1,8 @@
 from pathlib import Path
 from core.db import AsyncSession
-from utils.sabangnet_logger import get_logger
-from services.order.order_create_service import OrderCreateService
-from schemas.order.response.receive_orders_response import ReceiveOrdersBulkCreateResponse
+from utils.logs.sabangnet_logger import get_logger
+from services.receive_orders.receive_order_create_service import ReceiveOrderCreateService
+from schemas.receive_orders.response.receive_orders_response import ReceiveOrdersBulkCreateResponse
 from utils.validators.order_validators import is_start_valid_yyyymmdd, is_end_valid_yyyymmdd, is_valid_order_status, OrderDateRangeException, OrderStatusException
 
 
@@ -55,7 +55,7 @@ async def fetch_order_list(session: AsyncSession):
         print("-"*50)
         order_status = get_order_status()
         print("-"*50)
-        order_create_service = OrderCreateService(session)
+        order_create_service = ReceiveOrderCreateService(session)
         print("\n"*50)
         # 주문 수집 방법 선택
         print("주문 수집 방법을 선택합니다.")

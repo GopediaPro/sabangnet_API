@@ -1,7 +1,7 @@
 import requests
 from urllib.parse import urljoin
 from core.settings import SETTINGS
-from utils.sabangnet_logger import get_logger
+from utils.logs.sabangnet_logger import get_logger
 
 
 

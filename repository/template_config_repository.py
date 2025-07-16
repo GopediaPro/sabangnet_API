@@ -2,7 +2,7 @@ import json
 from typing import Optional
 from sqlalchemy import text, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.order.macro_info import MacroInfo
+from models.macro.macro_info import MacroInfo
 
 
 class TemplateConfigRepository:

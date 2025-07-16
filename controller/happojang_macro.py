@@ -1,11 +1,11 @@
 from pathlib import Path
 from core.db import get_async_session
-from services.usecase.down_form_order_save_usecase import DownFormOrderSaveUsecase
+from services.usecase.data_processing_usecase import DataProcessingUsecase
 
 
 async def test_happojang_macro():
     xlsx_base_path = Path("./files/excel/")
-    down_form_order_save_usecase = DownFormOrderSaveUsecase(await get_async_session())
+    data_processing_usecase = DataProcessingUsecase(await get_async_session())
     try:
         print("합포장 자동화 테스트")
         print("=" * 50)
@@ -35,7 +35,7 @@ async def test_happojang_macro():
         if choice == "1":
 
             from utils.macros.happojang.etc_site_merge_packaging import etc_site_merge_packaging
-            file_path = await down_form_order_save_usecase.down_form_order_to_excel(
+            file_path = await data_processing_usecase.down_form_order_to_excel(
                 template_code="basic_bundle",
                 file_path="./files/excel", file_name="test_down_form_order"
             )
@@ -46,7 +46,7 @@ async def test_happojang_macro():
         elif choice == "2":
 
             from utils.macros.happojang.zigzag_merge_packaging import zigzag_merge_packaging
-            file_path = await down_form_order_save_usecase.down_form_order_to_excel(template_code="star_basic_erp",
+            file_path = await data_processing_usecase.down_form_order_to_excel(template_code="star_basic_erp",
                                                                                 file_path="./files/excel",
                                                                                 file_name="test_down_form_order")
 
@@ -80,7 +80,7 @@ async def test_happojang_macro():
 
         elif choice == "5":
             from utils.macros.happojang.gok_merge_packaging import gok_merge_packaging
-            file_path = await down_form_order_save_usecase.down_form_order_to_excel(template_code="gmarket_bundle",
+            file_path = await data_processing_usecase.down_form_order_to_excel(template_code="gmarket_bundle",
                                                                                 file_path="./files/excel",
                                                                                 file_name="test_down_form_order")
 

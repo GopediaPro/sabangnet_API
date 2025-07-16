@@ -39,7 +39,7 @@ class OneOnePriceBulkResponse(BaseModel):
 
     success_count: int = Field(..., description="성공한 데이터 수")
     error_count: int = Field(..., description="실패한 데이터 수")
-    created_product_nm: List[int] = Field(..., description="계산된 상품명 리스트")
+    created_product_nm: List[str] = Field(..., description="계산된 상품명 리스트")
     errors: List[str] = Field(default_factory=list, description="오류 메시지 리스트")
     success_data: List[OneOnePriceResponse] = Field(
         default_factory=list, description="성공적으로 생성된 데이터"

@@ -1,9 +1,9 @@
 from typing import Any
 from sqlalchemy import select, and_
 from datetime import date, datetime
-from utils.sabangnet_logger import get_logger
+from utils.logs.sabangnet_logger import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.order.receive_order import ReceiveOrder
+from models.receive_orders.receive_order import ReceiveOrder
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 
@@ -247,10 +247,10 @@ class ReceiveOrdersRepository:
         query = select(ReceiveOrder)
         conditions = []
         if filters:
-            if 'start_date' in filters and filters['start_date']:
-                conditions.append(ReceiveOrder.order_date >= self._parse_date(filters['start_date']))
-            if 'end_date' in filters and filters['end_date']:
-                conditions.append(ReceiveOrder.order_date <= self._parse_date(filters['end_date']))
+            if 'date_from' in filters and filters['date_from']:
+                conditions.append(ReceiveOrder.order_date >= self._parse_date(filters['date_from']))
+            if 'date_to' in filters and filters['date_to']:
+                conditions.append(ReceiveOrder.order_date <= self._parse_date(filters['date_to']))
             if 'mall_id' in filters and filters['mall_id']:
                 conditions.append(ReceiveOrder.mall_id == filters['mall_id'])
             if 'order_status' in filters and filters['order_status']:

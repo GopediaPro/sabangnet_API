@@ -1,21 +1,30 @@
+# sql
 from sqlalchemy.ext.asyncio import AsyncSession
-from services.mall_price.mall_price_write_service import MallPriceWriteService
+# service
 from services.product.product_read_service import ProductReadService
-from schemas.mall_price.mall_price_dto import MallPriceDto
-from utils.make_xml.mall_price_registration_xml import MallPriceRegistrationXml
+from services.mall_price.mall_price_write_service import MallPriceWriteService
 from services.mall_price.mall_price_request_service import MallPriceRequestService
+from services.count_excuting_service import CountExecutingService
+# utils
+from utils.make_xml.mall_price_registration_xml import MallPriceRegistrationXml
 from utils.mall_price_response_parser import parse_sabangnet_response
-from repository.count_executing_repository import CountExecutingRepository
+from utils.logs.sabangnet_logger import get_logger
+# model
 from models.count_executing_data import CountExecuting
+# file
 from file_server_handler import upload_to_file_server, get_file_server_url
-from utils.sabangnet_logger import get_logger
+# schema
+from schemas.mall_price.mall_price_dto import MallPriceDto
+
 
 logger = get_logger(__name__)
+
 
 class ProductMallPriceUsecase:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.mall_price_write_service = MallPriceWriteService(session)
+        self.count_executing_service = CountExecutingService(session)
         self.product_read_service = ProductReadService(session)
         self.mall_price_registration_xml = MallPriceRegistrationXml()
         self.mall_price_request_service = MallPriceRequestService()
@@ -30,8 +39,7 @@ class ProductMallPriceUsecase:
                                product_nm=product_raw_data_dto.product_nm,
                                compayny_goods_cd=compayny_goods_cd)
         # db to xml (local save and send fileserver)
-        count_repo = CountExecutingRepository(self.session)
-        mall_price_create_db_count = await count_repo.get_and_increment(CountExecuting, "mall_price_create_db")
+        mall_price_create_db_count = await self.count_executing_service.get_and_increment(CountExecuting, "mall_price_create_db")
         xml_file_path = self.mall_price_registration_xml.make_mall_price_dto_registration_xml(
             mall_price_dto=mall_price_dto,
             count_rev=mall_price_create_db_count

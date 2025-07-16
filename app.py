@@ -11,16 +11,16 @@ legacy_ssl_handler.fix_legacy_ssl_config()
 from core.settings import SETTINGS
 from controller.product import run_generate_and_save_all_product_code_data
 from core.db import AsyncSessionLocal
-from models.order.receive_order import ReceiveOrder
+from models.receive_orders.receive_order import ReceiveOrder
 from sqlalchemy import select
 import asyncio
 from core.db import get_db_pool
 from controller import fetch_mall_list, fetch_order_list, test_one_one_price_calculation, request_product_create as request_product_create_controller
 from dotenv import load_dotenv
 import typer
-from services.order.order_create_service import OrderCreateService
+from services.receive_orders.receive_order_create_service import ReceiveOrderCreateService
 from core.initialization import initialize_program
-from utils.sabangnet_logger import get_logger
+from utils.logs.sabangnet_logger import get_logger
 from core.db import test_db_write
 
 
@@ -179,7 +179,7 @@ def create_order(json_file_name: str = typer.Argument(..., help="JSON 파일 이
     async def _create_order():
         try:
             async with AsyncSessionLocal() as session:
-                order_create_service = OrderCreateService(session)
+                order_create_service = ReceiveOrderCreateService(session)
                 await order_create_service.save_orders_to_db_from_json(json_file_name)
         except Exception as e:
             logger.error(f"쓰기 작업 중 오류 발생: {e}")
@@ -251,8 +251,8 @@ def import_product_registration_excel(
 @app.command(help="주문 목록을 엑셀로 변환")
 def create_order_xlsx():
     from repository.receive_orders_repository import ReceiveOrdersRepository
-    from utils.convert_xlsx import ConvertXlsx
-    from utils.order_basic_erp_excel_field_mapping import ORDER_BASIC_ERP_EXCEL_FIELD_MAPPING
+    from utils.excels.convert_xlsx import ConvertXlsx
+    from utils.mappings.order_basic_erp_excel_field_mapping import ORDER_BASIC_ERP_EXCEL_FIELD_MAPPING
     inserter = ReceiveOrdersRepository()
     convert_xlsx = ConvertXlsx()
     try:

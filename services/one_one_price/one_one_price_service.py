@@ -1,6 +1,6 @@
 import math
 from decimal import Decimal
-from utils.sabangnet_logger import get_logger
+from utils.logs.sabangnet_logger import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from schemas.one_one_price.one_one_price_dto import OneOnePriceDto
 from repository.one_one_price_repository import OneOnePriceRepository
