@@ -442,7 +442,7 @@ class ExcelHandler:
             if cell_value is not None and _should_highlight(txt):
                 ws[f"{col}{row}"].fill = light_color
 
-    def set_header_style(self, ws, headers: list, fill: PatternFill, font: Font, alignment: Alignment):
+    def set_header_style(self, ws):
         """
         지정한 워크시트의 헤더 행에 배경색, 폰트, 정렬을 일괄 적용
         Args:
@@ -452,12 +452,17 @@ class ExcelHandler:
             font: 폰트
             alignment: 정렬 
         """
-        for col in range(1, len(headers) + 1):
-            header_value = headers[col-1]
-            ws_cell = ws.cell(row=1, column=col, value=header_value)
-            ws_cell.fill = fill
-            ws_cell.font = font
-            ws_cell.alignment = alignment
+        white_font = Font(name='맑은 고딕', size=9, color="FFFFFF", bold=True)
+        center_alignment = Alignment(horizontal='center')
+        green_fill = PatternFill(start_color="008000", end_color="008000", fill_type="solid")
+        for cell in ws[1]:
+            cell.fill = green_fill
+            cell.font = white_font
+            cell.alignment = center_alignment
+            cell.border = Border()
+            ws.row_dimensions[1].height = 15
+
+
 
     def convert_to_number(self, cell_value):
         """
@@ -590,3 +595,182 @@ class ExcelHandler:
             if tmp_path and os.path.exists(tmp_path):
                 os.remove(tmp_path)
         return df
+
+    def split_and_write_ws_by_site(
+        self,
+        ws,
+        wb,
+        sheets_name: list[str],
+        site_to_sheet: dict,
+        sort_columns: list[int],
+        site_col_idx: int = 2,
+    ):
+        """
+        ws: 원본 워크시트
+        wb: 워크북
+        site_col_idx: 사이트 컬럼 인덱스 (1-based)
+        sheets_name: 생성할 시트명 리스트
+        site_mapping: {시트명: [사이트명, ...]}
+        sort_columns: 정렬 기준 열 번호 리스트 (1-based, 예: [2, 3])
+        """
+        # 1. 헤더와 데이터 추출
+        headers, data = self._extract_headers_and_data(ws)
+
+        # 2. 데이터 정렬
+        data = self._sort_data(data, sort_columns)
+
+        # 3. 원본 시트를 "자동화"로 이름 변경하고 정렬된 데이터로 업데이트
+        ws.title = "자동화"
+        self._update_worksheet_data(ws, data)
+
+        # 4. 시트들 생성
+        filtered_sheets = [name for name in sheets_name if name != "자동화"]
+        ws_map = self._create_sheets(ws, headers, filtered_sheets)
+
+        # 5. 각 필터링된 시트에 데이터 삽입
+        self._write_data_to_sheets(data, ws_map, site_to_sheet, site_col_idx)
+
+        # 6. 컬럼 너비 복사
+        self._copy_column_widths(wb) 
+
+    def _extract_headers_and_data(self, ws) -> tuple[list, list[list]]:
+        """
+        워크시트에서 헤더와 데이터 추출
+        args:
+            ws: 워크시트
+        return:
+            headers: 헤더
+            data: 데이터
+        """
+        # 헤더 추출
+        headers = [ws.cell(row=1, column=c).value for c in range(
+            1, ws.max_column + 1)]
+
+        # 데이터 추출
+        data = [
+            [ws.cell(row=r, column=c).value for c in range(
+                1, ws.max_column + 1)]
+            for r in range(2, ws.max_row + 1)
+        ]
+
+        return headers, data
+
+    def _sort_data(self, data: list[list], sort_columns: list[int]) -> list[list]:
+        """
+        데이터 정렬 (컬럼 인덱스)
+        args:
+            data: 데이터
+            sort_columns: 정렬 기준 컬럼 인덱스
+        return:
+            sorted_data: 정렬된 데이터
+        """
+        return sorted(data, key=lambda row: tuple(
+            str(row[i-1]) if row[i-1] is not None else ""
+            for i in sort_columns
+        ))
+
+    def _update_worksheet_data(self, ws, data: list[list]):
+        """
+        워크시트에 정렬된 데이터 업데이트
+        args:
+            ws: 워크시트
+            data: 데이터
+        """
+        font = Font(name='맑은 고딕', size=9)
+        empty_fill = PatternFill()
+       
+        # 정렬된 데이터 다시 삽입 및 기본 스타일 제거
+        for row_idx, row_data in enumerate(data, start=2):
+            for col_idx, value in enumerate(row_data, start=1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=value if value or value == 0 else "")
+                cell.fill = empty_fill
+                cell.font = font
+                cell.alignment = Alignment(wrap_text=False)
+                cell.border = Border()
+            ws.row_dimensions[row_idx].height = 15
+            ws.sheet_view.showGridLines = True
+
+
+    def _create_sheets(self, ws, headers: list, filtered_sheets: list[str]) -> dict:
+        """
+        시트들 생성
+        args:
+            ws: 워크시트
+            headers: 헤더
+            filtered_sheets: 생성할 시트명 리스트
+        """
+        ws_map = {}
+
+        for sheet_name in filtered_sheets:
+            # 기존 시트 삭제 (존재하는 경우)
+            if sheet_name in ws.parent.sheetnames:
+                del ws.parent[sheet_name]
+
+            new_ws = ws.parent.create_sheet(title=sheet_name)
+
+            # 헤더 추가 
+            for col, header in enumerate(headers, start=1):
+                new_ws.cell(row=1, column=col, value=header)
+
+            ws_map[sheet_name] = new_ws
+
+        return ws_map
+
+    def _write_data_to_sheets(self, data: list[list], ws_map: dict, site_to_sheet: dict, site_col_idx: int = 2):
+        """
+        데이터를 스트리밍 방식으로 각 시트에 삽입
+        args:
+            data: 데이터
+            ws_map: 시트 매핑
+            site_to_sheet: 사이트 매핑
+        """
+        account_pattern = re.compile(r'^\[([^\]]+)\]')
+        empty_fill = PatternFill()
+        font = Font(name='맑은 고딕', size=9)
+
+        for row in data:
+            # 사이트 정보 추출
+            site_value = str(
+                row[site_col_idx - 1]) if len(row) > site_col_idx - 1 and row[site_col_idx - 1] else ""
+
+            # 계정명 추출
+            match = account_pattern.match(site_value)
+            if match:
+                account_name = match.group(1)
+                target_sheet_name = site_to_sheet.get(account_name)
+
+                # 해당 시트에 즉시 데이터 삽입
+                if target_sheet_name and target_sheet_name in ws_map:
+                    target_ws = ws_map[target_sheet_name]
+
+                    # 다음 빈 행에 데이터 삽입 (max_row + 1)
+                    next_row = target_ws.max_row + 1
+
+                    # 행 데이터 삽입
+                    for col_idx, value in enumerate(row, start=1):
+                        cell = target_ws.cell(
+                            row=next_row, column=col_idx, value=value)
+                        cell.fill = empty_fill
+                        cell.font = font
+                        cell.alignment = Alignment(wrap_text=False)
+                    # 행 높이 설정
+                    target_ws.row_dimensions[next_row].height = 15
+
+    def _copy_column_widths(self, wb):
+        """
+        컬럼 너비 복사
+        args:
+            wb: 워크북
+        
+        추가 : 너비 설정 확인 필요
+        """
+        from openpyxl.utils import get_column_letter
+
+        for target_ws in wb.worksheets[1:]:
+            source_ws = wb.worksheets[0]
+            for col_num in range(1, source_ws.max_column + 1):
+                col_letter = get_column_letter(col_num)
+                # 소스 워크시트에서 컬럼 너비 가져오기
+                if col_letter in source_ws.column_dimensions:
+                    src_width = source_ws.column_dimensions[col_letter].width
+                    target_ws.column_dimensions[col_letter].width = src_width
