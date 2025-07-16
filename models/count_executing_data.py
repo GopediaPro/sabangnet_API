@@ -1,9 +1,6 @@
-from sqlalchemy import (
-    BigInteger, SmallInteger, String, Text, Numeric, CHAR, Integer, DateTime, func
-)
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from models.base_model import Base
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import BigInteger, String, Integer, DateTime, func
 
 
 class CountExecuting(Base):
@@ -20,7 +17,3 @@ class CountExecuting(Base):
     count_rev: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     updated_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
-
-    
-
-    

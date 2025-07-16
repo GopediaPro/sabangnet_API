@@ -16,7 +16,7 @@ from typing import Generator, AsyncGenerator, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from main import app
-from utils.sabangnet_logger import get_logger
+from utils.logs.sabangnet_logger import get_logger
 
 logger = get_logger(__name__)
 

@@ -8,7 +8,7 @@ Windows, Mac, Linux 모든 환경에서 동작합니다.
 import sys
 import platform
 import subprocess
-from utils.sabangnet_logger import get_logger
+from utils.logs.sabangnet_logger import get_logger
 
 
 logger = get_logger(__name__, level="DEBUG")

@@ -5,7 +5,7 @@ from typing import List, Dict
 from urllib.parse import urljoin
 import xml.etree.ElementTree as ET
 from core.settings import SETTINGS
-from utils.sabangnet_logger import get_logger
+from utils.logs.sabangnet_logger import get_logger
 from utils.sabangnet_path_utils import SabangNetPathUtils
 
 

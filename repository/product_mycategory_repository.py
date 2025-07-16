@@ -7,7 +7,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from utils.sabangnet_logger import get_logger
+from utils.logs.sabangnet_logger import get_logger
 from models.product.product_mycategory_data import ProductMycategoryData
 
 

@@ -1,3 +1,4 @@
+from datetime import datetime
 from sqlalchemy import select, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.one_one_price.one_one_price import OneOnePrice
@@ -65,9 +66,10 @@ class OneOnePriceRepository:
             if one_one_price_data is None:
                 raise ValueError(f"OneOnePrice data not found: {data.test_product_raw_data_id}")
             for field in OneOnePrice.__table__.columns.keys():
-                if field == "id":
+                if field == "id" or field == "created_at" or field == "updated_at":
                     continue
-                setattr(one_one_price_data, field, getattr(data, field))
+                else:
+                    setattr(one_one_price_data, field, getattr(data, field))
             await self.session.commit()
             return one_one_price_data
         except Exception as e:

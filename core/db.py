@@ -2,7 +2,7 @@ import asyncpg
 from typing import Optional
 from core.settings import SETTINGS
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from utils.sabangnet_logger import get_logger
+from utils.logs.sabangnet_logger import get_logger
 
 logger = get_logger(__name__)
 

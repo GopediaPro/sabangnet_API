@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, func, update, text
-from models.order.down_form_order import BaseDownFormOrder
+from models.down_form_orders.down_form_order import BaseDownFormOrder
+from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto
 
 
 class DownFormOrderRepository:
@@ -16,6 +17,17 @@ class DownFormOrderRepository:
         result = await self.session.execute(query)
         rows = result.scalars().all()
         return rows
+    
+    async def get_down_form_order_by_id(self, down_form_order_id: int) -> BaseDownFormOrder:
+        try:
+            query = select(BaseDownFormOrder).where(BaseDownFormOrder.id == down_form_order_id)
+            result = await self.session.execute(query)
+            return result.scalar_one_or_none()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+        finally:
+            await self.session.close()
 
     async def get_down_form_order_by_idx(self, idx: str) -> BaseDownFormOrder:
         try:
@@ -54,6 +66,19 @@ class DownFormOrderRepository:
         skip = (page - 1) * page_size
         limit = page_size
         return await self.get_down_form_orders_by_template_code(skip, limit, template_code)
+    
+    async def create_down_form_order(self, obj_in: DownFormOrderDto) -> BaseDownFormOrder:
+        obj_in = BaseDownFormOrder(**obj_in.model_dump())
+        try:
+            self.session.add(obj_in)
+            await self.session.commit()
+            await self.session.refresh(obj_in)
+            return obj_in
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+        finally:
+            await self.session.close()
 
     async def bulk_insert(self, objects: list[BaseDownFormOrder]) -> int:
         self.session.add_all(objects)
