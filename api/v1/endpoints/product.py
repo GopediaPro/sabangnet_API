@@ -151,8 +151,8 @@ async def get_products(
     )
 
 
-@router.get("/bulk-register-db-to-excel", response_class=StreamingResponse)
-async def bulk_register_db_to_excel(
+@router.get("/bulk/db-to-excel", response_class=StreamingResponse)
+async def bulk_db_to_excel(
     product_create_db_to_excel_usecase: ProductDbExcelUsecase = Depends(get_product_create_db_to_excel_usecase)
 ) -> StreamingResponse:
     return await product_create_db_to_excel_usecase.convert_db_to_excel()

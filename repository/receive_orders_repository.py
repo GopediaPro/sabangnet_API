@@ -3,7 +3,7 @@ from sqlalchemy import select, and_
 from datetime import date, datetime
 from utils.logs.sabangnet_logger import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.receive_orders.receive_order import ReceiveOrder
+from models.receive_orders.receive_orders import ReceiveOrders
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 
@@ -14,7 +14,7 @@ class ReceiveOrdersRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def create_orders(self, obj_in: ReceiveOrder) -> ReceiveOrder:
+    async def create_orders(self, obj_in: ReceiveOrders) -> ReceiveOrders:
         try:
             self.session.add(obj_in)
             await self.session.commit()
@@ -26,9 +26,9 @@ class ReceiveOrdersRepository:
         finally:
             await self.session.close()
 
-    async def get_order_by_idx(self, idx: str) -> ReceiveOrder:
+    async def get_order_by_idx(self, idx: str) -> ReceiveOrders:
         try:
-            query = select(ReceiveOrder).where(ReceiveOrder.idx == idx)
+            query = select(ReceiveOrders).where(ReceiveOrders.idx == idx)
             result = await self.session.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
@@ -37,17 +37,17 @@ class ReceiveOrdersRepository:
         finally:
             await self.session.close()
 
-    async def get_orders(self, skip: int = None, limit: int = None) -> list[ReceiveOrder]:
+    async def get_orders(self, skip: int = None, limit: int = None) -> list[ReceiveOrders]:
         """
         주문 데이터 전체 조회
         Args:
             skip: 건너뛸 개수
             limit: 조회할 개수
         Returns:
-            ReceiveOrder 리스트
+            ReceiveOrders 리스트
         """
         try:
-            stmt = select(ReceiveOrder).order_by(ReceiveOrder.id)
+            stmt = select(ReceiveOrders).order_by(ReceiveOrders.id)
             if skip is not None:
                 stmt = stmt.offset(skip)
             if limit is not None:
@@ -61,18 +61,18 @@ class ReceiveOrdersRepository:
         finally:
             await self.session.close()
 
-    async def get_orders_pagination(self, page: int = 1, page_size: int = 20) -> list[ReceiveOrder]:
+    async def get_orders_pagination(self, page: int = 1, page_size: int = 20) -> list[ReceiveOrders]:
         """
         주문 데이터 페이징 조회
         Args:
             page: 페이지 번호
             page_size: 페이지 당 조회할 개수
         Returns:
-            ReceiveOrder 리스트
+            ReceiveOrders 리스트
         """
         try:
-            query = select(ReceiveOrder).offset(
-                (page - 1) * page_size).limit(page_size).order_by(ReceiveOrder.id)
+            query = select(ReceiveOrders).offset(
+                (page - 1) * page_size).limit(page_size).order_by(ReceiveOrders.id)
             result = await self.session.execute(query)
             content = result.scalars().all()
             return content
@@ -87,7 +87,7 @@ class ReceiveOrdersRepository:
             receive_zipcode: str,
             receive_addr: str,
             receive_name: str
-        ) -> list[ReceiveOrder]:
+        ) -> list[ReceiveOrders]:
         """
         배송지 정보로 합포장용 주문 데이터 조회
         Args:
@@ -95,13 +95,13 @@ class ReceiveOrdersRepository:
             receive_addr: 배송지 주소
             receive_name: 배송지 이름
         Returns:
-            ReceiveOrder 리스트
+            ReceiveOrders 리스트
         """
         try:
-            query = select(ReceiveOrder).where(
-                ReceiveOrder.receive_zipcode == receive_zipcode,
-                ReceiveOrder.receive_addr == receive_addr,
-                ReceiveOrder.receive_name == receive_name
+            query = select(ReceiveOrders).where(
+                ReceiveOrders.receive_zipcode == receive_zipcode,
+                ReceiveOrders.receive_addr == receive_addr,
+                ReceiveOrders.receive_name == receive_name
             )
             result = await self.session.execute(query)
             content = result.scalars().all()
@@ -118,7 +118,7 @@ class ReceiveOrdersRepository:
             receive_addr: str,
             receive_name: str,
             mall_user_id: str
-        ) -> list[ReceiveOrder]:
+        ) -> list[ReceiveOrders]:
         """
         배송지 정보와 유저 쇼핑몰 아이디로 합포장용 주문 데이터 조회
         Args:
@@ -127,14 +127,14 @@ class ReceiveOrdersRepository:
             receive_name: 배송지 이름
             mall_user_id: 유저 쇼핑몰 아이디
         Returns:
-            ReceiveOrder 리스트
+            ReceiveOrders 리스트
         """
         try:
-            query = select(ReceiveOrder).where(
-                ReceiveOrder.receive_zipcode == receive_zipcode,
-                ReceiveOrder.receive_addr == receive_addr,
-                ReceiveOrder.receive_name == receive_name,
-                ReceiveOrder.mall_user_id == mall_user_id
+            query = select(ReceiveOrders).where(
+                ReceiveOrders.receive_zipcode == receive_zipcode,
+                ReceiveOrders.receive_addr == receive_addr,
+                ReceiveOrders.receive_name == receive_name,
+                ReceiveOrders.mall_user_id == mall_user_id
             )
             result = await self.session.execute(query)
             content = result.scalars().all()
@@ -147,7 +147,7 @@ class ReceiveOrdersRepository:
 
     async def query_create_orders(self, obj_in: dict) -> dict:
         try:
-            query = pg_insert(ReceiveOrder).values(obj_in)
+            query = pg_insert(ReceiveOrders).values(obj_in)
             query = query.on_conflict_do_update(
                 index_elements=['idx'], set_=obj_in)
             await self.session.execute(query)
@@ -159,20 +159,20 @@ class ReceiveOrdersRepository:
         finally:
             await self.session.close()
 
-    async def bulk_insert_orders(self, orders: list[dict]) -> list[ReceiveOrder]:
+    async def bulk_insert_orders(self, orders: list[dict]) -> list[ReceiveOrders]:
         """
         주문 데이터 배치 삽입 (중복 시 무시)
         Args:
             orders: 주문 데이터 dict 리스트
         Returns:
-            저장된 ReceiveOrder 모델 리스트
+            저장된 ReceiveOrders 모델 리스트
         """
         try:
             normalized_orders = []
             for order in orders:
                 # 누락된 필드를 None으로 채워 넣기
                 normalized_order = {}
-                for column in ReceiveOrder.__table__.columns:
+                for column in ReceiveOrders.__table__.columns:
                     if column.name != 'id':  # auto increment 필드 제외
                         normalized_order[column.name] = order.get(column.name)
                 normalized_orders.append(normalized_order)
@@ -192,9 +192,9 @@ class ReceiveOrdersRepository:
                 logger.info(f"배치 처리 중: {batch_num}/{total_batches} ({len(batch)}개 시도)")
                 
                 # PostgreSQL bulk insert
-                stmt = pg_insert(ReceiveOrder).values(batch)
+                stmt = pg_insert(ReceiveOrders).values(batch)
                 stmt = stmt.on_conflict_do_nothing(index_elements=['idx'])
-                stmt = stmt.returning(ReceiveOrder)
+                stmt = stmt.returning(ReceiveOrders)
                 result = await self.session.execute(stmt)
                 
                 # 배치별 결과 수집
@@ -243,21 +243,21 @@ class ReceiveOrdersRepository:
         return val
 
 
-    async def get_receive_orders_by_filters(self, filters: dict[str, Any]) -> list[ReceiveOrder]:
-        query = select(ReceiveOrder)
+    async def get_receive_orders_by_filters(self, filters: dict[str, Any]) -> list[ReceiveOrders]:
+        query = select(ReceiveOrders)
         conditions = []
         if filters:
             if 'date_from' in filters and filters['date_from']:
-                conditions.append(ReceiveOrder.order_date >= self._parse_date(filters['date_from']))
+                conditions.append(ReceiveOrders.order_date >= self._parse_date(filters['date_from']))
             if 'date_to' in filters and filters['date_to']:
-                conditions.append(ReceiveOrder.order_date <= self._parse_date(filters['date_to']))
+                conditions.append(ReceiveOrders.order_date <= self._parse_date(filters['date_to']))
             if 'mall_id' in filters and filters['mall_id']:
-                conditions.append(ReceiveOrder.mall_id == filters['mall_id'])
+                conditions.append(ReceiveOrders.mall_id == filters['mall_id'])
             if 'order_status' in filters and filters['order_status']:
-                conditions.append(ReceiveOrder.order_status == filters['order_status'])
+                conditions.append(ReceiveOrders.order_status == filters['order_status'])
         if conditions:
             query = query.where(and_(*conditions))
-        query = query.order_by(ReceiveOrder.id)
+        query = query.order_by(ReceiveOrders.id)
         result = await self.session.execute(query)
         rows = result.scalars().all()
         return rows

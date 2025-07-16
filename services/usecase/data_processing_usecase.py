@@ -7,7 +7,7 @@ from utils.logs.sabangnet_logger import get_logger
 # sql
 from sqlalchemy.ext.asyncio import AsyncSession
 # model
-from models.receive_orders.receive_order import ReceiveOrder
+from models.receive_orders.receive_orders import ReceiveOrders
 from models.down_form_orders.down_form_order import BaseDownFormOrder
 # schema
 from schemas.receive_orders.receive_orders_dto import ReceiveOrdersDto
@@ -96,7 +96,7 @@ class DataProcessingUsecase:
         return mapping_field
     
     async def save_down_form_orders_from_receive_orders_by_filter(self, filters: dict[str, Any], template_code: str) -> DownFormOrdersBulkDto:
-        receive_orders: list[ReceiveOrder] = await self.order_read_service.get_receive_orders_by_filters(filters)
+        receive_orders: list[ReceiveOrders] = await self.order_read_service.get_receive_orders_by_filters(filters)
         if not receive_orders:
             return DownFormOrdersBulkDto(
                 success=False,

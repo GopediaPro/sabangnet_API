@@ -11,7 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from models.base_model import Base
 
 
-class ReceiveOrder(Base):
+class ReceiveOrders(Base):
     """
     주문 수집 테이블(receive_orders)의 ORM 매핑 모델
     """

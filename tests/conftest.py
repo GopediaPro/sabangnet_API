@@ -260,7 +260,7 @@ def sample_product_data() -> dict:
 
 @pytest.fixture
 def sample_order_data() -> dict:
-    """샘플 주문 데이터 (ReceiveOrder 모델 기반)"""
+    """샘플 주문 데이터 (ReceiveOrders 모델 기반)"""
 
     return {
         "receive_dt": "2024-01-01T12:00:00",

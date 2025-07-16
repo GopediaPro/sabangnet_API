@@ -1,6 +1,6 @@
 from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.receive_orders.receive_order import ReceiveOrder
+from models.receive_orders.receive_orders import ReceiveOrders
 from repository.receive_orders_repository import ReceiveOrdersRepository
 from schemas.receive_orders.receive_orders_dto import ReceiveOrdersDto, ReceiveOrdersBulkDto
 
@@ -22,7 +22,7 @@ class ReceiveOrderReadService:
         errors: list[str] = []
         success_data: list[ReceiveOrdersDto] = []
 
-        receive_orders: list[ReceiveOrder] = await self.receive_orders_repository.get_orders(skip, limit)
+        receive_orders: list[ReceiveOrders] = await self.receive_orders_repository.get_orders(skip, limit)
         for receive_orders in receive_orders:
             try:
                 receive_orders_dto = ReceiveOrdersDto.model_validate(receive_orders)
@@ -67,5 +67,5 @@ class ReceiveOrderReadService:
             success_data=success_data,
         )
     
-    async def get_receive_orders_by_filters(self, filters: dict[str, Any]) -> list[ReceiveOrder]:
+    async def get_receive_orders_by_filters(self, filters: dict[str, Any]) -> list[ReceiveOrders]:
         return await self.receive_orders_repository.get_receive_orders_by_filters(filters)

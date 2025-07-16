@@ -11,7 +11,7 @@ legacy_ssl_handler.fix_legacy_ssl_config()
 from core.settings import SETTINGS
 from controller.product import run_generate_and_save_all_product_code_data
 from core.db import AsyncSessionLocal
-from models.receive_orders.receive_order import ReceiveOrder
+from models.receive_orders.receive_orders import ReceiveOrders
 from sqlalchemy import select
 import asyncio
 from core.db import get_db_pool
@@ -151,14 +151,14 @@ def test_db_write_command(value: str = typer.Argument(..., help="테스트로 �
     asyncio.run(_test())
 
 
-@app.command(help="ReceiveOrder 모델 기본 조회 테스트")
+@app.command(help="ReceiveOrders 모델 기본 조회 테스트")
 def test_receive_order():
-    """ReceiveOrder 모델 기본 조회 테스트 - 동기 함수로 변경"""
+    """ReceiveOrders 모델 기본 조회 테스트 - 동기 함수로 변경"""
     async def _test_receive_order():
         async with AsyncSessionLocal() as session:
             try:
-                print("=== ReceiveOrder 모델 테스트 ===")
-                stmt = select(ReceiveOrder).limit(1)
+                print("=== ReceiveOrders 모델 테스트 ===")
+                stmt = select(ReceiveOrders).limit(1)
                 result = await session.execute(stmt)
                 order = result.scalar_one_or_none()
                 if order:
@@ -263,6 +263,17 @@ def create_order_xlsx():
     except Exception as e:
         logger.error(f"주문 목록 엑셀 변환 중 오류 발생: {e}")
 
+@app.command(help="알리양식변경")
+def test_reform_macro():
+    from controller.reform_order import test_reform_macro
+    """
+    양식변경 자동화 CLI 메뉴 실행
+    """
+    try:
+        test_reform_macro()
+    except Exception as e:
+        logger.error(f"주문양식 변경 매크로 실행 중 오류 발생: {e}")
+        handle_error(e)
 
 @app.command(help="테스트 ERP 매크로 실행")
 def test_erp_macro():

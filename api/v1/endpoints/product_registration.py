@@ -23,8 +23,8 @@ from schemas.product_registration import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
-    prefix="/api/product-registration",
-    tags=["Product Registration"]
+    prefix="/product-registration",
+    tags=["product-registration"]
 )
 
 
