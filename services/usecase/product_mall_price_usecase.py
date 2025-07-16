@@ -6,7 +6,7 @@ from utils.make_xml.mall_price_registration_xml import MallPriceRegistrationXml
 from services.mall_price.mall_price_request_service import MallPriceRequestService
 from utils.mall_price_response_parser import parse_sabangnet_response
 from repository.count_executing_repository import CountExecutingRepository
-from models.count_executing_data import CountExecuting
+from models.count_executing_data.count_executing_data import CountExecuting
 from file_server_handler import upload_to_file_server, get_file_server_url
 from utils.sabangnet_logger import get_logger
 
@@ -20,13 +20,13 @@ class ProductMallPriceUsecase:
         self.mall_price_registration_xml = MallPriceRegistrationXml()
         self.mall_price_request_service = MallPriceRequestService()
 
-    async def setting_mall_price(self, compayny_goods_cd: str) -> MallPriceDto:
+    async def setting_mall_price(self, compayny_goods_cd: str) -> dict:
         product_raw_data_dto = await self.product_read_service.\
             get_product_by_compayny_goods_cd(compayny_goods_cd=compayny_goods_cd)
         
         mall_price_dto = await self.mall_price_write_service.\
             setting_mall_price(product_raw_data_id=product_raw_data_dto.id,
-                               standard_price=product_raw_data_dto.goods_price,
+                               standard_price=int(product_raw_data_dto.goods_price),
                                product_nm=product_raw_data_dto.product_nm,
                                compayny_goods_cd=compayny_goods_cd)
         # db to xml (local save and send fileserver)
