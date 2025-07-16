@@ -83,8 +83,10 @@ def compare_excel_sheets(workbook, sheet1_name, sheet2_name, red_fill):
             color2 = get_cell_background_color_hex(cell2)
 
             # 수식 여부 확인
-            is_formula1 = cell1.data_type == 'f' # 'f'는 수식을 의미
-            is_formula2 = cell2.data_type == 'f'
+            # is_formula1 = cell1.data_type == 'f' # 'f'는 수식을 의미
+            # is_formula2 = cell2.data_type == 'f'
+            is_formula1 = False
+            is_formula2 = False
 
             # 셀의 실제 내용 (값 또는 수식 문자열) 가져오기
             # data_only=False로 로드했으므로, 수식 셀의 .value는 수식 문자열을 포함합니다.
@@ -118,7 +120,7 @@ def compare_selected_sheet_pairs(excel_filename):
         # 1. 엑셀 파일 로드
         # data_only=False가 기본값이므로 명시적으로 지정하지 않아도 됩니다.
         # keep_vba=False는 VBA 매크로가 있다면 제거하고 로드하여 파일 손상 가능성을 줄일 수 있습니다.
-        workbook = openpyxl.load_workbook(excel_filename, keep_vba=False, data_only=False)
+        workbook = openpyxl.load_workbook(excel_filename, keep_vba=False, data_only=True)
     except FileNotFoundError:
         print(f"오류: 파일을 찾을 수 없습니다. '{excel_filename}'")
         return
