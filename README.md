@@ -217,7 +217,7 @@ logger.critical(내용)
 - DB Write 테스트:  
   python app.py test-db-write-command "테스트값"
 
-- ReceiveOrder 모델 조회 테스트:  
+- ReceiveOrders 모델 조회 테스트:  
   python app.py test-receive-order
 
 - 수집된 주문 DB에 저장:  

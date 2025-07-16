@@ -5,6 +5,7 @@ from schemas.product.product_raw_data_dto import ProductRawDataDto
 
 class ProductReadService:
     def __init__(self, session: AsyncSession):
+        self.session = session
         self.product_repository = ProductRepository(session)
 
     async def get_product_by_compayny_goods_cd(self, compayny_goods_cd: str) -> ProductRawData:
@@ -19,3 +20,6 @@ class ProductReadService:
     async def get_product_raw_data_all(self) -> list[ProductRawDataDto]:
         objects = await self.product_repository.get_product_raw_data_all()
         return [ProductRawDataDto.model_validate(obj) for obj in objects]
+    
+    async def get_product_raw_data_count(self) -> int:
+        return await self.product_repository.count_product_raw_data()

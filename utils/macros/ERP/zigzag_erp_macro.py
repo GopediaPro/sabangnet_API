@@ -3,7 +3,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils.dataframe import dataframe_to_rows
 import re
-from utils.excel_handler import ExcelHandler
+from utils.excels.excel_handler import ExcelHandler
 
 
 class ZigzagMacro:
