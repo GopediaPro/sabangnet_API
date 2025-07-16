@@ -3,214 +3,122 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border
 from openpyxl.utils import get_column_letter
 from utils.excels.excel_handler import ExcelHandler
+from utils.excels.excel_column_handler import ExcelColumnHandler
 
 
-class AliMacro:
+class ERPAliMacro:
     def __init__(self, file_path):
         self.ex = ExcelHandler.from_file(file_path)
         self.file_path = file_path
         self.ws = self.ex.ws
         self.wb = self.ex.wb
-        self.last_row = self.ws.max_row
-        self.last_column = self.ws.max_column
-        self.right_alignment = Alignment(horizontal='right')
-        self.center_alignment = Alignment(horizontal='center')
-        self.light_blue_fill = PatternFill(
-            start_color="ADD8E6", end_color="ADD8E6", fill_type="solid")
-        self.dark_green_fill = PatternFill(
-            start_color="008000", end_color="008000", fill_type="solid")
-        self.white_font = Font(name='맑은 고딕', size=9, color="FFFFFF", bold=True)
-        self.headers = []
-        self.df = None
-        self.ws_map = {}
 
-    def step_1_to_10(self):
-        """
-        1~10단계 자동화 실행
-        """
-        print("1~10단계 자동화 시작...")
-        self._step_1()
-        self._step_2()
-        self._step_3()
-        self._step_4()
-        self._step_5()
+    def ali_erp_macro_run(self):
+        col_h = ExcelColumnHandler()
 
-        print("10단계: 모든 시트에 서식 적용 시작...")
+        for row in range(2, self.ws.max_row + 1):
+            self._z_to_f_column(row)
+            self._f_column_process(self.ws[f'F{row}'])
+            self._i_to_h_column(self.ws[f'I{row}'], self.ws[f'H{row}'])
+            col_h.d_column(
+                # =U2+V2
+                self.ws[f'D{row}'], self.ws[f'U{row}'], self.ws[f'V{row}'])
+
+        sheets_name = ["OK", "IY"]
+        site_to_sheet = {
+            "오케이마트": "OK",
+            "아이예스": "IY",
+        }
+
+        # 정렬 기준: 2번째 컬럼(B) → 3번째 컬럼(C) 순으로 정렬
+        sort_columns = [2, 3, 5]
+        print("시트별 정렬, 시트 분리 시작...")
+        headers, data = self.ex.preprocess_and_update_ws(self.ws, sort_columns)
+        self.ex.split_and_write_ws_by_site(
+            wb=self.wb,
+            headers=headers,
+            data=data,
+            sheets_name=sheets_name,
+            site_to_sheet=site_to_sheet,
+            site_col_idx=2,
+        )
+        print("시트별 정렬, 시트 분리 완료")
+
+        print("시트별 서식, 디자인 적용 시작...")
         for ws in self.wb.worksheets:
+            self.ex.set_header_style(ws)
             if ws.max_row <= 1:
                 continue
-            self._step_10(ws)
+            for row in range(2, ws.max_row + 1):
+                if ws.title != "자동화":
+                    col_h.a_value_column(ws[f"A{row}"])
+                else:
+                    col_h.a_formula_column(ws[f"A{row}"])
+                self._jeju_address_column(ws, row, ws[f"J{row}"])
+                col_h.convert_int_column(ws[f"M{row}"])
+                col_h.convert_int_column(ws[f"P{row}"])
+                col_h.convert_int_column(ws[f"Q{row}"])
+                col_h.convert_int_column(ws[f"W{row}"])
+            print(f"[{ws.title}] 서식 및 디자인 적용 완료")
 
         output_path = self.ex.save_file(self.file_path)
         print(f"✓ 알리 ERP 자동화 완료! 최종 파일: {output_path}")
         return output_path
 
-    def _step_1(self):
+    def _z_to_f_column(self, row):
         """
-        [1단계] 데이터를 DataFrame으로 변환
+        Z열 -> F열 복사
         """
-        # 데이터를 DataFrame으로 변환
-        self.df = self.ex.to_dataframe(self.ws)
-        self.headers = list(self.df.columns)
+        self.ws[f'F{row}'].value = self.ws[f'Z{row}'].value
 
-        # C열(인덱스 2), B열(인덱스 1) 순서로 정렬
-        if len(self.df.columns) > 2:
-            self.df = self.ex.sort_dataframe_by_c_b(
-                self.df, c_col='수취인명', b_col='사이트')
-
-        print("1단계: C열, B열 순서 정렬 완료")
-
-    def _step_2(self):
+    def _f_column_process(self, cell):
         """
-        [2단계] Z 열 -> F 복사, 전화번호2 -> 전화번호1 복사, 열너비
+        F열 처리
         """
-        # Z열 값을 F열로 복사
-        for idx, row in self.df.iterrows():
-            self.df.at[idx, '제품명'] = row['수집옵션']
+        if cell.value:
+            txt = str(cell.value).strip()
+            if txt.endswith(" * 1"):
+                cell.value = txt[:-4]
+            elif " * " in txt:
+                parts = txt.split(" * ")
+                if len(parts) >= 2:
+                    suffix = parts[-1].strip()
+                    if suffix.isdigit() and suffix != "1":
+                        base_text = " * ".join(parts[:-1])
+                        cell.value = f"{base_text} {suffix}개"
 
-            f_value = self.df.at[idx, '제품명']
-            if f_value:
-                txt = str(f_value).strip()
-
-                # "* * 1" 패턴 처리 (끝에 " * 1"이 있는 경우)
-                if txt.endswith(" * 1"):
-                    self.ws[f'F{row}'].value = txt[:-4]
-
-                # "* * 숫자" 패턴 처리
-                elif " * " in txt:
-                    parts = txt.split(" * ")
-                    if len(parts) >= 2:
-                        suffix = parts[-1].strip()
-                        if suffix.isdigit() and suffix != "1":
-                            # 마지막 " * 숫자" 부분을 " 숫자개"로 변경
-                            base_text = " * ".join(parts[:-1])
-                            self.ws[f'F{row}'].value = f"{base_text} {suffix}개"
-
-            i_value = self.df.at[idx, '전화번호2']
-            if i_value:
-                phone = str(i_value).replace("-", "").strip()
-
-                if phone.isdigit():
-                    if len(phone) == 11:
-                        # 11자리: 010-1234-5678 형태로 변환
-                        formatted = f"{phone[:3]}-{phone[3:7]}-{phone[7:]}"
-                    elif len(phone) in [9, 10]:
-                        # 9~10자리: 앞에 010 추가 후 포맷
-                        phone = "010" + phone[-8:]
-                        formatted = f"{phone[:3]}-{phone[3:7]}-{phone[7:]}"
-                    else:
-                        formatted = i_value
-
-                    i_value = formatted
-
-                self.df.at[idx, '전화번호1'] = i_value
-
-    def _step_3(self):
+    def _i_to_h_column(self, i_cell, h_cell):
         """
-        [3단계] 워크시트에 정렬된 데이터 덮어쓰기
+        I열 -> H열 복사
         """
-        for row_idx, row_data in enumerate(self.df.itertuples(index=False), start=2):
-            for col_idx, value in enumerate(row_data, start=1):
-                self.ws.cell(row=row_idx, column=col_idx,
-                             value=value if value or value == 0 else "")
-        print("3단계: 워크시트에 정렬된 데이터 덮어쓰기 완료")
+        if i_cell.value:
+            ph_num = str(i_cell.value).replace("-", "").strip()
+            if ph_num.isdigit():
+                if len(ph_num) == 11:
+                    formatted = self.ex.format_phone_number(ph_num)
+                elif len(ph_num) in [9, 10]:
+                    val = "010" + ph_num[-8:]
+                    formatted = self.ex.format_phone_number(val)
+                else:
+                    formatted = i_cell.value
+                i_cell.value = formatted
+            h_cell.value = i_cell.value
 
-    def _step_4(self):
+    def _jeju_address_column(self, ws, row, cell):
         """
-        [4단계] 시트 분리 준비
+        제주 주소 포맷
+        args:
+            cell: 대상 셀 (J)
         """
-        self.ws_map = self.ex.create_split_sheets(self.headers, ["OK", "IY"])
+        if cell.value and "제주" in str(cell.value):
+            self.ex.process_jeju_address(
+                ws, row, f_col='F', j_col='J')
 
-        self.ex.set_header_style(
-            self.ws_map["OK"], self.headers, self.dark_green_fill, self.white_font, self.center_alignment)
-        self.ex.set_header_style(
-            self.ws_map["IY"], self.headers, self.dark_green_fill, self.white_font, self.center_alignment)
-
-        print("4단계: 시트 분리 준비 완료")
-
-    def _step_5(self):
+    def _vlookup_column(self):
         """
-        [5단계] 시트 분리
+        S열 VLOOKUP 및 값 붙여넣기 및 #N/A → "S"
         """
-        site_mapping = {
-            "OK": ["오케이마트"],
-            "IY": ["아이예스"]
-        }
-        self.ex.split_sheets_by_site(self.df, self.ws_map, site_mapping)
-        print("5단계: 시트 분리 완료")
-
-    def _step_6(self, ws):
-        """
-        [6단계] H, F 열 너비 설정
-        """
-        # H열 너비를 I열과 동일하게 설정
-        ws.column_dimensions['H'].width = self.ws.column_dimensions['I'].width
-
-        # F열 너비 설정
-        ws.column_dimensions['F'].width = 45
-
-    def _step_7(self, ws):
-        """
-        [7단계] D열 금액 수식
-        """
-        # D열에 U+V 수식 입력
-        d2_formula = ws['D2'].value
-        self.ex.autofill_d_column(ws=ws,
-                                  start_row=2, end_row=ws.max_row, formula=d2_formula)
-        print("7단계: D열 수식 처리 완료")
-
-    def _step_8(self, ws):
-        """
-        [8단계] M, P, Q, W 숫자 변환
-        """
-        cols_names = ['M', 'P', 'Q', 'W']
-        self.ex.convert_numeric_strings(
-            ws=ws, start_row=2, end_row=ws.max_row, cols=cols_names)
-        print("8단계: M, P, Q,W 숫자 변환 완료")
-
-    def _step_9(self, ws):
-        """
-        [9단계] 제주 관련 서식 적용
-        """
-        for row in range(2, ws.max_row + 1):
-            self.ex.process_jeju_address(row=row, ws=ws)
-        print("9단계: F열 모르겠는 셀 색칠음영 (하늘색) 완료")
-
-    def _step_10(self, ws):
-        """
-        [10단계] 모든 시트에 서식 적용
-        """
-        # A열 수식 값 변환
-        self.ex.set_row_number(ws)
-
-        # H열, F열 너비 설정
-        self._step_6(ws)
-
-        # 테두리 제거 & 격자 제거
-        self.ex.clear_borders(ws)
-
-        # D열 수식 처리
-        self._step_7(ws)
-
-        # 기본 폰트 적용
-        self.ex.set_basic_format(ws=ws, header_rgb="008000")
-
-        # # M, P, Q,W 숫자 변환
-        self._step_8(ws)
-
-        # A, B, D, E, G열 정렬
-        self.ex.set_column_alignment(ws)
-
-        # 제주 관련 서식 적용
-        self._step_9(ws)
-
-        print(f"10단계: {ws.title} 시트에 서식 적용 완료")
-
-    def _step_13(self):
-        """
-        [13~14단계] S열 VLOOKUP 및 값 붙여넣기 및 #N/A → "S"
-        """
-        # S열에 VLOOKUP 수식 입력 (임시로 "S" 값 설정)
+        # S열에 VLOOKUP 수식 입력 (임시로 "S" 값 설정)F
         for row in range(2, self.last_row + 1):
             # 실제 VLOOKUP 계산은 복잡하므로 기본값 "S" 설정
             self.ws[f'S{row}'].value = "S"
