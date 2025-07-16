@@ -36,45 +36,6 @@ class BrandyProductProcessor:
         """
         return str(txt or "").replace(" 1개", "").strip()
 
-
-class BrandyPhoneFormatter:
-    """브랜디 전화번호 처리 유틸리티"""
-    
-    @staticmethod
-    def format_phone(val: str | None) -> str:
-        """
-        전화번호 포맷팅
-        - 11자리 (010, 011, 016, 017, 018, 019): 010-0000-0000 형식
-        - 12자리 (050, 070): 0508-0000-0000 형식  
-        - 10자리 (02, 031~064): 02-0000-0000 또는 031-000-0000 형식
-        """
-        if not val:
-            return ""
-        
-        digits = re.sub(r"\D", "", str(val))
-        
-        # 12자리: 050, 070 등
-        if len(digits) == 12 and digits[:3] in ['050', '070']:
-            return f"{digits[:4]}-{digits[4:8]}-{digits[8:]}"
-        
-        # 11자리: 010, 011, 016, 017, 018, 019
-        elif len(digits) == 11 and digits[:3] in ['010', '011', '016', '017', '018', '019']:
-            return f"{digits[:3]}-{digits[3:7]}-{digits[7:]}"
-        
-        # 10자리: 02(서울), 031~064(지역번호)
-        elif len(digits) == 10:
-            if digits.startswith('02'):
-                return f"{digits[:2]}-{digits[2:6]}-{digits[6:]}"
-            elif digits[:3] in [f'0{i}' for i in range(31, 65)]:
-                return f"{digits[:3]}-{digits[3:6]}-{digits[6:]}"
-        
-        # 9자리: 02 + 7자리 (서울 구번호)
-        elif len(digits) == 9 and digits.startswith('02'):
-            return f"{digits[:2]}-{digits[2:5]}-{digits[5:]}"
-        
-        return str(val)
-
-
 class BrandyOrderMerger:
     """브랜디 주문 데이터 그룹핑 및 병합 처리"""
     
