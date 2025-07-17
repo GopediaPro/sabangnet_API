@@ -320,8 +320,9 @@ class ETCSheetManager:
         # 3. C→B 정렬
         ex.sort_by_columns([2, 3])
         
-        # 4. D열 수식 설정 (처리된 P, V 값으로 계산)
-        ex.calculate_d_column_values(first_col='O', second_col='P', third_col='V')
+        # 4. D열 수식 설정 (사용자 요구사항에 맞는 P, V 처리)
+        print("🔄 4단계: D열 계산 (P열: 슬래시 합산, V열: 첫번째 값)")
+        self._calculate_d_column_custom(ws)
         
         # 6. 사이트별 배송비 처리
         ETCDeliveryFeeHandler(ws).process_delivery_fee()
@@ -369,10 +370,66 @@ class ETCSheetManager:
         # 14. 배경·테두리 제거
         print("🔄 14단계: 배경·테두리 제거")
         ex.set_basic_format()
+        ex.set_basic_format()
         ex.clear_fills_from_second_row()
         ex.clear_borders()
         
         print(f"✅ 기타사이트 자동화 로직 완료 (최종 {ws.max_row}행)")
+
+    def _calculate_d_column_custom(self, ws: Worksheet) -> None:
+        """
+        D열 계산: O + P(슬래시 합산) + V(첫번째 값)
+        - P열: "780/780" → 780 + 780 = 1560
+        - V열: "3000/3000" → 3000 (첫번째 값만)
+        """
+        for row in range(2, ws.max_row + 1):
+            o_val = ws[f'O{row}'].value or 0
+            p_val = ws[f'P{row}'].value or 0
+            v_val = ws[f'V{row}'].value or 0
+            
+            # O열 처리 (숫자로 변환)
+            try:
+                o_num = float(o_val) if o_val else 0
+            except (ValueError, TypeError):
+                o_num = 0
+            
+            # P열 처리: "/" 구분자가 있으면 모든 숫자를 합산
+            p_num = 0
+            if p_val and "/" in str(p_val):
+                p_parts = str(p_val).split("/")
+                for part in p_parts:
+                    try:
+                        p_num += float(part.strip())
+                    except (ValueError, TypeError):
+                        pass  # 숫자가 아닌 경우 무시
+            else:
+                try:
+                    p_num = float(p_val) if p_val else 0
+                except (ValueError, TypeError):
+                    p_num = 0
+            
+            # V열 처리: "/" 구분자가 있으면 첫 번째 값만 사용
+            v_num = 0
+            if v_val and "/" in str(v_val):
+                v_parts = str(v_val).split("/")
+                if v_parts:
+                    try:
+                        v_num = float(v_parts[0].strip())
+                    except (ValueError, TypeError):
+                        v_num = 0
+            else:
+                try:
+                    v_num = float(v_val) if v_val else 0
+                except (ValueError, TypeError):
+                    v_num = 0
+            
+            # D열에 계산 결과 설정
+            calculated_d = o_num + p_num + v_num
+            ws[f'D{row}'].value = calculated_d
+            
+            # 디버그 출력 (필요시)
+            if "/" in str(p_val) or "/" in str(v_val):
+                print(f"    행 {row}: O({o_num}) + P({p_val}→{p_num}) + V({v_val}→{v_num}) = {calculated_d}")
 
     def process_v_column_slash_values(self, ws: Worksheet) -> None:
         """
