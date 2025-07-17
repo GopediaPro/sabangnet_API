@@ -316,36 +316,12 @@ class ETCSheetManager:
         
         # 1. 기본 서식 적용
         ex.set_basic_format()
-
-        # 2. P, V열 "/" 구분자 합산 처리 및 D열 계산을 위한 임시 처리
-        print("🔄 2단계: P, V열 '/' 구분자 처리")
-        
-        # P열과 V열의 원본 값을 임시 저장
-        p_original_values = {}
-        v_original_values = {}
-        
-        for row in range(2, ws.max_row + 1):
-            p_original_values[row] = ws[f'P{row}'].value
-            v_original_values[row] = ws[f'V{row}'].value
-        
-        # P열 "/" 구분자 합산 처리 (D열 계산용)
-        ex.sum_prow_with_slash()
-        # V열 "/" 구분자 첫 번째 값 처리 (D열 계산용)
-        self.process_v_column_slash_values(ws)
         
         # 3. C→B 정렬
         ex.sort_by_columns([2, 3])
         
         # 4. D열 수식 설정 (처리된 P, V 값으로 계산)
         ex.calculate_d_column_values(first_col='O', second_col='P', third_col='V')
-        
-        # 5. P열과 V열을 원본 "/" 구분자 형태로 복원
-        print("🔄 5단계: P, V열 원본 형태 복원")
-        for row in range(2, ws.max_row + 1):
-            if row in p_original_values:
-                ws[f'P{row}'].value = p_original_values[row]
-            if row in v_original_values:
-                ws[f'V{row}'].value = v_original_values[row]
         
         # 6. 사이트별 배송비 처리
         ETCDeliveryFeeHandler(ws).process_delivery_fee()
