@@ -21,7 +21,7 @@ from api.v1.endpoints.mall_price import router as mall_price_router
 from utils.logs.sabangnet_logger import get_logger, HTTPLoggingMiddleware
 from api.v1.endpoints.one_one_price import router as one_one_price_router
 from api.v1.endpoints.down_form_order import router as down_form_order_router
-from api.v1.endpoints.export_form_order import router as export_form_order_router
+from api.v1.endpoints.macro import router as macro_router
 from api.v1.endpoints.product_registration import router as product_registration_router
 
 from core.db import create_tables
@@ -64,7 +64,6 @@ master_router.include_router(one_one_price_router)
 master_router.include_router(order_router)
 master_router.include_router(down_form_order_router)
 master_router.include_router(macro_router)
-master_router.include_router(export_form_order_router)
 master_router.include_router(product_registration_router)
 master_router.include_router(mall_certification_handling_router)
 
