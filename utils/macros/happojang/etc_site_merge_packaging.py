@@ -491,7 +491,7 @@ class ETCSheetManager:
         print(f"    수량 2 → VBA 호환 방식으로 2개 행 분할")
         
         # 분할 대상 열들의 원본 값 가져오기
-        split_columns = ['E', 'F', 'L', 'M', 'N', 'O', 'P', 'S', 'U', 'V', 'X', 'Y', 'Z', 'AA']
+        split_columns = ['E', 'F', 'L', 'M', 'N', 'O', 'P', 'S', 'T', 'U', 'V', 'X', 'Y', 'Z', 'AA']
         original_values = {}
         split_data = {}
         
@@ -518,12 +518,18 @@ class ETCSheetManager:
             # 원본 행의 기본 데이터 복사 (분할되지 않는 열들)
             for col in range(1, ws.max_column + 1):
                 col_letter = ws.cell(row=1, column=col).column_letter
-                if col_letter not in ['A', 'D', 'E', 'F', 'G', 'H', 'I', 'L', 'M', 'N', 'O', 'P', 'S', 'U', 'V', 'X', 'Y', 'Z', 'AA', 'AB']:
+                if col_letter not in ['A', 'D', 'E', 'F', 'G', 'H', 'I', 'L', 'M', 'N', 'O', 'P', 'S', 'T', 'U', 'V', 'X', 'Y', 'Z', 'AA', 'AB']:
                     ws.cell(row=new_row, column=col).value = ws.cell(row=original_row, column=col).value
             
             # 분할된 열들 설정
             for col in split_columns:
-                if col == 'O':
+                if col == 'L':
+                    # L열은 "/" 구분자가 있어도 항상 빈칸으로 처리
+                    ws[f'{col}{new_row}'].value = ""
+                elif col == 'T':
+                    # T열은 "/" 구분자가 있어도 항상 빈칸으로 처리
+                    ws[f'{col}{new_row}'].value = ""
+                elif col == 'O':
                     # O열은 균등 분할
                     if original_o_value and isinstance(original_o_value, (int, float)):
                         ws[f'{col}{new_row}'].value = original_o_value / 2
@@ -551,6 +557,14 @@ class ETCSheetManager:
                     else:
                         # "/" 구분자가 없는 경우 원본 값 유지
                         ws[f'{col}{new_row}'].value = original_v_value
+                elif col == 'Z':
+                    # Z열은 특별한 패턴으로 분할: "상품명:사이즈/가격/개수" 단위로 분할
+                    original_z_value = original_values['Z']
+                    if original_z_value:
+                        z_split_parts = self._split_z_column_value(str(original_z_value), 2)
+                        ws[f'{col}{new_row}'].value = z_split_parts[i] if i < len(z_split_parts) else ""
+                    else:
+                        ws[f'{col}{new_row}'].value = ""
                 else:
                     # 기타 열들은 분할된 값 사용
                     value = split_data[col][i] if i < len(split_data[col]) and split_data[col][i] else ""
@@ -601,6 +615,52 @@ class ETCSheetManager:
         except (ValueError, TypeError) as e:
             print(f"    D열 계산 오류: {e}")
             ws[f'D{row}'].value = ""
+
+    def _split_z_column_value(self, value: str, expected_count: int) -> List[str]:
+        """
+        Z열 특별 분할 로직: "상품명:사이즈/가격/개수" 패턴으로 분할
+        예: "WMSLV7_블랙:2XL/0원/1개/WMSLV7_화이트:2XL/0원/1개" 
+        → ["WMSLV7_블랙:2XL/0원/1개", "WMSLV7_화이트:2XL/0원/1개"]
+        """
+        if not value:
+            return [""] * expected_count
+        
+        # "상품명:사이즈/가격/개수" 패턴을 찾기 위한 정규식
+        # 패턴: 문자/숫자/기호 + : + 문자/숫자 + / + 숫자원 + / + 숫자개
+        import re
+        
+        # 더 간단한 접근: /숫자개/ 패턴을 찾아서 그 다음 항목까지를 하나의 단위로 인식
+        # 예: "1개/WMSLV7_화이트" 패턴에서 "1개" 다음부터 새로운 항목 시작
+        
+        parts = []
+        current_part = ""
+        segments = value.split("/")
+        
+        i = 0
+        while i < len(segments):
+            current_part += segments[i]
+            
+            # "숫자개" 패턴을 찾으면 하나의 완성된 항목으로 간주
+            if re.search(r'\d+개$', segments[i]):
+                parts.append(current_part.strip())
+                current_part = ""
+            elif i < len(segments) - 1:
+                current_part += "/"
+            
+            i += 1
+        
+        # 마지막 부분이 남아있으면 추가
+        if current_part.strip():
+            parts.append(current_part.strip())
+        
+        # expected_count만큼 맞추기
+        while len(parts) < expected_count:
+            parts.append("")
+        
+        result = parts[:expected_count]
+        
+        print(f"    Z열 분할: '{value}' → {result}")
+        return result
 
     def _split_slash_values(self, value, expected_count: int) -> List[str]:
         """
