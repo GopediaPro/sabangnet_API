@@ -197,13 +197,39 @@ class ExcelHandler:
 
     def format_phone_number(self, val):
         """
-        전화번호 11자리 → 010-0000-0000 형식
+        전화번호 포맷팅
+        - 11자리 (010, 011, 016, 017, 018, 019): 010-0000-0000 형식
+        - 12자리 (050, 070): 0508-0000-0000 형식  
+        - 10자리 (02, 031~064): 02-0000-0000 또는 031-000-0000 형식
         예시:
             ws['H2'].value = format_phone_number(ws['H2'].value)
         """
-        val = str(val or '').replace('-', '').strip()
-        if len(val) == 11 and val.startswith('010') and val.isdigit():
+        if not val:
+            return ""
+        
+        val = str(val).replace('-', '').replace(' ', '').strip()
+        if not val.isdigit():
+            return val
+        
+        # 12자리: 050, 070 등
+        if len(val) == 12 and val[:3] in ['050', '070']:
+            return f"{val[:4]}-{val[4:8]}-{val[8:]}"
+        
+        # 11자리: 010, 011, 016, 017, 018, 019
+        elif len(val) == 11 and val[:3] in ['010', '011', '016', '017', '018', '019']:
             return f"{val[:3]}-{val[3:7]}-{val[7:]}"
+        
+        # 10자리: 02(서울), 031~064(지역번호)
+        elif len(val) == 10:
+            if val.startswith('02'):
+                return f"{val[:2]}-{val[2:6]}-{val[6:]}"
+            elif val[:3] in [f'0{i}' for i in range(31, 65)]:
+                return f"{val[:3]}-{val[3:6]}-{val[6:]}"
+        
+        # 9자리: 02 + 7자리 (서울 구번호)
+        elif len(val) == 9 and val.startswith('02'):
+            return f"{val[:2]}-{val[2:5]}-{val[5:]}"
+        
         return val
 
     def clean_model_name(self, val):
@@ -674,10 +700,25 @@ class ExcelHandler:
         return:
             sorted_data: 정렬된 데이터
         """
-        return sorted(data, key=lambda row: tuple(
-            str(-row[abs(i)-1]) if i < 0 else (str(row[i-1]) if row[i-1] is not None else "")
-            for i in sort_columns
-        ))
+        def dynamic_key(item):
+            key_tuple_elements = []
+            for col_idx in sort_columns:
+                value = item[abs(col_idx)-1] # 현재 열의 값
+                if col_idx > 0:
+                    key_tuple_elements.append(value)
+                elif col_idx < 0:
+                    # 값의 타입에 따라 내림차순 처리
+                    if isinstance(value, (int, float)):
+                        key_tuple_elements.append(-value) # 숫자는 음수화하여 내림차순
+                    elif isinstance(value, str):
+                        key_tuple_elements.append(ReverseComparableString(value)) 
+                        # 문자열은 커스텀 클래스 사용
+                    else:
+                        # 다른 타입일 경우 기본적으로는 오름차순으로 처리
+                        key_tuple_elements.append(value) 
+            return tuple(key_tuple_elements)
+        
+        return sorted(data, key=dynamic_key)
 
     def _update_worksheet_data(self, ws, data: list[list]):
         """
@@ -784,3 +825,16 @@ class ExcelHandler:
                 if col_letter in source_ws.column_dimensions:
                     src_width = source_ws.column_dimensions[col_letter].width
                     target_ws.column_dimensions[col_letter].width = src_width
+
+
+class ReverseComparableString:
+    def __init__(self, s):
+        self.s = s
+    
+    # '작다' (<) 연산을 뒤집어 '크다' (>)로 동작하게 함
+    def __lt__(self, other):
+        return self.s > other.s
+    
+    # '같다' (==) 연산은 그대로
+    def __eq__(self, other):
+        return self.s == other.s
