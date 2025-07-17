@@ -21,8 +21,9 @@ BLUE_FILL = PatternFill(start_color="CCFFFF", end_color="CCFFFF", fill_type="sol
 # 시트 분리 설정 
 ACCOUNT_MAPPING = {
     "OK": ["오케이마트"],
-    "IY": ["아이예스"], 
-    "BB": ["베이지베이글"]
+    "CL": ["클로버프"],
+    "BB": ["베이지베이글"],
+    "IY": ["아이예스"]
 }
 
 # 필수 생성 시트 목록
@@ -109,17 +110,18 @@ def etc_site_merge_packaging(input_path: str) -> str:
     ex = ExcelHandler.from_file(input_path)
     ws = ex.ws
     
-    # ========== VBA 매크로 14단계: 시트분리 (OK, IY, BB) ==========
-    # 원본 시트에서 시트분리 수행
+    # ========== VBA 매크로 단계: 원본 시트 자동화 처리 ==========
+    # 원본 시트에 자동화 로직 적용 (행 분할 포함)
     splitter = ETCSheetManager(ws, ACCOUNT_MAPPING)
-    rows_by_sheet = splitter.get_rows_by_sheet()
-    
-    # 원본 시트에 자동화 로직 적용
     splitter.apply_automation_logic(ws)
     
-    # 모든 필수 시트 생성 (데이터 유무와 무관하게 OK, IY, BB 시트 생성)
+    # ========== VBA 매크로 14단계: 시트분리 (OK, CL, BB, IY) ==========
+    # 자동화 처리가 완료된 원본 시트에서 시트분리 수행
+    rows_by_sheet = splitter.get_rows_by_sheet()
+    
+    # 모든 필수 시트 생성 (데이터 유무와 무관하게 OK, CL, BB, IY 시트 생성)
     for sheet_name in REQUIRED_SHEETS:
-        splitter.copy_to_new_sheet(
+        splitter.copy_to_new_sheet_simple(
             ex.wb,
             sheet_name, 
             rows_by_sheet.get(sheet_name, [])
@@ -257,10 +259,16 @@ class ETCSheetManager:
         ]
 
     def get_rows_by_sheet(self) -> Dict[str, List[int]]:
-        """시트별 행 번호 매핑 생성 (VBA ExtractBracketText 로직 구현)"""
+        """
+        시트별 행 번호 매핑 생성 (VBA ExtractBracketText 로직 구현)
+        자동화 처리가 완료된 원본 시트에서 현재 상태를 기준으로 매핑
+        """
         rows_by_sheet = defaultdict(list)
         
-        for r in range(2, self.last_row + 1):
+        # 현재 시트의 실제 최대 행 수를 사용 (분할된 행 포함)
+        current_max_row = self.ws.max_row
+        
+        for r in range(2, current_max_row + 1):
             # B열에서 [계정명] 추출 (VBA ExtractBracketText와 동일)
             account = ETCOrderUtils.extract_bracket_text(self.ws[f"B{r}"].value)
             
@@ -304,6 +312,73 @@ class ETCSheetManager:
         # A열 순번 재부여 (VBA: destSheet.Cells(r, "A").Value = r - 1)
         for r in range(2, target_row):
             ws[f"A{r}"].value = r - 1
+
+    def copy_to_new_sheet_simple(self, 
+                                wb, 
+                                sheet_name: str, 
+                                row_indices: List[int] = None) -> None:
+        """
+        VBA와 동일한 방식으로 새 시트 생성
+        - 원본 시트의 처리된 데이터를 각 계정명별로 복사만 수행
+        - 추가 자동화 로직 적용하지 않음 (VBA 매크로와 동일)
+        """
+        new_ws = self.create_empty_sheet(wb, sheet_name)
+        if row_indices:
+            self.copy_sheet_data_simple(new_ws, row_indices)
+    
+    def copy_sheet_data_simple(self, ws: Worksheet, row_indices: List[int]) -> None:
+        """
+        VBA와 동일한 방식으로 시트에 데이터 행 복사
+        - 원본 시트의 현재 상태(분할된 행 포함)를 그대로 복사
+        - A열 순번만 재부여
+        """
+        if not row_indices:
+            return
+            
+        target_row = 2
+        for r in row_indices:
+            for c in range(1, self.last_col + 1):
+                original_value = self.ws.cell(row=r, column=c).value
+                ws.cell(row=target_row, column=c, value=original_value)
+                
+                # 원본 시트의 셀 서식도 복사
+                original_cell = self.ws.cell(row=r, column=c)
+                new_cell = ws.cell(row=target_row, column=c)
+                
+                # 폰트 복사
+                if original_cell.font:
+                    new_cell.font = Font(
+                        color=original_cell.font.color,
+                        bold=original_cell.font.bold,
+                        name=original_cell.font.name,
+                        size=original_cell.font.size
+                    )
+                
+                # 배경색 복사
+                if original_cell.fill:
+                    new_cell.fill = PatternFill(
+                        start_color=original_cell.fill.start_color,
+                        end_color=original_cell.fill.end_color,
+                        fill_type=original_cell.fill.fill_type
+                    )
+                
+                # 정렬 복사
+                if original_cell.alignment:
+                    new_cell.alignment = Alignment(
+                        horizontal=original_cell.alignment.horizontal,
+                        vertical=original_cell.alignment.vertical
+                    )
+            
+            target_row += 1
+        
+        # 데이터가 2행 이상 있는 경우 정렬 수행
+        if target_row > 3:  # 헤더(1행) + 데이터(2행 이상)
+            ex = ExcelHandler(ws)
+            ex.sort_by_columns([2, 3])  # B열, C열 기준 정렬
+        
+        # A열 순번 재부여 "=ROW()-1"
+        for r in range(2, target_row):
+            ws[f"A{r}"].value = "=ROW()-1"
 
     def apply_automation_logic(self, ws: Worksheet) -> None:
         """자동화 로직 적용 (VBA 매크로 21단계까지의 모든 로직)"""
