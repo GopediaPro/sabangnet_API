@@ -129,8 +129,6 @@ def etc_site_merge_packaging(input_path: str) -> str:
     base_name = Path(input_path).stem  # 확장자 제거한 파일명
     output_path = ex.happojang_save_file(base_name=base_name)
     ex.wb.close()
-    print(f"◼︎ [{MALL_NAME}] 합포장 자동화 완료!")
-    print(f"  - 시트분리 완료: {', '.join(REQUIRED_SHEETS)}")
     
     return output_path
 
@@ -312,69 +310,52 @@ class ETCSheetManager:
         # Excel 핸들러로 기본 처리 적용
         ex = ExcelHandler(ws)
         
-        print(f"📋 기타사이트 자동화 로직 시작 (시트: {ws.title}, 총 {ws.max_row}행)")
-        
         # 1. 기본 서식 적용
         ex.set_basic_format()
         
-        # 3. C→B 정렬
+        # 2. C→B 정렬
         ex.sort_by_columns([2, 3])
         
-        # 4. D열 수식 설정 (사용자 요구사항에 맞는 P, V 처리)
-        print("🔄 4단계: D열 계산 (P열: 슬래시 합산, V열: 슬래시 합산)")
+        # 3. D열 수식 설정 (사용자 요구사항에 맞는 P, V 처리)
         self._calculate_d_column_custom(ws)
         
-        # 6. 사이트별 배송비 처리
+        # 4. 사이트별 배송비 처리
         ETCDeliveryFeeHandler(ws).process_delivery_fee()
         
-        # 7. 주문번호 처리
+        # 5. 주문번호 처리
         process_order_numbers(ws)
         
-        # 8. 전화번호 처리
-        print("🔄 8단계: 전화번호 처리")
+        # 6. 전화번호 처리
         for row in range(2, ws.max_row + 1):
             for col in ('H', 'I'):
                 cell_value = ws[f'{col}{row}'].value
                 ws[f'{col}{row}'].value = ex.format_phone_number(cell_value)
         
-        # 9. 특수 케이스 처리
-        print("🔄 9단계: 특수 케이스 처리")
+        # 7. 특수 케이스 처리
         special = ETCSpecialCaseHandler(ws)
         special.process_kakao_jeju()
         special.process_l_column()
         
-        # 9.5. F열 "+" 구분자 기준 행 분할 (클로버프 계정만, F열 텍스트 정리 전에 실행)
-        print("🔄 9.5단계: F열 '+' 구분자 기준 행 분할 (클로버프 계정만)")
+        # 7.5. F열 "+" 구분자 기준 행 분할 (클로버프 계정만, F열 텍스트 정리 전에 실행)
         self.split_rows_by_plus_separator(ws)
         
-        # 10. F열 텍스트 정리
-        print("🔄 10단계: F열 텍스트 정리")
+        # 8. F열 텍스트 정리
         for row in range(2, ws.max_row + 1):
             ws[f"F{row}"].value = ETCOrderUtils.clean_order_text(ws[f"F{row}"].value)
-        
-        # 11. A열 순번 설정
-        print("🔄 11단계: A열 순번 설정")
-        ex.set_row_number(ws)
 
-        # 12. 문자열→숫자 변환 
-        print("🔄 12단계: 문자열→숫자 변환")
+        # 9. 문자열→숫자 변환 
         ex.convert_numeric_strings(cols=("F","M", "P", "Q", "W", "AA"))
 
-        # 13. 열 정렬
-        print("🔄 13단계: 열 정렬")
+        # 10. 열 정렬
         ex.set_column_alignment()
         # F열 왼쪽정렬 
         for row in range(1, ws.max_row + 1):
             ws[f"F{row}"].alignment = Alignment(horizontal='left')
 
-        # 14. 배경·테두리 제거
-        print("🔄 14단계: 배경·테두리 제거")
-        ex.set_basic_format()
-        ex.set_basic_format()
+        # 11. 배경·테두리 제거, A열 순번 설정
+        ex.set_row_number(ws)
         ex.clear_fills_from_second_row()
         ex.clear_borders()
-        
-        print(f"✅ 기타사이트 자동화 로직 완료 (최종 {ws.max_row}행)")
 
     def _calculate_d_column_custom(self, ws: Worksheet) -> None:
         """
@@ -426,27 +407,6 @@ class ETCSheetManager:
             # D열에 계산 결과 설정
             calculated_d = o_num + p_num + v_num
             ws[f'D{row}'].value = calculated_d
-            
-            # 디버그 출력 (필요시)
-            if "/" in str(p_val) or "/" in str(v_val):
-                print(f"    행 {row}: O({o_num}) + P({p_val}→{p_num}) + V({v_val}→{v_num}) = {calculated_d}")
-
-    def process_v_column_slash_values(self, ws: Worksheet) -> None:
-        """
-        V열의 "/" 구분자로 나뉜 경우 첫 번째 숫자만 추출
-        예: "3000/3000" → 3000
-        """
-        for row in range(2, ws.max_row + 1):
-            cell_val = ws[f'V{row}'].value
-            if cell_val and "/" in str(cell_val):
-                parts = str(cell_val).split("/")
-                if parts:
-                    first_part = parts[0].strip()
-                    if first_part and first_part.replace('.', '').replace('-', '').isdigit():
-                        try:
-                            ws[f'V{row}'].value = float(first_part)
-                        except ValueError:
-                            pass  # 변환 실패 시 원래 값 유지
 
     def split_rows_by_plus_separator(self, ws: Worksheet) -> None:
         """
@@ -454,7 +414,6 @@ class ETCSheetManager:
         - G = 1: 원본 행 복사하여 새 행 1개 추가
         - G = 2: "/" 구분자 기준으로 2개 행으로 분할
         """
-        print(f"클로버프 상품 분할 시작 (총 {ws.max_row}행, 수량 기준)")
         split_count = 0
         
         # 먼저 분할 대상 행 확인 (B열에 "클로버프" 포함 + G열 수량이 1 또는 2)
@@ -468,10 +427,6 @@ class ETCSheetManager:
                 if g_value in [1, 2]:
                     split_targets.append((row, g_value))
         
-        print(f"분할 대상 행: {len(split_targets)}개 (B열 '클로버프' + G열 1,2)")
-        for row, qty in split_targets:
-            print(f"  행 {row}: 수량 {qty}")
-        
         # 역순으로 처리 (행 삽입 시 인덱스 변화 방지)
         for row in range(ws.max_row, 1, -1):
             b_value = ws[f'B{row}'].value
@@ -481,7 +436,6 @@ class ETCSheetManager:
             if not (b_value and "클로버프" in str(b_value) and g_value in [1, 2]):
                 continue
                 
-            print(f"  행 {row}: 수량 {g_value} 기준 분할 시작 (B열: '{b_value}')")
             split_count += 1
             
             if g_value == 1:
@@ -491,14 +445,10 @@ class ETCSheetManager:
             elif g_value == 2:
                 # 수량 2: "/" 구분자 기준으로 2개 행으로 분할
                 self._create_split_rows(ws, row)
-        
-        print(f"클로버프 상품 분할 완료: {split_count}개 행 처리됨")
-        print(f"분할 후 총 행 수: {ws.max_row}행")
 
     def _create_single_copy_row(self, ws: Worksheet, original_row: int) -> None:
         """수량 1인 경우: 원본 행을 그대로 복사하여 새 행 1개 추가"""
         new_row = original_row + 1
-        print(f"    수량 1 → 새 행 {new_row} 생성 (원본 복사)")
         
         # 새 행 삽입
         ws.insert_rows(new_row)
@@ -516,12 +466,9 @@ class ETCSheetManager:
         
         # D열 계산 (O + P + V, slash 처리 후 첫 값 사용)
         self._calculate_d_column(ws, new_row)
-        
-        print(f"    원본 복사 완료: 새 행 {new_row}")
 
     def _create_split_rows(self, ws: Worksheet, original_row: int) -> None:
         """수량 2인 경우: VBA와 100% 동일한 방식으로 분할"""
-        print(f"    수량 2 → VBA 호환 방식으로 2개 행 분할")
         
         # 분할 대상 열들의 원본 값 가져오기
         split_columns = ['E', 'F', 'L', 'M', 'N', 'O', 'P', 'S', 'T', 'U', 'V', 'X', 'Y', 'Z', 'AA']
@@ -532,10 +479,6 @@ class ETCSheetManager:
             original_values[col] = ws[f'{col}{original_row}'].value
             split_data[col] = self._split_slash_values(original_values[col], 2)
         
-        print(f"    주문번호 분할: {split_data['E']}")
-        print(f"    상품명 분할: {split_data['F']}")
-        print(f"    배송비 분할: {split_data['V']}")
-        
         # 원본 O열, U열 값 저장 (균등 분할용)
         original_o_value = ws[f'O{original_row}'].value
         original_u_value = ws[f'U{original_row}'].value
@@ -543,7 +486,6 @@ class ETCSheetManager:
         # 2개의 새 행 생성
         for i in range(2):
             new_row = original_row + 1 + i
-            print(f"    새 행 {new_row} 생성: 분할 {i+1}/2")
             
             # 새 행 삽입
             ws.insert_rows(new_row)
@@ -619,9 +561,6 @@ class ETCSheetManager:
         original_v_value = original_values['V']
         if original_v_value and "/" in str(original_v_value):
             ws[f'V{original_row}'].value = original_v_value
-            print(f"    원본 행 {original_row} V열 유지: '{original_v_value}'")
-        
-        print(f"    VBA 호환 분할 완료: 2개 행 생성됨")
 
     def _calculate_d_column(self, ws: Worksheet, row: int) -> None:
         """D열 계산: O + P + V (slash 처리 후 첫 값 사용)"""
@@ -644,9 +583,7 @@ class ETCSheetManager:
         try:
             calculated_d = float(o_val) + p_val + v_val
             ws[f'D{row}'].value = calculated_d
-            print(f"    D열 계산: {o_val} + {p_val} + {v_val} = {calculated_d}")
-        except (ValueError, TypeError) as e:
-            print(f"    D열 계산 오류: {e}")
+        except (ValueError, TypeError):
             ws[f'D{row}'].value = ""
 
     def _split_z_column_value(self, value: str, expected_count: int) -> List[str]:
@@ -692,7 +629,6 @@ class ETCSheetManager:
         
         result = parts[:expected_count]
         
-        print(f"    Z열 분할: '{value}' → {result}")
         return result
 
     def _split_slash_values(self, value, expected_count: int) -> List[str]:
@@ -731,4 +667,3 @@ class ETCSheetManager:
 if __name__ == "__main__":
     excel_file_path = "/Users/smith/Documents/github/OKMart/sabangnet_API/files/test-[기본양식]-합포장용.xlsx"
     processed_file = etc_site_merge_packaging(excel_file_path)
-    print("모든 처리가 완료되었습니다!")
