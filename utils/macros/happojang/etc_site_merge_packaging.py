@@ -148,6 +148,7 @@ class ETCDeliveryFeeHandler:
         - 롯데온/보리보리 등: 주문 수로 나누기
         - 오늘의집: 무료배송
         - 토스: 3만원 이상 무료
+        - 분할된 행에 대한 재처리 포함
         """
         for row in range(2, self.ws.max_row + 1):
             site = str(self.ws[f"B{row}"].value or "")
@@ -159,31 +160,55 @@ class ETCDeliveryFeeHandler:
             if v_value and "/" in str(v_value):
                 v_val = float(str(v_value).split("/")[0].strip() or 0)
             else:
-                v_val = float(v_value or 0)
+                v_val = float(v_value or 0) if v_value else 0
             
             # U열 값도 동일하게 처리
             u_value = self.ws[f"U{row}"].value
             if u_value and "/" in str(u_value):
                 u_val = float(str(u_value).split("/")[0].strip() or 0)
             else:
-                u_val = float(u_value or 0)
+                u_val = float(u_value or 0) if u_value else 0
 
-            # 배송비 분할 대상
-            if any(s in site for s in ETCSiteConfig.DELIVERY_SPLIT_SITES) and "/" in order_text:
-                count = len(order_text.split("/"))
-                if v_val > 3000 and count > 0:
-                    v_cell.value = round(v_val / count)
+            # 분할된 행에서 V열이 비어있는 경우 배송비 로직 재적용
+            if v_value is None or v_value == "":
+                
+                # 배송비 분할 대상
+                if any(s in site for s in ETCSiteConfig.DELIVERY_SPLIT_SITES) and "/" in order_text:
+                    count = len(order_text.split("/"))
+                    # 기본 배송비 3000원 적용 후 분할
+                    if count > 0:
+                        v_cell.value = round(3000 / count)
+                        v_cell.font = RED_FONT
+
+                # 무료배송
+                elif any(s in site for s in ETCSiteConfig.FREE_DELIVERY_SITES):
+                    v_cell.value = 0
                     v_cell.font = RED_FONT
 
-            # 무료배송
-            elif any(s in site for s in ETCSiteConfig.FREE_DELIVERY_SITES):
-                v_cell.value = 0
-                v_cell.font = RED_FONT
+                # 토스 (3만원 이상 무료)
+                elif "토스" in site:
+                    v_cell.value = 0 if u_val > 30000 else 3000
+                    v_cell.font = RED_FONT
+                    
+            else:
+                # V열에 값이 있는 경우 기존 로직 적용
+                
+                # 배송비 분할 대상
+                if any(s in site for s in ETCSiteConfig.DELIVERY_SPLIT_SITES) and "/" in order_text:
+                    count = len(order_text.split("/"))
+                    if v_val > 3000 and count > 0:
+                        v_cell.value = round(v_val / count)
+                        v_cell.font = RED_FONT
 
-            # 토스 (3만원 이상 무료)
-            elif "토스" in site:
-                v_cell.value = 0 if u_val > 30000 else 3000
-                v_cell.font = RED_FONT
+                # 무료배송
+                elif any(s in site for s in ETCSiteConfig.FREE_DELIVERY_SITES):
+                    v_cell.value = 0
+                    v_cell.font = RED_FONT
+
+                # 토스 (3만원 이상 무료)
+                elif "토스" in site:
+                    v_cell.value = 0 if u_val > 30000 else 3000
+                    v_cell.font = RED_FONT
 
 
 class ETCSpecialCaseHandler:
@@ -341,14 +366,14 @@ class ETCSheetManager:
         special.process_kakao_jeju()
         special.process_l_column()
         
+        # 9.5. F열 "+" 구분자 기준 행 분할 (클로버프 계정만, F열 텍스트 정리 전에 실행)
+        print("🔄 9.5단계: F열 '+' 구분자 기준 행 분할 (클로버프 계정만)")
+        self.split_rows_by_plus_separator(ws)
+        
         # 10. F열 텍스트 정리
         print("🔄 10단계: F열 텍스트 정리")
         for row in range(2, ws.max_row + 1):
             ws[f"F{row}"].value = ETCOrderUtils.clean_order_text(ws[f"F{row}"].value)
-        
-        # 10.5. F열 "+" 구분자 기준 행 분할 (클로버프 계정만, VBA 18단계 이후 실행)
-        print("🔄 10.5단계: F열 '+' 구분자 기준 행 분할 (클로버프 계정만)")
-        self.split_rows_by_plus_separator(ws)
         
         # 11. A열 순번 설정
         print("🔄 11단계: A열 순번 설정")
@@ -392,248 +417,190 @@ class ETCSheetManager:
 
     def split_rows_by_plus_separator(self, ws: Worksheet) -> None:
         """
-        B열에 "클로버프"가 포함된 행에서 F열의 "+" 또는 "/" 구분자를 기준으로 행을 분할
-        예: B열="[클로버프]옥션2.0", F열="상품A + 상품B" → 두 개의 별도 행으로 분할
-        관련 열들도 함께 분할 처리 (E열 주문번호, 기타 슬래시 구분자 열들)
+        B열에 "클로버프"가 포함된 행에서 G열(수량) 기준으로 행을 분할 (VBA 로직과 동일)
+        - G = 1: 원본 행 복사하여 새 행 1개 추가
+        - G = 2: "/" 구분자 기준으로 2개 행으로 분할
         """
-        print(f"F열 구분자 기준 행 분할 시작 (총 {ws.max_row}행, 클로버프 대상만)")
+        print(f"클로버프 상품 분할 시작 (총 {ws.max_row}행, 수량 기준)")
         split_count = 0
         
-        # 먼저 분할 대상 행 확인 (B열에 "클로버프" 포함 + F열에 구분자 있는 경우만)
+        # 먼저 분할 대상 행 확인 (B열에 "클로버프" 포함 + G열 수량이 1 또는 2)
         split_targets = []
         for row in range(2, ws.max_row + 1):
             b_value = ws[f'B{row}'].value
-            f_value = ws[f'F{row}'].value
+            g_value = ws[f'G{row}'].value
             
-            # B열에 "클로버프"가 포함된 경우만 처리
+            # B열에 "클로버프"가 포함되고 G열이 1 또는 2인 경우만 처리
             if b_value and "클로버프" in str(b_value):
-                if f_value:
-                    f_str = str(f_value)
-                    if " + " in f_str or ("/" in f_str and not f_str.startswith("http")):
-                        split_targets.append((row, f_str))
+                if g_value in [1, 2]:
+                    split_targets.append((row, g_value))
         
-        print(f"분할 대상 행: {len(split_targets)}개 (B열 '클로버프' 포함 행만)")
-        for row, value in split_targets:
-            print(f"  행 {row}: '{value}'")
+        print(f"분할 대상 행: {len(split_targets)}개 (B열 '클로버프' + G열 1,2)")
+        for row, qty in split_targets:
+            print(f"  행 {row}: 수량 {qty}")
         
         # 역순으로 처리 (행 삽입 시 인덱스 변화 방지)
         for row in range(ws.max_row, 1, -1):
             b_value = ws[f'B{row}'].value
-            f_value = ws[f'F{row}'].value
+            g_value = ws[f'G{row}'].value
             
-            # B열에 "클로버프"가 포함된 경우만 처리
-            if not (b_value and "클로버프" in str(b_value)):
+            # B열에 "클로버프"가 포함되고 G열이 1 또는 2인 경우만 처리
+            if not (b_value and "클로버프" in str(b_value) and g_value in [1, 2]):
                 continue
                 
-            if f_value:
-                f_str = str(f_value)
-                # " + " 또는 "/" 구분자 확인
-                if " + " in f_str:
-                    separator = " + "
-                elif "/" in f_str and not f_str.startswith("http"):  # URL이 아닌 경우만
-                    separator = "/"
-                else:
-                    continue
-                    
-                print(f"  행 {row}: '{f_value}' → '{separator}' 기준 분할 시작 (B열: '{b_value}')")
-                split_count += 1
+            print(f"  행 {row}: 수량 {g_value} 기준 분할 시작 (B열: '{b_value}')")
+            split_count += 1
+            
+            if g_value == 1:
+                # 수량 1: 원본 행 복사하여 새 행 1개 추가
+                self._create_single_copy_row(ws, row)
                 
-                # 구분자 기준으로 분할
-                products = f_str.split(separator)
-                if len(products) > 1:
-                    # 관련 열들의 "/" 구분자 값들도 함께 분할 준비
-                    e_values = self._split_slash_values(ws[f'E{row}'].value, len(products))  # 주문번호
-                    l_values = self._split_slash_values(ws[f'L{row}'].value, len(products))  # 결제방식
-                    m_values = self._split_slash_values(ws[f'M{row}'].value, len(products))  # 송장번호
-                    n_values = self._split_slash_values(ws[f'N{row}'].value, len(products))  # 배송메모
-                    o_values = self._split_slash_values(ws[f'O{row}'].value, len(products))  # 판매가
-                    p_values = self._split_slash_values(ws[f'P{row}'].value, len(products))  # 수수료
-                    s_values = self._split_slash_values(ws[f'S{row}'].value, len(products))  # S열
-                    u_values = self._split_slash_values(ws[f'U{row}'].value, len(products))  # 구매가
-                    v_values = self._split_slash_values(ws[f'V{row}'].value, len(products))  # 배송비
-                    x_values = self._split_slash_values(ws[f'X{row}'].value, len(products))  # X열
-                    y_values = self._split_slash_values(ws[f'Y{row}'].value, len(products))  # 상품번호
-                    z_values = self._split_slash_values(ws[f'Z{row}'].value, len(products))  # 상품명상세
-                    aa_values = self._split_slash_values(ws[f'AA{row}'].value, len(products))  # 옵션정보
-                    ab_values = self._split_slash_values(ws[f'AB{row}'].value, len(products))  # 기타
-                    
-                    print(f"    분할 개수: {len(products)}개 상품")
-                    print(f"    주문번호 분할: {e_values}")
-                    
-                    # O열, P열, U열 원본 값 저장 (분할 시 균등 분할용)
-                    original_o_value = ws[f'O{row}'].value
-                    original_p_value = ws[f'P{row}'].value
-                    original_u_value = ws[f'U{row}'].value
-                    
-                    # 분할 개수 계산
-                    product_count = len(products)
-                    print(f"    상품 분할 개수: {product_count}개")
-                    
-                    # 먼저 원본 행을 첫 번째 상품으로 수정
-                    first_product = products[0].strip()
-                    ws[f'F{row}'].value = first_product
-                    ws[f'E{row}'].value = e_values[0] if e_values else ""
-                    ws[f'G{row}'].value = 1
-                    ws[f'H{row}'].value = "010-0000-0000"
-                    ws[f'I{row}'].value = "010-0000-0000"
-                    ws[f'L{row}'].value = ""  # 분할된 행은 결제방식 빈값
-                    ws[f'M{row}'].value = m_values[0] if m_values else ""
-                    ws[f'N{row}'].value = n_values[0] if n_values else ""
-                    
-                    # O열은 원본 값을 분할 개수로 나누어 설정
-                    if original_o_value and isinstance(original_o_value, (int, float)):
-                        ws[f'O{row}'].value = original_o_value / product_count
-                    
-                    # P열은 분할된 값 사용
-                    if p_values and p_values[0]:
-                        try:
-                            ws[f'P{row}'].value = float(p_values[0])
-                        except (ValueError, TypeError):
-                            ws[f'P{row}'].value = p_values[0]
-                    
-                    # S열은 분할된 값 사용
-                    ws[f'S{row}'].value = s_values[0] if s_values else ""
-                    
-                    # U열은 원본 값을 분할 개수로 나누어 설정
-                    if original_u_value and isinstance(original_u_value, (int, float)):
-                        ws[f'U{row}'].value = original_u_value / product_count
-                    
-                    # V열은 분할된 값 사용
-                    if v_values and v_values[0]:
-                        try:
-                            ws[f'V{row}'].value = float(v_values[0])
-                        except (ValueError, TypeError):
-                            ws[f'V{row}'].value = v_values[0]
-                    
-                    # X열은 분할된 값 사용
-                    ws[f'X{row}'].value = x_values[0] if x_values else ""
-                    
-                    # Y열은 분할된 값 사용
-                    ws[f'Y{row}'].value = y_values[0] if y_values else ""
-                    
-                    # Z열은 분할된 값 사용
-                    ws[f'Z{row}'].value = z_values[0] if z_values else ""
-                    
-                    # AA열은 분할된 값 사용
-                    ws[f'AA{row}'].value = aa_values[0] if aa_values else ""
-                    
-                    # AB열에 각 상품 정보 설정
-                    ws[f'AB{row}'].value = f"{first_product} 1개"
-                    
-                    # D열 계산 (첫 번째 상품) - 수정된 값으로 계산
-                    o_val = ws[f'O{row}'].value or 0
-                    p_val = ws[f'P{row}'].value or 0
-                    v_val = ws[f'V{row}'].value or 0
-                    try:
-                        calculated_d = float(o_val) + float(p_val) + float(v_val)
-                        ws[f'D{row}'].value = calculated_d
-                        print(f"    첫 번째 상품 D열 계산: {o_val} + {p_val} + {v_val} = {calculated_d}")
-                    except (ValueError, TypeError) as e:
-                        print(f"    첫 번째 상품 D열 계산 오류: {e}")
-                        ws[f'D{row}'].value = ""
-                    
-                    # 나머지 상품들을 새 행으로 추가 (두 번째 상품부터)
-                    # 원본 행 바로 아래부터 연속으로 삽입
-                    for i in range(1, len(products)):
-                        product = products[i]
-                        new_row = row + 1  # 원본 행 바로 아래에 삽입
-                        print(f"    새 행 {new_row} 삽입: '{product.strip()}' (원본 행 {row} 바로 아래)")
-                        
-                        # 새 행 삽입 (원본 행 바로 아래)
-                        ws.insert_rows(new_row)
-                        
-                        # 기존 행의 기본 데이터를 새 행에 복사
-                        for col in range(1, ws.max_column + 1):
-                            col_letter = ws.cell(row=1, column=col).column_letter
-                            if col_letter not in ['D', 'E', 'F', 'G', 'H', 'I', 'L', 'M', 'N', 'O', 'P', 'S', 'U', 'V', 'X', 'Y', 'Z', 'AA', 'AB']:
-                                ws.cell(row=new_row, column=col).value = ws.cell(row=row, column=col).value
-                        
-                        # D열은 분할된 행에서 계산된 값으로 설정
-                        o_val = original_o_value / product_count if original_o_value and isinstance(original_o_value, (int, float)) else 0
-                        p_val = p_values[i] if i < len(p_values) and p_values[i] else 0
-                        v_val = v_values[i] if i < len(v_values) and v_values[i] else 0
-                        try:
-                            p_val = float(p_val) if p_val else 0
-                            v_val = float(v_val) if v_val else 0
-                            calculated_d = o_val + p_val + v_val
-                            ws[f'D{new_row}'].value = calculated_d
-                            print(f"    새 행 {new_row} D열 계산: {o_val} + {p_val} + {v_val} = {calculated_d}")
-                        except (ValueError, TypeError) as e:
-                            print(f"    새 행 {new_row} D열 계산 오류: {e}")
-                            ws[f'D{new_row}'].value = ""
-                        
-                        # 분할된 특수 열들 입력
-                        ws[f'F{new_row}'].value = product.strip()
-                        ws[f'E{new_row}'].value = e_values[i] if i < len(e_values) else ""
-                        ws[f'G{new_row}'].value = 1  # 수량 1로 설정
-                        ws[f'H{new_row}'].value = "010-0000-0000"  # 분할된 행은 기본 전화번호
-                        ws[f'I{new_row}'].value = "010-0000-0000"  # 분할된 행은 기본 전화번호
-                        ws[f'L{new_row}'].value = ""  # 분할된 행은 결제방식 빈값
-                        ws[f'M{new_row}'].value = m_values[i] if i < len(m_values) else ""
-                        ws[f'N{new_row}'].value = n_values[i] if i < len(n_values) else ""
-                        
-                        # O열은 원본 값을 분할 개수로 나누어 설정
-                        if original_o_value and isinstance(original_o_value, (int, float)):
-                            ws[f'O{new_row}'].value = original_o_value / product_count
-                        elif i < len(o_values) and o_values[i]:
-                            try:
-                                ws[f'O{new_row}'].value = float(o_values[i]) / product_count
-                            except (ValueError, TypeError):
-                                ws[f'O{new_row}'].value = o_values[i]
-                        else:
-                            ws[f'O{new_row}'].value = ""
-                        
-                        # P열은 분할된 값 사용
-                        if i < len(p_values) and p_values[i]:
-                            try:
-                                ws[f'P{new_row}'].value = float(p_values[i])
-                            except (ValueError, TypeError):
-                                ws[f'P{new_row}'].value = p_values[i]
-                        else:
-                            ws[f'P{new_row}'].value = ""
-                        
-                        # S열은 분할된 값 사용
-                        ws[f'S{new_row}'].value = s_values[i] if i < len(s_values) else ""
-                        
-                        # U열은 원본 값을 분할 개수로 나누어 설정
-                        if original_u_value and isinstance(original_u_value, (int, float)):
-                            ws[f'U{new_row}'].value = original_u_value / product_count
-                        elif i < len(u_values) and u_values[i]:
-                            try:
-                                ws[f'U{new_row}'].value = float(u_values[i]) / product_count
-                            except (ValueError, TypeError):
-                                ws[f'U{new_row}'].value = u_values[i]
-                        else:
-                            ws[f'U{new_row}'].value = ""
-                        
-                        # V열은 분할된 값 사용
-                        if i < len(v_values) and v_values[i]:
-                            try:
-                                ws[f'V{new_row}'].value = float(v_values[i])
-                            except (ValueError, TypeError):
-                                ws[f'V{new_row}'].value = v_values[i]
-                        else:
-                            ws[f'V{new_row}'].value = ""
-                        
-                        # X열은 분할된 값 사용
-                        ws[f'X{new_row}'].value = x_values[i] if i < len(x_values) else ""
-                        
-                        # Y열은 분할된 값 사용
-                        ws[f'Y{new_row}'].value = y_values[i] if i < len(y_values) else ""
-                        
-                        # Z열은 분할된 값 사용
-                        ws[f'Z{new_row}'].value = z_values[i] if i < len(z_values) else ""
-                        
-                        # AA열은 분할된 값 사용
-                        ws[f'AA{new_row}'].value = aa_values[i] if i < len(aa_values) else ""
-                        
-                        # AB열에 각 상품 정보 설정
-                        ws[f'AB{new_row}'].value = f"{product.strip()} 1개"
-                    
-                    print(f"    분할 완료: 총 {len(products)}개 상품으로 분할됨")
+            elif g_value == 2:
+                # 수량 2: "/" 구분자 기준으로 2개 행으로 분할
+                self._create_split_rows(ws, row)
         
-        print(f"F열 구분자 분할 완료: {split_count}개 행 분할됨")
+        print(f"클로버프 상품 분할 완료: {split_count}개 행 처리됨")
         print(f"분할 후 총 행 수: {ws.max_row}행")
+
+    def _create_single_copy_row(self, ws: Worksheet, original_row: int) -> None:
+        """수량 1인 경우: 원본 행을 그대로 복사하여 새 행 1개 추가"""
+        new_row = original_row + 1
+        print(f"    수량 1 → 새 행 {new_row} 생성 (원본 복사)")
+        
+        # 새 행 삽입
+        ws.insert_rows(new_row)
+        
+        # 원본 행의 모든 데이터를 새 행에 복사 (A, D, G 제외)
+        for col in range(1, ws.max_column + 1):
+            col_letter = ws.cell(row=1, column=col).column_letter
+            if col_letter not in ['A', 'D', 'G']:
+                ws.cell(row=new_row, column=col).value = ws.cell(row=original_row, column=col).value
+        
+        # 새 행 전용 설정
+        ws[f'G{new_row}'].value = 1  # 수량 1
+        ws[f'H{new_row}'].value = "010-0000-0000"  # 기본 전화번호
+        ws[f'I{new_row}'].value = "010-0000-0000"  # 기본 전화번호
+        
+        # D열 계산 (O + P + V, slash 처리 후 첫 값 사용)
+        self._calculate_d_column(ws, new_row)
+        
+        print(f"    원본 복사 완료: 새 행 {new_row}")
+
+    def _create_split_rows(self, ws: Worksheet, original_row: int) -> None:
+        """수량 2인 경우: VBA와 100% 동일한 방식으로 분할"""
+        print(f"    수량 2 → VBA 호환 방식으로 2개 행 분할")
+        
+        # 분할 대상 열들의 원본 값 가져오기
+        split_columns = ['E', 'F', 'L', 'M', 'N', 'O', 'P', 'S', 'U', 'V', 'X', 'Y', 'Z', 'AA']
+        original_values = {}
+        split_data = {}
+        
+        for col in split_columns:
+            original_values[col] = ws[f'{col}{original_row}'].value
+            split_data[col] = self._split_slash_values(original_values[col], 2)
+        
+        print(f"    주문번호 분할: {split_data['E']}")
+        print(f"    상품명 분할: {split_data['F']}")
+        print(f"    배송비 분할: {split_data['V']}")
+        
+        # 원본 O열, U열 값 저장 (균등 분할용)
+        original_o_value = ws[f'O{original_row}'].value
+        original_u_value = ws[f'U{original_row}'].value
+        
+        # 2개의 새 행 생성
+        for i in range(2):
+            new_row = original_row + 1 + i
+            print(f"    새 행 {new_row} 생성: 분할 {i+1}/2")
+            
+            # 새 행 삽입
+            ws.insert_rows(new_row)
+            
+            # 원본 행의 기본 데이터 복사 (분할되지 않는 열들)
+            for col in range(1, ws.max_column + 1):
+                col_letter = ws.cell(row=1, column=col).column_letter
+                if col_letter not in ['A', 'D', 'E', 'F', 'G', 'H', 'I', 'L', 'M', 'N', 'O', 'P', 'S', 'U', 'V', 'X', 'Y', 'Z', 'AA', 'AB']:
+                    ws.cell(row=new_row, column=col).value = ws.cell(row=original_row, column=col).value
+            
+            # 분할된 열들 설정
+            for col in split_columns:
+                if col == 'O':
+                    # O열은 균등 분할
+                    if original_o_value and isinstance(original_o_value, (int, float)):
+                        ws[f'{col}{new_row}'].value = original_o_value / 2
+                    else:
+                        ws[f'{col}{new_row}'].value = split_data[col][i] if i < len(split_data[col]) else ""
+                elif col == 'U':
+                    # U열은 균등 분할
+                    if original_u_value and isinstance(original_u_value, (int, float)):
+                        ws[f'{col}{new_row}'].value = original_u_value / 2
+                    else:
+                        ws[f'{col}{new_row}'].value = split_data[col][i] if i < len(split_data[col]) else ""
+                elif col == 'V':
+                    # V열은 VBA 특별 처리: "/" 구분자가 있으면 분할된 각 값 사용
+                    original_v_value = original_values['V']
+                    if original_v_value and "/" in str(original_v_value):
+                        # "/" 구분자가 있는 경우 분할된 값 사용
+                        value = split_data[col][i] if i < len(split_data[col]) and split_data[col][i] else ""
+                        if value and str(value).replace('.', '').replace('-', '').isdigit():
+                            try:
+                                ws[f'{col}{new_row}'].value = float(value)
+                            except (ValueError, TypeError):
+                                ws[f'{col}{new_row}'].value = value
+                        else:
+                            ws[f'{col}{new_row}'].value = value
+                    else:
+                        # "/" 구분자가 없는 경우 원본 값 유지
+                        ws[f'{col}{new_row}'].value = original_v_value
+                else:
+                    # 기타 열들은 분할된 값 사용
+                    value = split_data[col][i] if i < len(split_data[col]) and split_data[col][i] else ""
+                    ws[f'{col}{new_row}'].value = value
+            
+            # 새 행 전용 설정
+            ws[f'G{new_row}'].value = 1  # 수량 1
+            ws[f'H{new_row}'].value = "010-0000-0000"  # 기본 전화번호
+            ws[f'I{new_row}'].value = "010-0000-0000"  # 기본 전화번호
+            
+            # AB열에 상품 정보 설정
+            f_value = split_data['F'][i] if i < len(split_data['F']) and split_data['F'][i] else ""
+            ws[f'AB{new_row}'].value = f"{f_value.strip()} 1개" if f_value else "1개"
+            
+            # D열 계산
+            self._calculate_d_column(ws, new_row)
+        
+        # 원본 행의 V열 원본 값 유지 (VBA 로직과 동일)
+        original_v_value = original_values['V']
+        if original_v_value and "/" in str(original_v_value):
+            ws[f'V{original_row}'].value = original_v_value
+            print(f"    원본 행 {original_row} V열 유지: '{original_v_value}'")
+        
+        print(f"    VBA 호환 분할 완료: 2개 행 생성됨")
+
+    def _calculate_d_column(self, ws: Worksheet, row: int) -> None:
+        """D열 계산: O + P + V (slash 처리 후 첫 값 사용)"""
+        o_val = ws[f'O{row}'].value or 0
+        p_val = ws[f'P{row}'].value or 0
+        v_val = ws[f'V{row}'].value or 0
+        
+        # P열이 "/" 구분자 포함 시 첫 번째 값만 사용
+        if p_val and "/" in str(p_val):
+            p_val = float(str(p_val).split("/")[0].strip() or 0)
+        else:
+            p_val = float(p_val) if p_val else 0
+        
+        # V열이 "/" 구분자 포함 시 첫 번째 값만 사용
+        if v_val and "/" in str(v_val):
+            v_val = float(str(v_val).split("/")[0].strip() or 0)
+        else:
+            v_val = float(v_val) if v_val else 0
+        
+        try:
+            calculated_d = float(o_val) + p_val + v_val
+            ws[f'D{row}'].value = calculated_d
+            print(f"    D열 계산: {o_val} + {p_val} + {v_val} = {calculated_d}")
+        except (ValueError, TypeError) as e:
+            print(f"    D열 계산 오류: {e}")
+            ws[f'D{row}'].value = ""
 
     def _split_slash_values(self, value, expected_count: int) -> List[str]:
         """
@@ -646,15 +613,14 @@ class ETCSheetManager:
         val_str = str(value).strip()
         if "/" in val_str:
             parts = val_str.split("/")
+            # 파트가 expected_count보다 적으면 빈 문자열로 채움
+            while len(parts) < expected_count:
+                parts.append("")
+            result = [part.strip() for part in parts[:expected_count]]
         else:
             # "/" 구분자가 없으면 첫 번째 값만 사용하고 나머지는 빈 문자열
-            parts = [val_str]
+            result = [val_str] + [""] * (expected_count - 1)
         
-        # 필요한 개수만큼 값이 없으면 빈 문자열로 채움
-        while len(parts) < expected_count:
-            parts.append("")
-        
-        result = [part.strip() for part in parts[:expected_count]]
         return result
 
     def copy_to_new_sheet(self, 
