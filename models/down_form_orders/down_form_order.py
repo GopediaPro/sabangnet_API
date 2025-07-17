@@ -66,6 +66,7 @@ class BaseFormOrder(Base):
     cancel_dt: Mapped[str | None] = mapped_column(String(14))
     hope_delv_date: Mapped[str | None] = mapped_column(String(14))
     inv_send_dm: Mapped[str | None] = mapped_column(String(14))
+    work_status: Mapped[str | None] = mapped_column(String(14))
 
     @classmethod
     def build_erp(cls, receive_orders_dto: ReceiveOrdersDto):

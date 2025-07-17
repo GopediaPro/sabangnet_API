@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     # Test Mode
     CONPANY_GOODS_CD_TEST_MODE: Optional[bool] = True
 
-    DEPLOY_ENV: Optional[bool] = None
+    DEPLOY_ENV: Optional[str] = "development"
 
     class Config:
         env_file = ".env"
