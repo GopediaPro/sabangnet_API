@@ -675,7 +675,7 @@ class ExcelHandler:
             sorted_data: 정렬된 데이터
         """
         return sorted(data, key=lambda row: tuple(
-            str(-row[i-1]) if i < 0 else (str(row[i-1]) if row[i-1] is not None else "")
+            str(-row[abs(i)-1]) if i < 0 else (str(row[i-1]) if row[i-1] is not None else "")
             for i in sort_columns
         ))
 
