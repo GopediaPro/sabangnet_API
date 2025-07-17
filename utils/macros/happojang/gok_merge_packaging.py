@@ -8,12 +8,11 @@ from typing import Dict, List, Optional
 
 from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.utils import get_column_letter
-from utils.excel_handler import ExcelHandler
+from utils.excels.excel_handler import ExcelHandler
 
 
 # 설정 상수
 MALL_NAME = "G·옥"
-OUTPUT_PREFIX = "G옥_합포장_자동화_"
 
 # 시트 분리 설정
 ACCOUNT_MAPPING = {
@@ -73,9 +72,18 @@ def truncate_order_numbers(ws: Worksheet, max_length: int = 10) -> None:
 
 
 def clear_l_column(ws: Worksheet) -> None:
-    """L열 찾아서 내용 비우기"""
+    """L열(12번째 열) 내용 비우기"""
+    # L열은 12번째 열 (1-based index)
+    l_col_idx = 12
+    
+    # L열이 존재하는지 확인
+    if l_col_idx <= ws.max_column:
+        for r in range(2, ws.max_row + 1):
+            ws.cell(row=r, column=l_col_idx).value = None
+    
+    # 혹시 헤더명으로도 찾아서 처리 (보조)
     for col_idx in range(1, ws.max_column + 1):
-        header = str(ws.cell(row=1, column=col_idx).value).strip().upper()
+        header = str(ws.cell(row=1, column=col_idx).value or "").strip().upper()
         if header == "L":
             for r in range(2, ws.max_row + 1):
                 ws.cell(row=r, column=col_idx).value = None
@@ -217,11 +225,9 @@ def gok_merge_packaging(file_path: str) -> str:
             rows_by_sheet.get(sheet_name, [])
         )
     
-    # 12. 저장
-    output_path = str(
-        Path(file_path).with_name(OUTPUT_PREFIX + Path(file_path).name)
-    )
-    ex.wb.save(output_path)
+    # 저장
+    base_name = Path(file_path).stem  # 확장자 제거한 파일명
+    output_path = ex.happojang_save_file(base_name=base_name)
     ex.wb.close()
     
     print(f"◼︎ [{MALL_NAME}] 합포장 자동화 완료!")

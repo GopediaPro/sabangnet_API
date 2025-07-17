@@ -5,7 +5,7 @@ from typing import List, Dict
 from urllib.parse import urljoin
 import json
 from pathlib import Path
-from utils.sabangnet_logger import get_logger
+from utils.logs.sabangnet_logger import get_logger
 from core.settings import SETTINGS
 
 logger = get_logger(__name__)

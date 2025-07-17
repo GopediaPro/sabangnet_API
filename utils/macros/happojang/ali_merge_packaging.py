@@ -11,16 +11,15 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border
 from openpyxl.utils import get_column_letter
 from openpyxl.workbook.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
-from utils.excel_handler import ExcelHandler
+from utils.excels.excel_handler import ExcelHandler
 
 
 # 설정 상수
-OUTPUT_DIR_NAME = "완료"
 MALL_NAME = "알리익스프레스"
 RED_FONT = Font(color="FF0000", bold=True)
 
 
-class ProductUtils:
+class ALIProductUtils:
     # 정규식 패턴
     STAR_QTY_RE = re.compile(r"\* ?(\d+)")
     MULTI_SEP_RE = re.compile(r"[\/;]")
@@ -40,13 +39,13 @@ class ProductUtils:
         if not txt:
             return ""
             
-        txt = ProductUtils.MULTI_SEP_RE.sub(" + ", str(txt))
+        txt = ALIProductUtils.MULTI_SEP_RE.sub(" + ", str(txt))
         
         def qty_replace(m: re.Match) -> str:
             n = m.group(1).strip()
             return "" if n == "1" else f" {n}개"
             
-        txt = ProductUtils.STAR_QTY_RE.sub(qty_replace, txt)
+        txt = ALIProductUtils.STAR_QTY_RE.sub(qty_replace, txt)
         return txt.replace(" 1개", "").strip()
 
     @staticmethod
@@ -54,7 +53,7 @@ class ProductUtils:
         """전화번호 포맷 (01012345678 → 010-1234-5678)"""
         if not val:
             return ""
-        digits = ProductUtils.PHONE_RE.sub("", str(val))
+        digits = ALIProductUtils.PHONE_RE.sub("", str(val))
         if digits.startswith("10"):
             digits = "0" + digits
         return f"{digits[:3]}-{digits[3:7]}-{digits[7:]}" if len(digits) == 11 else digits
@@ -63,12 +62,12 @@ class ProductUtils:
     def check_multiple_quantities(txt: str) -> bool:
         """F열 다중수량 체크 ('개' 2회 이상 등장)"""
         parts = [p.strip() for p in str(txt or "").split("+")]
-        return sum(1 for p in parts if ProductUtils.DUP_QTY_RE.search(p)) >= 2
+        return sum(1 for p in parts if ALIProductUtils.DUP_QTY_RE.search(p)) >= 2
 
     @staticmethod
     def is_jeju_address(addr: str) -> bool:
         """주소가 제주도인지 확인"""
-        return bool(ProductUtils.JEJU_RE.search(str(addr or "")))
+        return bool(ALIProductUtils.JEJU_RE.search(str(addr or "")))
 
     @staticmethod
     def build_lookup_map(ws_lookup: Worksheet) -> Dict[str, str]:
@@ -102,15 +101,15 @@ def copy_product_info(ws: Worksheet) -> None:
     """Z열 상품정보를 F열로 복사하고 정리"""
     for row in range(2, ws.max_row + 1):
         z_val = ws[f"Z{row}"].value
-        ws[f"F{row}"].value = ProductUtils.clean_product_text(z_val)
-        if ProductUtils.check_multiple_quantities(ws[f"F{row}"].value):
+        ws[f"F{row}"].value = ALIProductUtils.clean_product_text(z_val)
+        if ALIProductUtils.check_multiple_quantities(ws[f"F{row}"].value):
             ws[f"F{row}"].fill = BLUE_FILL
 
 
 def process_phones(ws: Worksheet) -> None:
     """전화번호 처리 (I열 포맷 + H열 복사)"""
     for row in range(2, ws.max_row + 1):
-        phone = ProductUtils.format_phone(ws[f"I{row}"].value)
+        phone = ALIProductUtils.format_phone(ws[f"I{row}"].value)
         ws[f"I{row}"].value = phone
         ws[f"H{row}"].value = phone
     ws.column_dimensions["H"].width = ws.column_dimensions["I"].width
@@ -120,10 +119,10 @@ def process_jeju_orders(ex: ExcelHandler) -> None:
     """제주도 주문 처리"""
     ws = ex.ws
     for row in range(2, ws.max_row + 1):
-        if ProductUtils.is_jeju_address(ws[f"J{row}"].value):
+        if ALIProductUtils.is_jeju_address(ws[f"J{row}"].value):
             ws[f"J{row}"].font = RED_FONT
-            if "[3000원 환불처리]" not in str(ws[f"F{row}"].value):
-                ws[f"F{row}"].value = f"{ws[f'F{row}'].value} [3000원 환불처리]"
+            if "[3000원 연락해야함]" not in str(ws[f"F{row}"].value):
+                ws[f"F{row}"].value = f"{ws[f'F{row}'].value} [3000원 연락해야함]"
             ws[f"F{row}"].fill = BLUE_FILL
 
 
@@ -136,7 +135,8 @@ def ali_merge_packaging(input_path: str) -> str:
     # 1. 기본 서식 적용
     ex.set_basic_format()
     
-    # 2. P열 슬래시(/) 금액 합산
+    # 2. P열 슬래시(/) 금액 합산 
+    # TODO: 이 부분 확인 필요
     ex.sum_prow_with_slash()
     
     # 3. C→B 정렬
@@ -161,10 +161,10 @@ def ali_merge_packaging(input_path: str) -> str:
     ws.delete_cols(6)
     
     # 12. D열 수식 설정
-    ex.autofill_d_column(formula="=U{row}+P{row}+V{row}")
+    ex.autofill_d_column(formula="=U{row}+V{row}")
     
     # 13. A열 순번 설정
-    ex.set_row_number()
+    ex.set_row_number(ws)
     
     # 14-17. 열 정렬/서식
     ex.set_column_alignment()
@@ -177,15 +177,15 @@ def ali_merge_packaging(input_path: str) -> str:
     # E, M, P, Q, W 열 String숫자 to 숫자 변환
     ex.convert_numeric_strings(cols=("E", "M", "P", "Q", "W"))
     
-    # 21. VLOOKUP 처리 (Sheet1이 있는 경우)
+    # 21. S열 VLOOKUP 처리 (Sheet1이 있는 경우)
     if "Sheet1" in ex.wb.sheetnames:
-        lookup_map = ProductUtils.build_lookup_map(ex.wb["Sheet1"])
+        lookup_map = ALIProductUtils.build_lookup_map(ex.wb["Sheet1"])
         for row in range(2, ws.max_row + 1):
             m_val = str(ws[f"M{row}"].value)
-            ws[f"V{row}"].value = lookup_map.get(m_val, "S")
+            ws[f"S{row}"].value = lookup_map.get(m_val, "S")
     
     # 22. 시트 분리 (OK, IY)
-    splitter = SheetSplitter(ws)
+    splitter = ALISheetSplitter(ws)
     rows_by_sheet = splitter.get_rows_by_sheet()
     
     for sheet_name, row_indices in rows_by_sheet.items():
@@ -193,23 +193,21 @@ def ali_merge_packaging(input_path: str) -> str:
             splitter.copy_to_new_sheet(ex.wb, sheet_name, row_indices)
 
     # 24. 시트 순서 정리
-    desired = ["알리합포장", "OK", "IY", "Sheet1"]
+    desired = ["자동화", "OK", "IY", "Sheet1"]
     for name in reversed(desired):
         if name in ex.wb.sheetnames:
             ex.wb._sheets.insert(0, ex.wb._sheets.pop(ex.wb.sheetnames.index(name)))
             
     # 저장
-    output_dir = Path(input_path).parent / OUTPUT_DIR_NAME
-    output_dir.mkdir(exist_ok=True)
-    output_path = str(output_dir / Path(input_path).name)
+    base_name = Path(input_path).stem  # 확장자 제거한 파일명
+    output_path = ex.happojang_save_file(base_name=base_name)
     
-    ex.wb.save(output_path)
     print(f"◼︎ [{MALL_NAME}] 합포장 자동화 완료!")
     
     return output_path
 
 
-class SheetSplitter:
+class ALISheetSplitter:
     """시트 분리 처리 클래스"""
     
     def __init__(self, ws: Worksheet):

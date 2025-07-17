@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     MINIO_SECRET_KEY: Optional[str] = None
     MINIO_ENDPOINT: Optional[str] = None
     MINIO_BUCKET_NAME: Optional[str] = None
-    MINIO_USE_SSL: Optional[str] = None
+    MINIO_USE_SSL: Optional[bool] = None
     MINIO_PORT: Optional[int] = None
 
     # DB
@@ -41,6 +41,8 @@ class Settings(BaseSettings):
 
     # Test Mode
     CONPANY_GOODS_CD_TEST_MODE: Optional[bool] = True
+
+    DEPLOY_ENV: Optional[str] = "development"
 
     class Config:
         env_file = ".env"

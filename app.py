@@ -11,16 +11,16 @@ legacy_ssl_handler.fix_legacy_ssl_config()
 from core.settings import SETTINGS
 from controller.product import run_generate_and_save_all_product_code_data
 from core.db import AsyncSessionLocal
-from models.order.receive_order import ReceiveOrder
+from models.receive_orders.receive_orders import ReceiveOrders
 from sqlalchemy import select
 import asyncio
 from core.db import get_db_pool
 from controller import fetch_mall_list, fetch_order_list, test_one_one_price_calculation, request_product_create as request_product_create_controller
 from dotenv import load_dotenv
 import typer
-from services.order.order_create_service import OrderListCreateService
+from services.receive_orders.receive_order_create_service import ReceiveOrderCreateService
 from core.initialization import initialize_program
-from utils.sabangnet_logger import get_logger
+from utils.logs.sabangnet_logger import get_logger
 from core.db import test_db_write
 
 
@@ -108,13 +108,16 @@ def mall_list():
 
 @app.command(help="주문 목록을 조회합니다")
 def order_list():
-    """주문 목록 조회 명령어"""
-    try:
-        logger.info("주문 목록 조회를 시작합니다...")
-        fetch_order_list()
-    except Exception as e:
-        logger.error(f"주문 목록 조회 중 오류 발생: {e}")
-        handle_error(e)
+    async def _order_list():
+        """주문 목록 조회 명령어"""
+        try:
+            logger.info("주문 목록 조회를 시작합니다...")
+            async with AsyncSessionLocal() as session:
+                await fetch_order_list(session)
+        except Exception as e:
+            logger.error(f"주문 목록 조회 중 오류 발생: {e}")
+            handle_error(e)
+    asyncio.run(_order_list())
 
 
 @app.command(help="DB 연결을 테스트합니다")
@@ -148,14 +151,14 @@ def test_db_write_command(value: str = typer.Argument(..., help="테스트로 �
     asyncio.run(_test())
 
 
-@app.command(help="ReceiveOrder 모델 기본 조회 테스트")
+@app.command(help="ReceiveOrders 모델 기본 조회 테스트")
 def test_receive_order():
-    """ReceiveOrder 모델 기본 조회 테스트 - 동기 함수로 변경"""
+    """ReceiveOrders 모델 기본 조회 테스트 - 동기 함수로 변경"""
     async def _test_receive_order():
         async with AsyncSessionLocal() as session:
             try:
-                print("=== ReceiveOrder 모델 테스트 ===")
-                stmt = select(ReceiveOrder).limit(1)
+                print("=== ReceiveOrders 모델 테스트 ===")
+                stmt = select(ReceiveOrders).limit(1)
                 result = await session.execute(stmt)
                 order = result.scalar_one_or_none()
                 if order:
@@ -172,13 +175,16 @@ def test_receive_order():
 
 
 @app.command(help="수집된 주문 DB에 담기")
-def create_order():
-    try:
-        order_create_service = OrderListCreateService()
-        asyncio.run(order_create_service.create_orders())
-    except Exception as e:
-        logger.error(f"쓰기 작업 중 오류 발생: {e}")
-        handle_error(e)
+def create_order(json_file_name: str = typer.Argument(..., help="JSON 파일 이름")):
+    async def _create_order():
+        try:
+            async with AsyncSessionLocal() as session:
+                order_create_service = ReceiveOrderCreateService(session)
+                await order_create_service.save_orders_to_db_from_json(json_file_name)
+        except Exception as e:
+            logger.error(f"쓰기 작업 중 오류 발생: {e}")
+            handle_error(e)
+    asyncio.run(_create_order())
 
 
 @app.command(help="상품 등록 API 테스트")
@@ -200,7 +206,6 @@ def import_product_registration_excel(
     """Excel 파일에서 상품 등록 데이터를 가져와 DB에 저장합니다."""
     async def _import_excel():
         try:
-            from core.db import AsyncSessionLocal
             from services.product_registration import ProductRegistrationService
 
             async with AsyncSessionLocal() as session:
@@ -245,10 +250,10 @@ def import_product_registration_excel(
 
 @app.command(help="주문 목록을 엑셀로 변환")
 def create_order_xlsx():
-    from repository.receive_order_repository import ReceiveOrderRepository
-    from utils.convert_xlsx import ConvertXlsx
-    from utils.order_basic_erp_excel_field_mapping import ORDER_BASIC_ERP_EXCEL_FIELD_MAPPING
-    inserter = ReceiveOrderRepository()
+    from repository.receive_orders_repository import ReceiveOrdersRepository
+    from utils.excels.convert_xlsx import ConvertXlsx
+    from utils.mappings.order_basic_erp_excel_field_mapping import ORDER_BASIC_ERP_EXCEL_FIELD_MAPPING
+    inserter = ReceiveOrdersRepository()
     convert_xlsx = ConvertXlsx()
     try:
         orders = asyncio.run(inserter.read_all())
@@ -258,12 +263,23 @@ def create_order_xlsx():
     except Exception as e:
         logger.error(f"주문 목록 엑셀 변환 중 오류 발생: {e}")
 
+@app.command(help="알리양식변경")
+def test_reform_macro():
+    from controller.reform_order import test_reform_macro
+    """
+    양식변경 자동화 CLI 메뉴 실행
+    """
+    try:
+        test_reform_macro()
+    except Exception as e:
+        logger.error(f"주문양식 변경 매크로 실행 중 오류 발생: {e}")
+        handle_error(e)
 
 @app.command(help="테스트 ERP 매크로 실행")
 def test_erp_macro():
     from controller.erp_macro import test_erp_macro
     try:
-        test_erp_macro()
+        asyncio.run(test_erp_macro())
     except Exception as e:
         logger.error(f"ERP 매크로 실행 중 오류 발생: {e}")
         handle_error(e)
@@ -275,7 +291,7 @@ def test_happojang_macro():
     합포장 자동화 CLI 메뉴 실행
     """
     try:
-        test_happojang_macro()
+        asyncio.run(test_happojang_macro())
     except Exception as e:
         typer.echo(f"합포장 자동화 실행 중 오류 발생: {e}")   
 
@@ -295,6 +311,12 @@ def calculate_one_one_price(product_nm: str = typer.Argument(..., help="상품�
 def start_server():
     from start_server import run_fastapi
     run_fastapi()
+
+
+@app.command(help="pytest 실행")
+def start_pytest():
+    from tests.run_test import main
+    main()
 
 
 def handle_error(e: Exception):

@@ -1,8 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+from models.mall_price.mall_price import MallPrice
 from schemas.mall_price.mall_price_dto import MallPriceDto
 from repository.mall_price_repository import MallPriceRepository
-from models.mall_price.mall_price import MallPrice
-from sqlalchemy import select
+
 
 class MallPriceWriteService:
     def __init__(self, session: AsyncSession):

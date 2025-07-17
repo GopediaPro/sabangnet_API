@@ -1,260 +1,162 @@
-import pandas as pd
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment
-import re
-from collections import defaultdict
-from utils.excel_handler import ExcelHandler
+from openpyxl.styles import Font, Alignment
+from utils.excels.excel_handler import ExcelHandler
+from utils.excels.excel_column_handler import ExcelColumnHandler
 
 
-class ECTSiteMacro:
+class ERPEtcSiteMacro:
     def __init__(self, file_path: str):
         self.file_path = file_path
         self.ex = ExcelHandler.from_file(file_path)
         self.ws = self.ex.ws
         self.wb = self.ex.wb
-        self.last_row = self.ws.max_row
-        self.last_col = self.ws.max_column
-        self.right_alignment = Alignment(horizontal='right')
-        self.center_alignment = Alignment(horizontal='center')
-        self.light_blue_fill = PatternFill(
-            start_color="ADD8E6", end_color="ADD8E6", fill_type="solid")
-        self.green_fill = PatternFill(
-            start_color="006100", end_color="006100", fill_type="solid")
-        self.white_font = Font(name='맑은 고딕', size=9, color="FFFFFF", bold=True)
-        self.headers = []
-        self.df = None
+        self.order_dict = set()
+        self.toss_order_info = {}
 
-    def step_1_to_14(self) -> str:
-        """
-        1~14단계 자동화 실행
-        """
-        print("1~14단계 자동화 시작...")
-        self._step_1()
-        self._step_2()
-        self._step_3()
-        self._step_4()
-        self._step_5()
-        self._step_6()
-        self._step_7()
-        self._step_8()
-        self._step_9()
-        
-        print("14단계: 모든 시트에 서식 적용 시작...")
+    def etc_site_macro_run(self):
+        col_h = ExcelColumnHandler()
+
+        for row in range(2, self.ws.max_row + 1):
+            self._overlap_by_site_column(self.ws[f"B{row}"], row)
+            self._toss_process_column(self.ws[f"B{row}"], row)
+            self._order_num_by_site_column(self.ws[f"B{row}"])
+            self._kakao_jeju_process_column(
+                self.ws[f"B{row}"], self.ws[f"J{row}"], self.ws[f"F{row}"])
+            col_h.d_column(self.ws[f"D{row}"],
+                           self.ws[f"U{row}"], self.ws[f"V{row}"])
+            col_h.h_i_column(self.ws[f"H{row}"])
+            col_h.h_i_column(self.ws[f"I{row}"])
+
+        self._toss_order_info_process()
+
+        # 시트 설정
+        sheets_name = ["OK", "IY", "BB"]
+        site_to_sheet = {
+            "오케이마트": "OK",
+            "아이예스": "IY",
+            "베이지베이글": "BB",
+        }
+
+        # 정렬 기준: 2번째 컬럼(B) → 3번째 컬럼(C) 순으로 정렬 2025-07-17 정렬순서 조정, 3번쨰 컬럼은 내림차순되게 수정
+        sort_columns = [2, 3, -4, 5, 6]
+        print("시트별 정렬, 시트 분리 시작...")
+        headers, data = self.ex.preprocess_and_update_ws(self.ws, sort_columns)
+        self.ex.split_and_write_ws_by_site(
+            wb=self.wb,
+            headers=headers,
+            data=data,
+            sheets_name=sheets_name,
+            site_to_sheet=site_to_sheet,
+            site_col_idx=2,
+        )
+        print("시트별 정렬, 시트 분리 완료")
+
+        print("시트별 서식, 디자인 적용 시작...")
         for ws in self.wb.worksheets:
+            self.ex.set_header_style(ws)
             if ws.max_row <= 1:
                 continue
-            self._step_14(ws)
+            for row in range(2, ws.max_row + 1):
+                col_h.a_value_column(ws[f"A{row}"])
+                col_h.e_column(ws[f"E{row}"])
+                col_h.f_column(ws[f"F{row}"])
+                col_h.l_column(ws[f"L{row}"])
+                col_h.convert_int_column(ws[f"M{row}"])
+                col_h.convert_int_column(ws[f"P{row}"])
+                col_h.convert_int_column(ws[f"Q{row}"])
+                self._v_column_red_font(ws[f"V{row}"])
+                col_h.convert_int_column(ws[f"W{row}"])
+            print(f"[{ws.title}] 서식 및 디자인 적용 완료")
+
         output_path = self.ex.save_file(self.file_path)
         print(f"✓ 기타 사이트 ERP 자동화 완료! 최종 파일: {output_path}")
         return output_path
 
-    def _step_1(self):
+    def _overlap_by_site_column(self, b_cell, row):
         """
-        [1단계] 데이터를 DataFrame으로 변환
+        각 사이트별 중복 주문 처리
+        args:
+            b_cell: 주문 번호 셀
+            row: 행 번호
         """
-        # 데이터를 DataFrame으로 변환
-        self.df = self.ex.to_dataframe(self.ws)
-        self.headers = list(self.df.columns)
+        b_cell_text = str(b_cell.value)
+        if "오늘의집" in b_cell_text:
+            b_cell.value = 0
+        elif "톡스토어" in b_cell_text:
+            order_key = str(self.ws[f"B{row}"].value).strip()
+            if order_key:
+                if order_key in self.order_dict:
+                    self.ws[f"V{row}"].value = 0
+                else:
+                    self.order_dict.add(order_key)
+        elif any(site in b_cell_text for site in ["롯데온", "보리보리", "스마트스토어"]):
+            order_key = str(self.ws[f"J{row}"].value).strip()
+            if order_key:
+                if order_key in self.order_dict:
+                    self.ws[f"V{row}"].value = 0
+                else:
+                    self.order_dict.add(order_key)
 
-        # C열(인덱스 2), B열(인덱스 1) 순서로 정렬
-        if len(self.df.columns) > 2:
-            self.df = self.ex.sort_dataframe_by_c_b(
-                self.df, c_col='수취인명', b_col='사이트')
+    def _toss_process_column(self, cell, row):
+        """
+        토스 주문 처리
+        args:
+            b_cell: 주문 번호 셀
+            row: 행 번호
+        """
+        b_cell_text = str(cell.value)
+        if "토스" in b_cell_text:
+            order_key = str(self.ws[f"E{row}"].value).strip()
+            if order_key:
+                u_value = self.ws[f"U{row}"].value
+                u_value = float(u_value) if u_value is not None else 0
+                if order_key not in self.toss_order_info:
+                    self.toss_order_info[order_key] = [0.0, row]
+                self.toss_order_info[order_key][0] += u_value
+                self.ws[f"V{row}"].value = 0
 
-        print("1단계: C열, B열 순서 정렬 완료")
+    def _toss_order_info_process(self):
+        """
+        토스 주문 30000원 이하 처리
+        """
+        for order_key, (total, first_row) in self.toss_order_info.items():
+            if total <= 30000:
+                self.ws[f"V{first_row}"].value = 3000
 
-    def _step_2(self):
-        # 사이트별 처리 (오늘의집, 톡스토어, 롯데온, 보리보리, 스마트스토어)
-        order_dict = {}
-        for idx, row in self.df.iterrows():
-            site_text = str(row.iloc[1])
-            if "오늘의집" in site_text:
-                self.df.at[idx, self.df.columns[21]] = 0
-            elif "톡스토어" in site_text:
-                order_key = str(row.iloc[9]).strip()
-                if order_key and order_key != "":
-                    if order_key in order_dict:
-                        self.df.at[idx, self.df.columns[21]] = 0
-                    else:
-                        order_dict[order_key] = True
-            elif any(site in site_text for site in ["롯데온", "보리보리", "스마트스토어"]):
-                order_key = str(row.iloc[4]).strip()
-                if order_key and order_key != "":
-                    if order_key in order_dict:
-                        self.df.at[idx, self.df.columns[21]] = 0
-                    else:
-                        order_dict[order_key] = True
-        print("2단계: 사이트별 처리 완료")
-
-    def _step_3(self):
-        # 토스 처리 (V열, U열 합산)
-        u_sum_dict = defaultdict(float)
-        row_list_dict = defaultdict(list)
-        for idx, row in self.df.iterrows():
-            if "토스" in str(row.iloc[1]):
-                order_key = str(row.iloc[4]).strip()
-                if order_key and order_key != "":
-                    u_value = float(row.iloc[20]) if pd.notna(
-                        row.iloc[20]) else 0
-                    u_sum_dict[order_key] += u_value
-                    row_list_dict[order_key].append(idx)
-        for order_key, rows in row_list_dict.items():
-            if u_sum_dict[order_key] > 30000:
-                for row_idx in rows:
-                    self.df.at[row_idx, self.df.columns[21]] = 0
-            else:
-                for i, row_idx in enumerate(rows):
-                    self.df.at[row_idx, self.df.columns[21]
-                               ] = 3000 if i == 0 else 0
-        print("3단계: 토스 처리 완료")
-
-    def _step_4(self):
-        # 전화번호 포맷팅 (H, I)
-        for col_idx in [7, 8]:
-            for idx in self.df.index:
-                phone_val = str(self.df.iloc[idx, col_idx]).strip()
-                if (len(phone_val) == 11 and phone_val.startswith('010') and phone_val.isdigit()):
-                    formatted_phone = f"{phone_val[:3]}-{phone_val[3:7]}-{phone_val[7:]}"
-                    self.df.iloc[idx, col_idx] = formatted_phone
-        print("4단계: 전화번호 포맷팅 완료")
-
-    def _step_5(self):
-        # 사이트별 주문번호 숫자 변환
+    def _order_num_by_site_column(self, cell):
+        """
+        사이트별 주문 번호 처리
+        args:
+            cell: 주문 번호 셀
+        """
         site_list = ["에이블리", "오늘의집", "쿠팡", "텐바이텐",
                      "NS홈쇼핑", "그립", "보리보리", "카카오선물하기", "톡스토어", "토스"]
-        row_dict = defaultdict(list)
-        for idx, row in self.df.iterrows():
-            site_text = str(row.iloc[1])
-            for site in site_list:
-                if site in site_text:
-                    row_dict[site].append(idx)
-                    break
-        for site, indices in row_dict.items():
-            for idx in indices:
-                order_num = self.df.iloc[idx, 4]
-                if pd.notna(order_num) and str(order_num).replace('.', '').isdigit():
-                    self.df.iloc[idx, 4] = int(float(order_num))
-        print("5단계: 사이트별 주문번호 숫자 변환 완료")
+        cell_text = str(cell.value)
+        if any(site in cell_text for site in site_list):
+            order_num = cell.value
+            if order_num is not None and str(order_num).replace('.', '').isdigit():
+                cell.value = int(float(order_num))
 
-    def _step_6(self):
-        # 카카오 + 제주 처리
-        for idx in self.df.index:
-            if ("카카오" in str(self.df.iloc[idx, 1]) and "제주" in str(self.df.iloc[idx, 9])):
-                f_val = str(self.df.iloc[idx, 5])
-                if "[3000원 연락해야함]" not in f_val:
-                    self.df.iloc[idx, 5] = f_val + " [3000원 연락해야함]"
-        print("6단계: 카카오 + 제주 처리 완료")
-
-    def _step_7(self):
+    def _kakao_jeju_process_column(self, b_cell, j_cell, f_cell):
         """
-        [7단계] 워크시트에 정렬된 데이터 덮어쓰기
+        카카오 제주 주문 처리
+        args:
+            b_cell: 주문 번호 셀
+            j_cell: 주소 셀
+            f_cell: 주문 번호 셀
         """
-        for row_idx, row_data in enumerate(self.df.itertuples(index=False), start=2):
-            for col_idx, value in enumerate(row_data, start=1):
-                self.ws.cell(row=row_idx, column=col_idx,
-                             value=value if value or value == 0 else "")
-        print("7단계: 워크시트에 정렬된 데이터 덮어쓰기 완료")
+        b_text = str(b_cell.value)
+        j_text = str(j_cell.value)
+        if "카카오" in b_text and "제주" in j_text:
+            f_text = str(f_cell.value)
+            if "[3000원 연락해야함]" not in f_text:
+                f_cell.value = f_text + " [3000원 연락해야함]"
 
-    def _step_8(self):
+    def _v_column_red_font(self, v_cell):
         """
-        [8단계] 시트 분리 준비
+        V 컬럼 빨간색 글씨 처리
+        args:
+            v_cell: V 컬럼 셀
         """
-        self.ws_map = self.ex.create_split_sheets(
-            self.headers, ["OK", "IY", "BB"])
-
-        self.ex.set_header_style(
-            self.ws_map["OK"], self.headers, self.green_fill, self.white_font, self.center_alignment)
-        self.ex.set_header_style(
-            self.ws_map["IY"], self.headers, self.green_fill, self.white_font, self.center_alignment)
-        self.ex.set_header_style(
-            self.ws_map["BB"], self.headers, self.green_fill, self.white_font, self.center_alignment)
-
-        print("8단계: 시트 분리 준비 완료")
-
-    def _step_9(self):
-        """
-        [9단계] 시트 분리
-        """
-        site_mapping = {
-            "OK": ["오케이마트"],
-            "IY": ["아이예스"],
-            "BB": ["베이지베이글"]
-        }
-
-        self.ex.split_sheets_by_site(self.df, self.ws_map, site_mapping)
-        print("9단계: 시트 분리 완료")
-
-    def _step_10(self, ws):
-        """
-        [10단계] D열 수식 활성화 및 채우기
-        """
-        d2_formula = self.ws['D2'].value
-        self.ex.autofill_d_column(ws=ws,
-                                  start_row=2, end_row=ws.max_row, formula=d2_formula)
-        print("10단계: D열 수식 처리 완료")
-
-    def _step_11(self, ws):
-        """
-        [11단계] M, P, Q,W 숫자 변환
-        """
-        cols_names = ['M', 'P', 'Q', 'W']
-        self.ex.convert_numeric_strings(
-            ws=ws, start_row=2, end_row=ws.max_row, cols=cols_names)
-        print("11단계: M, P, Q,W 숫자 변환 완료")
-
-    def _step_12(self, ws):
-        # L열 처리 (배송비 관련) & V열이 0인 경우 빨간색 굵게
-        red_font = Font(color="FF0000")
-
-        for row in range(2, ws.max_row + 1):
-            l_value = ws[f'L{row}'].value
-            if l_value:
-                l_value_str = str(l_value).strip()
-                if l_value_str == "신용":
-                    ws[f'L{row}'].value = ""
-                elif l_value_str == "착불":
-                    ws[f'L{row}'].font = red_font
-            if ws[f'V{row}'].value == 0:
-                ws[f'V{row}'].font = Font(color="FF0000", bold=True)
-                ws[f'V{row}'].alignment = Alignment(horizontal='right')
-        print("12단계: L열 & V열 처리 완료")
-
-    def _step_13(self, ws):
-        # F열 처리 (상품명)
-        for row in range(2, ws.max_row + 1):
-            ws[f'F{row}'].value = self.ex.clean_model_name(ws[f'F{row}'].value)
-
-        self.ex.highlight_column(
-            col='F', light_color=self.light_blue_fill, ws=ws, start_row=2, last_row=ws.max_row)
-
-        print("13단계: F열 ' 개' 제거 + 조건부 하이라이트 완료")
-
-    def _step_14(self, ws):
-        """
-        [14단계] 모든 시트에 서식 적용
-        """
-        # A열 수식 값 변환
-        self.ex.set_row_number(ws)
-
-        # 테두리 제거 & 격자 제거
-        self.ex.clear_borders(ws)
-
-        # D열 수식 활성화 및 채우기
-        self._step_9(ws)
-
-        # 기본 폰트 적용
-        self.ex.set_basic_format(ws=ws, header_rgb="008000")
-
-        # A, B, D, E, G열 정렬
-        self.ex.set_column_alignment(ws)
-
-        # M, P, Q, W 숫자 변환
-        self._step_10(ws)
-
-        # L열 처리
-        self._step_11(ws)
-
-        # F열 처리
-        self._step_12(ws)
-
-        print(f"14단계: {ws.title} 시트에 서식 적용 완료")
+        if v_cell.value == 0:
+            v_cell.font = Font(color="FF0000", bold=True)
+            v_cell.alignment = Alignment(horizontal='right')

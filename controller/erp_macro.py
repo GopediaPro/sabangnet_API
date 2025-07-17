@@ -1,8 +1,10 @@
 from pathlib import Path
+from core.db import get_async_session
 
 
-def test_erp_macro():
-    xlsx_base_path = Path("./files/excel/")
+async def test_erp_macro():
+
+    xlsx_base_path = Path("./files/excel/erp")
     try:
         print(f"Excel 파일 ERP 매크로 적용 테스트")
         print('=' * 50)
@@ -27,48 +29,49 @@ def test_erp_macro():
         macro_file_path = ""
         if choice == "1":
             # 기타사이트_ERP_자동화
-            from utils.macros.ERP.etc_site_macro import ECTSiteMacro
+            from utils.macros.ERP.etc_site_macro import ERPEtcSiteMacro
 
-            macro = ECTSiteMacro(xlsx_file_path)
-            macro_file_path = macro.step_1_to_14()
+            macro = ERPEtcSiteMacro(xlsx_file_path)
+            macro_file_path = macro.etc_site_macro_run()
 
             print("기타사이트_ERP_자동화")
 
         elif choice == "2":
             # 지그재그_ERP_자동화
-            from utils.macros.ERP.zigzag_erp_macro import ZigzagMacro
+            from utils.macros.ERP.zigzag_erp_macro import ERPZigzagMacro
 
-            zigzag_macro = ZigzagMacro(xlsx_file_path)
-            macro_file_path = zigzag_macro.step_1_to_9()
+            zigzag_macro = ERPZigzagMacro(xlsx_file_path)
+            macro_file_path = zigzag_macro.zigzag_erp_macro_run()
 
             print("지그재그_ERP_자동화")
 
         elif choice == "3":
             # 알리_ERP_자동화
-            from utils.macros.ERP.ali_erp_macro import AliMacro
+            from utils.macros.ERP.ali_erp_macro import ERPAliMacro
 
             # 알리 ERP 자동화 전체 프로세스 실행
-            ali_macro = AliMacro(xlsx_file_path)
-            macro_file_path = ali_macro.step_1_to_10()
+            ali_macro = ERPAliMacro(xlsx_file_path)
+            macro_file_path = ali_macro.ali_erp_macro_run()
 
             print("알리_ERP_자동화")
 
         elif choice == "4":
             # 브랜디_ERP_자동화
-            from utils.macros.ERP.brandi_erp_macro import BrandiMacro
+            from utils.macros.ERP.brandi_erp_macro import ERPBrandiMacro
 
             # 브랜디 ERP 자동화 전체 프로세스 실행
-            brandi_macro = BrandiMacro(xlsx_file_path)
-            macro_file_path = brandi_macro.step_1_to_11()
+            brandi_macro = ERPBrandiMacro(xlsx_file_path)
+            macro_file_path = brandi_macro.brandi_erp_macro_run()
 
             print("브랜디_ERP_자동화")
 
         elif choice == "5":
-            # G,옥_ERP_자동화
-            from utils.macros.ERP.Gmarket_auction_erp_macro import GmarketAuctionMacro
+            # down_form_order table to excel
 
-            gmarket_auction_macro = GmarketAuctionMacro(xlsx_file_path)
-            macro_file_path = gmarket_auction_macro.step_1_to_11()
+            from utils.macros.ERP.g_a_erp_macro import ERPGmaAucMacro
+            # # G,옥_ERP_자동화
+            gmarket_auction_macro = ERPGmaAucMacro(xlsx_file_path)
+            macro_file_path = gmarket_auction_macro.gauc_erp_macro_run()
 
             print("G,옥 ERP 자동화")
 

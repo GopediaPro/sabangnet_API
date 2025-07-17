@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 import re
+from collections import defaultdict
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 
 from openpyxl.styles import Font, PatternFill, Border
 from openpyxl.utils import get_column_letter
+from openpyxl.workbook.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
-from utils.excel_handler import ExcelHandler
+from utils.excels.excel_handler import ExcelHandler
 
 
 # 설정 상수
-OUTPUT_DIR_NAME = "완료"
 MALL_NAME = "지그재그"
 BLUE_FILL = PatternFill(start_color="CCE8FF", end_color="CCE8FF", fill_type="solid")
 
@@ -32,7 +33,7 @@ def to_num(val) -> float:
         return 0.0
 
 
-class DataCleanerUtils:
+class ZIGZAGDataCleanerUtils:
     @staticmethod
     def clean_product_text(txt: str | None) -> str:
         """
@@ -74,12 +75,61 @@ def highlight_multiple_items(ws: Worksheet) -> None:
     """
     for row in range(2, ws.max_row + 1):
         f_cell = ws[f"F{row}"]
-        clean_text = DataCleanerUtils.clean_product_text(f_cell.value)
+        clean_text = ZIGZAGDataCleanerUtils.clean_product_text(f_cell.value)
         f_cell.value = clean_text
         
         # '개' 문자가 2회 이상 등장하면 파란색 배경
         if clean_text.count("개") >= 2:
             f_cell.fill = BLUE_FILL
+
+
+class ZIGZAGSheetSplitter:
+    """시트 분리 처리 클래스"""
+    
+    def __init__(self, ws: Worksheet):
+        self.ws = ws
+        self.last_row = ws.max_row
+        self.last_col = ws.max_column
+        
+        # 열 너비 저장
+        self.col_widths = [
+            ws.column_dimensions[get_column_letter(c)].width
+            for c in range(1, self.last_col + 1)
+        ]
+
+    def get_rows_by_sheet(self) -> Dict[str, List[int]]:
+        """사이트별 행 번호 매핑 생성"""
+        site_rows = defaultdict(list)
+        for r in range(2, self.last_row + 1):
+            text = str(self.ws[f"B{r}"].value or "")
+            if "[오케이마트]" in text:
+                site_rows["OK"].append(r)
+            elif "[아이예스]" in text:
+                site_rows["IY"].append(r)
+        return site_rows
+
+    def copy_to_new_sheet(self, 
+                         wb: Workbook, 
+                         sheet_name: str, 
+                         row_indices: List[int]) -> None:
+        """지정된 행들을 새 시트로 복사"""
+        if sheet_name in wb.sheetnames:
+            del wb[sheet_name]
+            
+        new_ws = wb.create_sheet(sheet_name)
+        
+        # 헤더와 열 너비 복사
+        for c in range(1, self.last_col + 1):
+            new_ws.cell(row=1, column=c, 
+                       value=self.ws.cell(row=1, column=c).value)
+            new_ws.column_dimensions[get_column_letter(c)].width = self.col_widths[c - 1]
+        
+        # 데이터 복사
+        for idx, r in enumerate(row_indices, start=2):
+            for c in range(1, self.last_col + 1):
+                new_ws.cell(row=idx, column=c, 
+                          value=self.ws.cell(row=r, column=c).value)
+            new_ws[f"A{idx}"].value = "=ROW()-1"
 
 
 def zigzag_merge_packaging(input_path: str) -> str:
@@ -96,7 +146,7 @@ def zigzag_merge_packaging(input_path: str) -> str:
     
     # 3. M열 → V열 VLOOKUP 처리
     if "Sheet1" in ex.wb.sheetnames:
-        lookup_map = DataCleanerUtils.build_lookup_map(ex.wb["Sheet1"])
+        lookup_map = ZIGZAGDataCleanerUtils.build_lookup_map(ex.wb["Sheet1"])
         for row in range(2, ws.max_row + 1):
             m_val = str(ws[f"M{row}"].value)
             ws[f"V{row}"].value = lookup_map.get(m_val, "")
@@ -108,7 +158,7 @@ def zigzag_merge_packaging(input_path: str) -> str:
     highlight_multiple_items(ws)
     
     # 6. A열 순번 설정
-    ex.set_row_number()
+    ex.set_row_number(ws)
     
     # 7. 열 정렬
     ex.set_column_alignment()
@@ -120,12 +170,24 @@ def zigzag_merge_packaging(input_path: str) -> str:
     # 9. C→B 정렬
     ex.sort_by_columns([3, 2])  # C열=3, B열=2
     
-    # 저장
-    output_dir = Path(input_path).parent / OUTPUT_DIR_NAME
-    output_dir.mkdir(exist_ok=True)
-    output_path = str(output_dir / Path(input_path).name)
+    # 10. 시트 분리 (OK, IY)
+    splitter = ZIGZAGSheetSplitter(ws)
+    rows_by_sheet = splitter.get_rows_by_sheet()
     
-    ex.wb.save(output_path)
+    for sheet_name, row_indices in rows_by_sheet.items():
+        if row_indices:  # 해당 사이트의 데이터가 있는 경우만
+            splitter.copy_to_new_sheet(ex.wb, sheet_name, row_indices)
+
+    # 11. 시트 순서 정리
+    desired = ["자동화", "OK", "IY", "Sheet1"]
+    for name in reversed(desired):
+        if name in ex.wb.sheetnames:
+            ex.wb._sheets.insert(0, ex.wb._sheets.pop(ex.wb.sheetnames.index(name)))
+    
+    # 저장
+    base_name = Path(input_path).stem  # 확장자 제거한 파일명
+    output_path = ex.happojang_save_file(base_name=base_name)
+    
     print(f"◼︎ [{MALL_NAME}] 합포장 자동화 완료!")
     
     return output_path

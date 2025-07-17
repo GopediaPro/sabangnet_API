@@ -12,12 +12,11 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.styles import Alignment
 
-from utils.excel_handler import ExcelHandler
+from utils.excels.excel_handler import ExcelHandler
 
 
 # 설정 상수
 MALL_NAME = "브랜디"
-OUTPUT_PREFIX = "브랜디_합포장_자동화_"
 RED_FONT = Font(color="FF0000", bold=True)
 FONT_MALGUN = Font(name="맑은 고딕", size=9)
 HDR_FILL = PatternFill(start_color="006100",
@@ -232,10 +231,8 @@ def brandy_merge_packaging(input_path: str) -> str:
     print(f"◼︎ [{MALL_NAME}] 자동화 처리 완료")
     
     # 저장
-    output_path = str(
-        Path(input_path).with_name(OUTPUT_PREFIX + Path(input_path).name)
-    )
-    ex.wb.save(output_path)
+    base_name = Path(input_path).stem  # 확장자 제거한 파일명
+    output_path = ex.happojang_save_file(base_name=base_name)
     ex.wb.close()
     
     print(f"◼︎ [{MALL_NAME}] 합포장 자동화 완료!")
