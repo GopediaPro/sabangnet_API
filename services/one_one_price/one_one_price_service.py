@@ -1,6 +1,6 @@
 import math
 from decimal import Decimal
-from utils.sabangnet_logger import get_logger
+from utils.logs.sabangnet_logger import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from schemas.one_one_price.one_one_price_dto import OneOnePriceDto
 from repository.one_one_price_repository import OneOnePriceRepository
@@ -38,11 +38,7 @@ class OneOnePriceService:
             standard_price: Decimal,
             ) -> OneOnePriceDto:
 
-        # 1. 어떤 제품의 기준 가격 조회
-        if await self.one_one_price_repository.find_one_one_price_data_by_test_product_raw_data_id(test_product_raw_data_id) is not None:
-            raise ValueError(f"상품명 {product_nm}에 대한 가격 정보가 이미 존재합니다. (test_product_raw_data_id: {test_product_raw_data_id})")
-
-        # 2. 그 제품의 1+1 가격 계산
+        # 1. 제품의 1+1 가격 계산
         one_one_price = self.calculate_one_one_price(standard_price)
 
         base_data = {
@@ -53,36 +49,41 @@ class OneOnePriceService:
             'one_one_price': one_one_price,
         }
 
-        # 3. 각 그룹별 가격 계산
+        # 2. 각 그룹별 가격 계산
         shop_prices = {}
 
-        # 3-1. 그대로 적용 그룹
+        # 2-1. 그대로 적용 그룹
         for shop in self.SHOP_PRICE_MAPPING['group_same']:
             shop_prices[shop] = one_one_price
 
-        # 3-2. +100 그룹
+        # 2-2. +100 그룹
         shop_prices_plus_100 = self.calculate_shop_prices_plus_100(
             one_one_price)
         for shop in self.SHOP_PRICE_MAPPING['group_plus100']:
             shop_prices[shop] = shop_prices_plus_100
 
-        # 3-3. 105% 그룹
+        # 2-3. 105% 그룹
         shop_prices_105_percent = self.calculate_shop_prices_105_percent(
             one_one_price)
         for shop in self.SHOP_PRICE_MAPPING['group_105']:
             shop_prices[shop] = shop_prices_105_percent
 
-        # 3-4. 115% 그룹
+        # 2-4. 115% 그룹
         shop_prices_115_percent = self.calculate_shop_prices_115_percent(
             one_one_price)
         for shop in self.SHOP_PRICE_MAPPING['group_115']:
             shop_prices[shop] = shop_prices_115_percent
 
-        # 4. DTO 생성
+        # 3. DTO 생성
         one_one_price_dto = OneOnePriceDto(
             **base_data,
             **shop_prices
         )
+
+        # 4. 어떤 제품이 이미 계산되었는지 확인
+        if await self.one_one_price_repository.find_one_one_price_data_by_test_product_raw_data_id(test_product_raw_data_id) is not None:
+            # 이미 계산되어있으면 값만 바꿈
+            return OneOnePriceDto.model_validate(await self.one_one_price_repository.update_one_one_price_data(one_one_price_dto))
 
         return OneOnePriceDto.model_validate(await self.one_one_price_repository.create_one_one_price_data(one_one_price_dto))
 

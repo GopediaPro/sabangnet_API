@@ -5,7 +5,7 @@
 
 from typing import Dict, Any, Optional, List
 import math
-from utils.sabangnet_logger import get_logger
+from utils.logs.sabangnet_logger import get_logger
 from repository.product_mycategory_repository import ProductMyCategoryRepository
 
 logger = get_logger(__name__)

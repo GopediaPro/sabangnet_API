@@ -2,7 +2,7 @@ import os
 from minio import Minio
 from minio.error import S3Error
 from urllib.parse import urlparse, urlunparse
-from utils.sabangnet_logger import get_logger
+from utils.logs.sabangnet_logger import get_logger
 from core.settings import SETTINGS
 import shutil
 from datetime import datetime

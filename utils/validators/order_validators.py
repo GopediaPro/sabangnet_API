@@ -2,44 +2,44 @@ from datetime import datetime
 from utils.exceptions.order_validation_exceptions import OrderDateRangeException, OrderStatusException
 
 
-def is_start_valid_yyyymmdd(start_date_str: str) -> bool:
+def is_start_valid_yyyymmdd(order_date_from_str: str) -> bool:
     # 길이 검사 + 숫자만 포함하는지 확인
-    if len(start_date_str) != 8 or not start_date_str.isdigit():
-        raise OrderDateRangeException(f"시작 날짜 형식이 올바르지 않습니다. ({start_date_str})")
+    if len(order_date_from_str) != 8 or not order_date_from_str.isdigit():
+        raise OrderDateRangeException(f"시작 날짜 형식이 올바르지 않습니다. ({order_date_from_str})")
 
     # 날짜 형식 유효성 검사 및 datetime 객체 생성
     try:
-        start_date = datetime.strptime(start_date_str, "%Y%m%d")
+        date_from = datetime.strptime(order_date_from_str, "%Y%m%d")
     except ValueError:
-        raise OrderDateRangeException(f"시작 날짜 형식이 올바르지 않습니다. ({start_date_str})")
+        raise OrderDateRangeException(f"시작 날짜 형식이 올바르지 않습니다. ({order_date_from_str})")
     
     # 시작일이 오늘 이후인지 확인
     today = datetime.now().date()
-    if start_date.date() > today:
-        raise OrderDateRangeException(f"시작 날짜가 오늘 이후입니다. ({start_date_str})")
+    if date_from.date() > today:
+        raise OrderDateRangeException(f"시작 날짜가 오늘 이후입니다. ({order_date_from_str})")
     
     return True
 
 
-def is_end_valid_yyyymmdd(start_date_str: str, end_date_str: str) -> bool:
+def is_end_valid_yyyymmdd(order_date_from_str: str, end_date_str: str) -> bool:
     # 길이 검사 + 숫자만 포함하는지 확인
     if len(end_date_str) != 8 or not end_date_str.isdigit():
         raise OrderDateRangeException(f"종료 날짜 형식이 올바르지 않습니다. ({end_date_str})")
 
     # 날짜 형식 유효성 검사 및 datetime 객체 생성
     try:
-        end_date = datetime.strptime(end_date_str, "%Y%m%d")
-        start_date = datetime.strptime(start_date_str, "%Y%m%d")
+        date_to = datetime.strptime(end_date_str, "%Y%m%d")
+        date_from = datetime.strptime(order_date_from_str, "%Y%m%d")
     except ValueError:
         raise OrderDateRangeException(f"종료 날짜 형식이 올바르지 않습니다. ({end_date_str})")
     
     # 종료일이 시작일보다 이전인지 확인
-    if end_date < start_date:
+    if date_to < date_from:
         raise OrderDateRangeException(f"종료 날짜가 시작 날짜보다 이전입니다. ({end_date_str})")
     
     # 종료일이 오늘 이후인지 확인
     today = datetime.now().date()
-    if end_date.date() > today:
+    if date_to.date() > today:
         raise OrderDateRangeException(f"종료 날짜가 오늘 이후입니다. ({end_date_str})")
     
     return True

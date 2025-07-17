@@ -4,7 +4,6 @@ def create_required_dirs():
     required_dirs = [
         "files/json",
         "files/xml",
-        "files/xml/templates",
         "files/logs",
         "files/excel"
     ]

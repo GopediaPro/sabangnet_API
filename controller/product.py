@@ -1,4 +1,4 @@
-from utils.sabangnet_logger import get_logger
+from utils.logs.sabangnet_logger import get_logger
 from services.product.product_create_service import ProductCreateService
 from file_server_handler import upload_to_file_server, get_file_server_url, upload_xml_content_to_file_server
 

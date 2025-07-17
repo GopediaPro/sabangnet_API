@@ -1,9 +1,8 @@
-from core.db import get_async_session
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, insert, update, delete, func
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from typing import Optional
 from sqlalchemy.inspection import inspect
-from typing import List,Optional
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, insert, update, func
 from models.product.product_raw_data import ProductRawData
 from models.product.modified_product_data import ModifiedProductData
 
@@ -98,7 +97,7 @@ class ProductRepository:
         result = await self.session.execute(query)
         return result.scalar()
 
-    async def insert_product_ids(self, product_ids: List[int]):
+    async def insert_product_ids(self, product_ids: list[int]):
         """
         product_id 리스트를 DB에 저장
         (예시: ProductRegistrationRawData 테이블에 product_id만 저장)
@@ -278,16 +277,6 @@ class ProductRepository:
         query = select(ProductRawData).offset(skip).limit(limit).order_by(ProductRawData.id)
         result = await self.session.execute(query)
         return result.scalars().all()
-
-    async def count_product_raw_data(self) -> int:
-        """
-        test_product_raw_data 테이블 총 개수 조회
-        Returns:
-            총 개수
-        """
-        query = select(func.count(ProductRawData.id))
-        result = await self.session.execute(query)
-        return result.scalar()
 
     async def update_product_id_by_compayny_goods_cd(self, compayny_goods_cd: str, product_id: int) -> None:
         """

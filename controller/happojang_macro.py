@@ -1,9 +1,11 @@
-import asyncio
 from pathlib import Path
 from core.db import get_async_session
+from services.usecase.data_processing_usecase import DataProcessingUsecase
+
 
 async def test_happojang_macro():
     xlsx_base_path = Path("./files/excel/")
+    data_processing_usecase = DataProcessingUsecase(await get_async_session())
     try:
         print("합포장 자동화 테스트")
         print("=" * 50)
@@ -33,25 +35,18 @@ async def test_happojang_macro():
         if choice == "1":
 
             from utils.macros.happojang.etc_site_merge_packaging import etc_site_merge_packaging
-            # from utils.down_form_order_to_excel import DownFormOrderToExcel
+            file_path = await data_processing_usecase.down_form_order_to_excel(
+                template_code="basic_bundle",
+                file_path="./files/excel", file_name="test_down_form_order"
+            )
 
-            # down_form_order_to_excel = DownFormOrderToExcel(await get_async_session())
-            # file_path = await down_form_order_to_excel.down_form_order_to_excel(
-            #     template_code="basic_bundle",
-            #     file_path="./files/excel", file_name="test_down_form_order"
-            # )
-
-            # macro_file_path = etc_site_merge_packaging(file_path)
-            macro_file_path = etc_site_merge_packaging(xlsx_file_path)
+            macro_file_path = etc_site_merge_packaging(file_path)
             print("기타사이트 합포장 자동화")
 
         elif choice == "2":
 
             from utils.macros.happojang.zigzag_merge_packaging import zigzag_merge_packaging
-            from utils.down_form_order_to_excel import DownFormOrderToExcel
-
-            down_form_order_to_excel = DownFormOrderToExcel(await get_async_session())
-            file_path = await down_form_order_to_excel.down_form_order_to_excel(template_code="star_basic_erp",
+            file_path = await data_processing_usecase.down_form_order_to_excel(template_code="star_basic_erp",
                                                                                 file_path="./files/excel",
                                                                                 file_name="test_down_form_order")
 
@@ -61,9 +56,6 @@ async def test_happojang_macro():
         elif choice == "3":
 
             from utils.macros.happojang.ali_merge_packaging import ali_merge_packaging
-            from utils.down_form_order_to_excel import DownFormOrderToExcel
-
-            down_form_order_to_excel = DownFormOrderToExcel(await get_async_session())
             # # TODO: 알리 합포장용 템플릿 코드 수정 필요
             # file_path = await down_form_order_to_excel.down_form_order_to_excel(template_code="star_basic_erp",
             #                                                                     file_path="./files/excel",
@@ -76,9 +68,6 @@ async def test_happojang_macro():
         elif choice == "4":
             
             from utils.macros.happojang.brandy_merge_packaging import brandy_merge_packaging
-            from utils.down_form_order_to_excel import DownFormOrderToExcel
-
-            down_form_order_to_excel = DownFormOrderToExcel(await get_async_session())
             # TODO: 브랜디 합포장용 템플릿 코드 수정 필요
             # file_path = await down_form_order_to_excel.down_form_order_to_excel(template_code="star_brandi_bundle",
             #                                                                     file_path="./files/excel",
@@ -91,14 +80,11 @@ async def test_happojang_macro():
 
         elif choice == "5":
             from utils.macros.happojang.gok_merge_packaging import gok_merge_packaging
-            from utils.down_form_order_to_excel import DownFormOrderToExcel
+            file_path = await data_processing_usecase.down_form_order_to_excel(template_code="gmarket_bundle",
+                                                                                file_path="./files/excel",
+                                                                                file_name="test_down_form_order")
 
-            # down_form_order_to_excel = DownFormOrderToExcel(await get_async_session())
-            # file_path = await down_form_order_to_excel.down_form_order_to_excel(template_code="gmarket_bundle",
-            #                                                                     file_path="./files/excel",
-            #                                                                     file_name="test_down_form_order")
-
-            macro_file_path = gok_merge_packaging(xlsx_file_path)
+            macro_file_path = gok_merge_packaging(file_path)
             print("G,옥 합포장 자동화")
         else:
             print("마켓을 선택해 주세요. 1~5")

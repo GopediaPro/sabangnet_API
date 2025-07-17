@@ -7,7 +7,7 @@ Excel 수식 변환부터 DB 저장까지의 전체 프로세스를 담당합니
 from typing import Dict, Any, List, Optional
 import logging
 from datetime import datetime
-from utils.sabangnet_logger import get_logger
+from utils.logs.sabangnet_logger import get_logger
 from .product_excel_function_service import ProductCodeRegistrationService
 from repository.product_registration_repository import ProductRegistrationRepository
 from repository.product_repository import ProductRepository

@@ -3,12 +3,12 @@ from pathlib import Path
 from datetime import datetime
 from core.settings import SETTINGS
 import xml.etree.ElementTree as ET
-from utils.excel_reader import ExcelReader
-from utils.sabangnet_logger import get_logger
+from utils.excels.excel_reader import ExcelReader
+from utils.logs.sabangnet_logger import get_logger
 from utils.make_xml.sabangnet_xml import SabangnetXml
 from utils.sabangnet_path_utils import SabangNetPathUtils
 from utils.make_xml.file_name_for_xml import sanitize_filename
-from utils.product_create_field_xml_mapping import PRODUCT_CREATE_FIELD_MAPPING
+from utils.mappings.product_create_field_xml_mapping import PRODUCT_CREATE_FIELD_MAPPING
 
 
 logger = get_logger(__name__)

@@ -4,8 +4,8 @@ import urllib.parse
 
 from fastapi.responses import StreamingResponse
 
-from utils.sabangnet_logger import get_logger
-from utils.product_create_field_db_mapping import PRODUCT_CREATE_FIELD_MAPPING
+from utils.logs.sabangnet_logger import get_logger
+from utils.mappings.product_create_field_db_mapping import PRODUCT_CREATE_FIELD_MAPPING
 
 from schemas.product.product_raw_data_dto import ProductRawDataDto
 

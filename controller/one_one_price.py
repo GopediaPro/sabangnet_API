@@ -4,7 +4,7 @@
 
 # 서비스 및 리포지토리 import
 from core.db import AsyncSessionLocal
-from utils.sabangnet_logger import get_logger
+from utils.logs.sabangnet_logger import get_logger
 from schemas.one_one_price.one_one_price_dto import OneOnePriceDto
 from services.usecase.product_one_one_price_usecase import ProductOneOnePriceUsecase
 

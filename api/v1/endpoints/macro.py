@@ -1,37 +1,40 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Query, Body
-from utils.sabangnet_logger import get_logger
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Query
+from utils.logs.sabangnet_logger import get_logger
 from minio_handler import upload_and_get_url_and_size, url_arrange
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.db import get_async_session
-from services.order.macros.order_macro_service import process_macro_with_tempfile, run_macro_with_db
-from schemas.order.data_processing import ProcessDataRequest
-from schemas.batch_process_dto import BatchProcessDto
-from services.batch_info_service import build_and_save_batch
-from schemas.order.response.order_response import ExcelRunMacroResponse
-from services.batch_info_service import BatchInfoService
+from services.macro.order_macro_service import process_macro_with_tempfile, run_macro_with_db
+from schemas.macros.response.excel_macro_response import ExcelRunMacroResponse
+from schemas.macros.batch_process_dto import BatchProcessDto
+from services.batch_info_service import BatchInfoService, build_and_save_batch
 import json
-from schemas.order.response.excel_list_response import ExcelListResponse, ExcelItem
+from schemas.macros.response.excel_list_response import ExcelListResponse, ExcelItem
+from schemas.macros.request.batch_process_request import BatchProcessRequest
+
 
 logger = get_logger(__name__)
+
 
 router = APIRouter(
     prefix="/macro",
     tags=["macro"],
 )
 
+
 def get_batch_info_service(session: AsyncSession = Depends(get_async_session)) -> BatchInfoService:
     return BatchInfoService(session=session)
+
 
 @router.post("/excel-run-macro")
 async def excel_run_macro(
     request: str = Form(
         ...,
-        description=json.dumps(ProcessDataRequest.Config.json_schema_extra['example'], indent=2)
+        description=json.dumps(BatchProcessRequest.Config.json_schema_extra['example'], indent=2)
     ),
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_async_session)
     ):
-    request_obj = ProcessDataRequest(**json.loads(request))
+    request_obj = BatchProcessRequest(**json.loads(request))
     logger.info(f"request_obj: {request_obj}")
     original_filename = file.filename
     try:
@@ -56,6 +59,7 @@ async def excel_run_macro(
             message=str(e)
         )
 
+
 @router.post("/db-run-macro")
 async def db_run_macro(
     template_code: str = Form(...),
@@ -71,6 +75,7 @@ async def db_run_macro(
         logger.error(f"db_run_macro error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/get-batch-info-all")
 async def get_batch_info_all(
     page: int = Query(1, ge=1),
@@ -85,6 +90,7 @@ async def get_batch_info_all(
         page_size=page_size,
         items=[ExcelItem[BatchProcessDto](data=dto_items)]
     )
+
 
 @router.get("/get-batch-info-latest")
 async def get_batch_info_latest(

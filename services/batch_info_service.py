@@ -1,18 +1,19 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from schemas.batch_process_dto import BatchProcessDto
+from utils.logs.sabangnet_logger import get_logger
 from models.batch_process import BatchProcess
-from typing import Tuple, List
+from sqlalchemy.ext.asyncio import AsyncSession
+from schemas.macros.batch_process_dto import BatchProcessDto
 from repository.batch_info_repository import BatchInfoRepository
-from utils.sabangnet_logger import get_logger
+
 
 logger = get_logger(__name__)
+
 
 class BatchInfoService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.batch_info_repository = BatchInfoRepository(session)
 
-    async def get_batch_info_paginated(self, page: int, page_size: int) -> Tuple[List[BatchProcessDto], int]:
+    async def get_batch_info_paginated(self, page: int, page_size: int) -> tuple[list[BatchProcessDto], int]:
         return await self.batch_info_repository.get_batch_info_paginated(page, page_size)
     
     async def save_batch_info(self, batch_dto: BatchProcessDto) -> BatchProcess:
@@ -22,7 +23,7 @@ class BatchInfoService:
         batch_dto = dto_builder(*args, **kwargs)
         return await self.save_batch_info(batch_dto)
     
-    async def get_batch_info_latest(self, page: int, page_size: int) -> Tuple[List[BatchProcessDto], int]:
+    async def get_batch_info_latest(self, page: int, page_size: int) -> tuple[list[BatchProcessDto], int]:
         return await self.batch_info_repository.get_batch_info_latest(page, page_size)
 
 async def save_batch_info_service(session: AsyncSession, batch_dto: BatchProcessDto) -> BatchProcess:
