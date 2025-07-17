@@ -353,7 +353,7 @@ class ETCSheetManager:
             ws[f"F{row}"].alignment = Alignment(horizontal='left')
 
         # 11. 배경·테두리 제거, A열 순번 설정
-        ex.set_row_number(ws)
+        self.set_row_number(ws)  # 자체 정의한 메서드 사용
         ex.clear_fills_from_second_row()
         ex.clear_borders()
 
@@ -663,6 +663,18 @@ class ETCSheetManager:
             
         # 모든 시트에 자동화 로직 적용
         self.apply_automation_logic(new_ws)
+
+    def set_row_number(self, ws: Worksheet, start_row: int = 2) -> None:
+        """
+        A열 순번 자동 생성 (=ROW()-1) - 현재 시트의 실제 행 수를 기준으로 처리
+        분할된 행들을 포함한 모든 행에 순번을 정확히 설정
+        """
+        # 현재 시트의 실제 최대 행 수를 동적으로 확인
+        end_row = ws.max_row
+        
+        for row in range(start_row, end_row + 1):
+            ws[f'A{row}'].number_format = 'General'
+            ws[f"A{row}"].value = "=ROW()-1"
 
 if __name__ == "__main__":
     excel_file_path = "/Users/smith/Documents/github/OKMart/sabangnet_API/files/test-[기본양식]-합포장용.xlsx"
