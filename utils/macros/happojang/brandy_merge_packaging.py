@@ -36,21 +36,6 @@ class BrandyProductProcessor:
         """
         return str(txt or "").replace(" 1개", "").strip()
 
-
-class BrandyPhoneFormatter:
-    """브랜디 전화번호 처리 유틸리티"""
-    
-    @staticmethod
-    def format_phone(val: str | None) -> str:
-        """전화번호 포맷팅 (01012345678 → 010-1234-5678)"""
-        if not val:
-            return ""
-        digits = re.sub(r"\D", "", str(val))
-        if len(digits) == 11:
-            return f"{digits[:3]}-{digits[3:7]}-{digits[7:]}"
-        return str(val)
-
-
 class BrandyOrderMerger:
     """브랜디 주문 데이터 그룹핑 및 병합 처리"""
     

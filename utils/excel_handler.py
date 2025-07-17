@@ -198,13 +198,39 @@ class ExcelHandler:
 
     def format_phone_number(self, val):
         """
-        전화번호 11자리 → 010-0000-0000 형식
+        전화번호 포맷팅
+        - 11자리 (010, 011, 016, 017, 018, 019): 010-0000-0000 형식
+        - 12자리 (050, 070): 0508-0000-0000 형식  
+        - 10자리 (02, 031~064): 02-0000-0000 또는 031-000-0000 형식
         예시:
             ws['H2'].value = format_phone_number(ws['H2'].value)
         """
-        val = str(val or '').replace('-', '').strip()
-        if len(val) == 11 and val.startswith('010') and val.isdigit():
+        if not val:
+            return ""
+        
+        val = str(val).replace('-', '').replace(' ', '').strip()
+        if not val.isdigit():
+            return val
+        
+        # 12자리: 050, 070 등
+        if len(val) == 12 and val[:3] in ['050', '070']:
+            return f"{val[:4]}-{val[4:8]}-{val[8:]}"
+        
+        # 11자리: 010, 011, 016, 017, 018, 019
+        elif len(val) == 11 and val[:3] in ['010', '011', '016', '017', '018', '019']:
             return f"{val[:3]}-{val[3:7]}-{val[7:]}"
+        
+        # 10자리: 02(서울), 031~064(지역번호)
+        elif len(val) == 10:
+            if val.startswith('02'):
+                return f"{val[:2]}-{val[2:6]}-{val[6:]}"
+            elif val[:3] in [f'0{i}' for i in range(31, 65)]:
+                return f"{val[:3]}-{val[3:6]}-{val[6:]}"
+        
+        # 9자리: 02 + 7자리 (서울 구번호)
+        elif len(val) == 9 and val.startswith('02'):
+            return f"{val[:2]}-{val[2:5]}-{val[5:]}"
+        
         return val
 
     def clean_model_name(self, val):

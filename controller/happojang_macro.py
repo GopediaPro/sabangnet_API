@@ -33,14 +33,15 @@ async def test_happojang_macro():
         if choice == "1":
 
             from utils.macros.happojang.etc_site_merge_packaging import etc_site_merge_packaging
-            from utils.down_form_order_to_excel import DownFormOrderToExcel
+            # from utils.down_form_order_to_excel import DownFormOrderToExcel
 
-            down_form_order_to_excel = DownFormOrderToExcel(await get_async_session())
-            #file_path = await down_form_order_to_excel.down_form_order_to_excel(
-            #    template_code="basic_bundle",
-            #    file_path="./files/excel", file_name="test_down_form_order"
-            #)
+            # down_form_order_to_excel = DownFormOrderToExcel(await get_async_session())
+            # file_path = await down_form_order_to_excel.down_form_order_to_excel(
+            #     template_code="basic_bundle",
+            #     file_path="./files/excel", file_name="test_down_form_order"
+            # )
 
+            # macro_file_path = etc_site_merge_packaging(file_path)
             macro_file_path = etc_site_merge_packaging(xlsx_file_path)
             print("기타사이트 합포장 자동화")
 
@@ -50,11 +51,11 @@ async def test_happojang_macro():
             from utils.down_form_order_to_excel import DownFormOrderToExcel
 
             down_form_order_to_excel = DownFormOrderToExcel(await get_async_session())
-            #file_path = await down_form_order_to_excel.down_form_order_to_excel(template_code="star_basic_erp",
-            #                                                                    file_path="./files/excel",
-            #                                                                    file_name="test_down_form_order")
+            file_path = await down_form_order_to_excel.down_form_order_to_excel(template_code="star_basic_erp",
+                                                                                file_path="./files/excel",
+                                                                                file_name="test_down_form_order")
 
-            macro_file_path = zigzag_merge_packaging(xlsx_file_path)
+            macro_file_path = zigzag_merge_packaging(file_path)
             print("지그재그 합포장 자동화")
 
         elif choice == "3":
