@@ -36,8 +36,8 @@ class ERPEtcSiteMacro:
             "베이지베이글": "BB",
         }
 
-        # 정렬 기준: 2번째 컬럼(B) → 3번째 컬럼(C) 순으로 정렬
-        sort_columns = [2, 3, 5, 6, 4]
+        # 정렬 기준: 2번째 컬럼(B) → 3번째 컬럼(C) 순으로 정렬 2025-07-17 정렬순서 조정, 3번쨰 컬럼은 내림차순되게 수정
+        sort_columns = [2, 3, -4, 5, 6]
         print("시트별 정렬, 시트 분리 시작...")
         headers, data = self.ex.preprocess_and_update_ws(self.ws, sort_columns)
         self.ex.split_and_write_ws_by_site(
