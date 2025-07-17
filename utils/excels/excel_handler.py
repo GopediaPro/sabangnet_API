@@ -700,10 +700,25 @@ class ExcelHandler:
         return:
             sorted_data: 정렬된 데이터
         """
-        return sorted(data, key=lambda row: tuple(
-            str(-row[abs(i)-1]) if i < 0 else (str(row[i-1]) if row[i-1] is not None else "")
-            for i in sort_columns
-        ))
+        def dynamic_key(item):
+            key_tuple_elements = []
+            for col_idx in sort_columns:
+                value = item[abs(col_idx)-1] # 현재 열의 값
+                if col_idx > 0:
+                    key_tuple_elements.append(value)
+                elif col_idx < 0:
+                    # 값의 타입에 따라 내림차순 처리
+                    if isinstance(value, (int, float)):
+                        key_tuple_elements.append(-value) # 숫자는 음수화하여 내림차순
+                    elif isinstance(value, str):
+                        key_tuple_elements.append(ReverseComparableString(value)) 
+                        # 문자열은 커스텀 클래스 사용
+                    else:
+                        # 다른 타입일 경우 기본적으로는 오름차순으로 처리
+                        key_tuple_elements.append(value) 
+            return tuple(key_tuple_elements)
+        
+        return sorted(data, key=dynamic_key)
 
     def _update_worksheet_data(self, ws, data: list[list]):
         """
@@ -810,3 +825,16 @@ class ExcelHandler:
                 if col_letter in source_ws.column_dimensions:
                     src_width = source_ws.column_dimensions[col_letter].width
                     target_ws.column_dimensions[col_letter].width = src_width
+
+
+class ReverseComparableString:
+    def __init__(self, s):
+        self.s = s
+    
+    # '작다' (<) 연산을 뒤집어 '크다' (>)로 동작하게 함
+    def __lt__(self, other):
+        return self.s > other.s
+    
+    # '같다' (==) 연산은 그대로
+    def __eq__(self, other):
+        return self.s == other.s
