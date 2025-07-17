@@ -321,7 +321,7 @@ class ETCSheetManager:
         ex.sort_by_columns([2, 3])
         
         # 4. D열 수식 설정 (사용자 요구사항에 맞는 P, V 처리)
-        print("🔄 4단계: D열 계산 (P열: 슬래시 합산, V열: 첫번째 값)")
+        print("🔄 4단계: D열 계산 (P열: 슬래시 합산, V열: 슬래시 합산)")
         self._calculate_d_column_custom(ws)
         
         # 6. 사이트별 배송비 처리
@@ -378,9 +378,9 @@ class ETCSheetManager:
 
     def _calculate_d_column_custom(self, ws: Worksheet) -> None:
         """
-        D열 계산: O + P(슬래시 합산) + V(첫번째 값)
+        D열 계산: O + P(슬래시 합산) + V(슬래시 합산)
         - P열: "780/780" → 780 + 780 = 1560
-        - V열: "3000/3000" → 3000 (첫번째 값만)
+        - V열: "3000/3000" → 3000 + 3000 = 6000
         """
         for row in range(2, ws.max_row + 1):
             o_val = ws[f'O{row}'].value or 0
@@ -408,15 +408,15 @@ class ETCSheetManager:
                 except (ValueError, TypeError):
                     p_num = 0
             
-            # V열 처리: "/" 구분자가 있으면 첫 번째 값만 사용
+            # V열 처리: "/" 구분자가 있으면 모든 숫자를 합산 (P열과 동일)
             v_num = 0
             if v_val and "/" in str(v_val):
                 v_parts = str(v_val).split("/")
-                if v_parts:
+                for part in v_parts:
                     try:
-                        v_num = float(v_parts[0].strip())
+                        v_num += float(part.strip())
                     except (ValueError, TypeError):
-                        v_num = 0
+                        pass  # 숫자가 아닌 경우 무시
             else:
                 try:
                     v_num = float(v_val) if v_val else 0
