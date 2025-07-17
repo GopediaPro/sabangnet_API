@@ -667,7 +667,7 @@ class ExcelHandler:
 
     def _sort_data(self, data: list[list], sort_columns: list[int]) -> list[list]:
         """
-        데이터 정렬 (컬럼 인덱스)
+        데이터 정렬 (컬럼 인덱스) 2025-07-17 srot_columns에 음수 값이 입력되면 역순 정렬되도록 수정
         args:
             data: 데이터
             sort_columns: 정렬 기준 컬럼 인덱스
@@ -675,7 +675,7 @@ class ExcelHandler:
             sorted_data: 정렬된 데이터
         """
         return sorted(data, key=lambda row: tuple(
-            str(row[i-1]) if row[i-1] is not None else ""
+            str(-row[abs(i)-1]) if i < 0 else (str(row[i-1]) if row[i-1] is not None else "")
             for i in sort_columns
         ))
 
