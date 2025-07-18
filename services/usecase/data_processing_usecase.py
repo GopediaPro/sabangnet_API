@@ -4,6 +4,8 @@ from datetime import datetime
 # util
 from utils.excels.convert_xlsx import ConvertXlsx
 from utils.logs.sabangnet_logger import get_logger
+from utils.excels.excel_handler import ExcelHandler
+from services.macro.order_macro_service import process_macro_with_tempfile
 # sql
 from sqlalchemy.ext.asyncio import AsyncSession
 # model
@@ -221,7 +223,7 @@ class DataProcessingUsecase:
             logger.error(f"Exception during _save_to_down_form_orders: {e}")
             raise
 
-    async def _process_excel_data(self, df, config):
+    async def _process_excel_data(self, df, config, work_status:str = None):
         """
         DataFrame과 config(column_mappings)를 받아 DB 저장용 dict 리스트로 변환
         """
@@ -232,16 +234,17 @@ class DataProcessingUsecase:
                 'process_dt': datetime.now(),
                 'form_name': config['template_code'],
                 'seq': seq,
+                'work_status': work_status,
             }
             processed_row.update(raw_row)
             processed_data.append(processed_row)
         return processed_data
     
-    async def process_excel_to_down_form_orders(self, df, template_code: str) -> int:
+    async def process_excel_to_down_form_orders(self, df, template_code: str, work_status:str = None) -> int:
         """
         Excel 파일을 읽어 config 매핑에 따라 데이터를 DB에 저장
         Args:
-            excel_file: Excel 파일
+            df: Excel 파일 DataFrame
             template_code: 템플릿 코드
         Returns:
             저장된 레코드 수
@@ -251,7 +254,7 @@ class DataProcessingUsecase:
         config = await self.template_config_read_service.get_template_config_by_template_code(template_code)
         logger.info(f"Loaded template config: {config}")
         # 2. 엑셀 데이터 변환
-        raw_data = await self._process_excel_data(df, config)
+        raw_data = await self._process_excel_data(df, config, work_status)
         # 3. DB 저장
         saved_count = await self._save_to_down_form_orders(raw_data, template_code)
         logger.info(f"[END] process_excel_to_down_form_orders | saved_count={saved_count}")
@@ -279,3 +282,24 @@ class DataProcessingUsecase:
         mall_won_cost = context.get('mall_won_cost', 0) or 0
         sale_cnt = context.get('sale_cnt', 0) or 0
         return int(pay_cost - (mall_won_cost * sale_cnt))
+    
+    async def save_down_form_orders_from_macro_run_excel(self, file, template_code: str, work_status:str = None) -> int:
+        """
+        save down form orders from macro run excel
+        args:
+            file: excel file
+            template_code: template code
+            work_status: work status
+        returns:
+            saved_count: saved count
+        """
+
+        # 1. 임시 파일 생성
+        file_name, file_path = await process_macro_with_tempfile(self.session, template_code, file)
+        
+        # 2. 엑셀파일 데이터 파일 변환 후 임시파일 삭제
+        dataframe = ExcelHandler.file_path_to_dataframe(file_path)
+        
+        # 3. 데이터 저장
+        saved_count = self.process_excel_to_down_form_orders(dataframe, template_code, work_status=work_status)
+        return saved_count
