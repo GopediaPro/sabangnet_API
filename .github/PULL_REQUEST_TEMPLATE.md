@@ -35,3 +35,6 @@ Second, **using the refined PR template, draft a PR description** based on the i
 
 The goal is to create a clear, concise, and highly effective PR template and then demonstrate its use by generating a comprehensive PR description that summarizes the changes from the provided files.
 
+- refined PR template은 보여주지말고 바로 적용시켜서 PR 만들어줘.
+- 적절한 PR 제목도 만들어줘.
+- Endpoint & data schema 변경이 있으면 Front 쪽에서 API 연동하거나, 관리하기 편하도록 내용 추가로 정리해줘.

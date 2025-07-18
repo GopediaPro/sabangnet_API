@@ -20,6 +20,7 @@ class DownFormOrderDto(BaseDTO):
     form_name: Optional[str] = Field(None, max_length=30, description="폼 이름 (G마켓/옥션, 기본양식, 브랜디, 카카오 등)")
     seq: Optional[int] = Field(None, description="순번")
     idx: str = Field(..., max_length=50, description="사방넷주문번호")
+    work_status: Optional[str] = Field(None, max_length=14, description="작업 상태")
 
     # 날짜 정보
     order_date: Optional[datetime] = Field(None, description="주문 일자")

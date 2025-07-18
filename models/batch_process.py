@@ -19,3 +19,4 @@ class BatchProcess(Base):
     date_to: Mapped[datetime | None] = mapped_column(DateTime)
     error_message: Mapped[str | None] = mapped_column(Text)
     created_by: Mapped[str | None] = mapped_column(String(100))
+    work_status: Mapped[str | None] = mapped_column(String(14))

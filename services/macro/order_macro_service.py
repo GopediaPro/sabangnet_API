@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from utils.logs.sabangnet_logger import get_logger
 from minio_handler import temp_file_to_object_name, delete_temp_file
 from repository.down_form_order_repository import DownFormOrderRepository
-from repository.export_form_order_repository import ExportFormOrderRepository
+
 import re
 
 logger = get_logger(__name__)
@@ -93,7 +93,6 @@ async def process_macro_with_tempfile(session, template_code, file):
 async def run_macro_with_db(session: AsyncSession, template_code: str):
     template_config_repository = TemplateConfigRepository(session)
     down_form_order_repository = DownFormOrderRepository(session)
-    export_form_order_repository = ExportFormOrderRepository(session)
     logger.info(f"run_macro called with template_code={template_code}")
     # 1. 템플릿 설정 조회
     config = await template_config_repository.get_template_config_by_template_code(template_code)
@@ -102,10 +101,10 @@ async def run_macro_with_db(session: AsyncSession, template_code: str):
     # 2. db 데이터를 템플릿에 따라 df 데이터 run_macro 실행 (preprocess_order_data)
     down_order_data = await down_form_order_repository.get_down_form_orders(template_code, limit=1000000)
     processed_orders = process_orders_for_db(down_order_data, template_code)
-    # 3. processed_orders 데이터를 "export_form_order" 테이블에 저장 후 성공한 레코드 수 반환
+    # 3. processed_orders 데이터를 "down_form_order" 테이블에 저장 후 성공한 레코드 수 반환
     try:
-        len_saved = await export_form_order_repository.bulk_insert(processed_orders)
-        logger.info(f"Saved {len_saved} records to export_form_order table")
+        len_saved = await down_form_order_repository.bulk_insert(processed_orders)
+        logger.info(f"Saved {len_saved} records to down_form_order table with work_status=macro_run")
         
         return len_saved
     except Exception as e:
