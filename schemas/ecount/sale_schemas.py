@@ -237,6 +237,25 @@ class EcountBatchProcessResponse(BaseModel):
 class EcountSaleRequest(BaseModel):
     sales: List[EcountSaleDto]
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "sales": [
+                    {
+                    "upload_ser_no": 0,
+                    "io_date": "20250718",
+                    "cust": "9999999",
+                    "emp_cd": "okokmart_test",
+                    "wh_cd": "32",
+                    "prod_cd": "test_sample1",
+                    "qty": 99,
+                    "price": 999999,
+                    "remarks": "test"
+                    }
+                ]
+            }
+        }
+
 class EcountSaleResponse(BaseModel):
     success: bool = Field(..., description="성공 여부")
     message: str = Field(..., description="응답 메시지")
