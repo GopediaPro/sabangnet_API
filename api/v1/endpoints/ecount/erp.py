@@ -132,12 +132,12 @@ async def create_sale(
         if sale_response:
             results.append(sale_data)
     
-    return {
-        "success": len(results) > 0,
-        "message": f"{len(results)}건 성공, {len(errors)}건 실패",
-        "data": results,
-        "errors": errors
-    }
+    return EcountSaleResponse(
+        success=len(results) > 0,
+        message=f"{len(results)}건 성공, {len(errors)}건 실패",
+        data=results,
+        errors=errors
+    )
 
 
 @router.post("/sale/create-bulk", response_model=EcountSaleResponse)
@@ -145,7 +145,6 @@ async def create_sale(
 async def create_sale_bulk(
     sale_request: EcountSaleRequest,
     is_test: bool = Query(True, description="테스트 환경 여부"),
-    batch_size: int = Query(100, description="배치 크기", ge=1, le=1000),
     auth_manager: EcountAuthManager = Depends(get_auth_manager),
     sale_service: EcountSaleService = Depends(get_sale_service)
 ):
@@ -156,53 +155,33 @@ async def create_sale_bulk(
     if not auth_info:
         raise HTTPException(status_code=401, detail="환경변수 인증 실패")
     
-    try:
-        # create_sales_with_validation을 사용하여 배치 처리
-        api_response, errors = await sale_service.create_sales_with_validation(
-            sale_dtos=sale_request.sales,
-            auth_info=auth_info,
-            is_test=is_test,
-            batch_size=batch_size
-        )
-        
-        if not api_response:
-            return {
-                "success": False,
-                "message": f"판매 생성 실패: {len(errors)}건 오류",
-                "data": [],
-                "errors": errors
-            }
-        
-        # 성공한 데이터만 필터링
-        successful_sales = [
-            sale for sale in sale_request.sales 
-            if sale.is_success
-        ]
-        
-        # 응답 메시지 구성
-        success_count = api_response.Data.SuccessCnt if api_response.Data else 0
-        fail_count = api_response.Data.FailCnt if api_response.Data else 0
-        
-        message = f"배치 처리 완료: {success_count}건 성공, {fail_count}건 실패"
-        if errors:
-            message += f", {len(errors)}건 검증 오류"
-        
-        return {
-            "success": success_count > 0,
-            "message": message,
-            "data": successful_sales,
-            "errors": errors,
-            "api_response": api_response.Data if api_response else None
-        }
-        
-    except Exception as e:
-        logger.error(f"배치 판매 생성 중 예외 발생: {e}")
-        return {
-            "success": False,
-            "message": f"배치 처리 중 오류 발생: {str(e)}",
-            "data": [],
-            "errors": [str(e)]
-        }
+    # create_sales_with_validation을 사용하여 배치 처리
+    api_response, errors = await sale_service.create_sales_with_validation(
+        sale_dtos=sale_request.sales,
+        auth_info=auth_info
+    )
+    
+    # 성공한 데이터만 필터링
+    successful_sales = [
+        sale for sale in sale_request.sales 
+        if sale.is_success
+    ]
+    
+    # 응답 메시지 구성
+    success_count = api_response.Data.SuccessCnt if api_response and api_response.Data else 0
+    fail_count = api_response.Data.FailCnt if api_response and api_response.Data else 0
+    
+    message = f"배치 처리 완료: {success_count}건 성공, {fail_count}건 실패"
+    if errors:
+        message += f", {len(errors)}건 검증 오류"
+    
+    return EcountSaleResponse(
+        success=success_count > 0,
+        message=message,
+        data=successful_sales,
+        errors=errors,
+        api_response=api_response.Data if api_response else None
+    )
 
 
 @router.post("/sale/validate")
