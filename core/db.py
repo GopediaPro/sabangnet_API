@@ -39,8 +39,11 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 async def get_async_session():
-    async with AsyncSessionLocal() as session:
-        return session
+    session = AsyncSessionLocal()
+    try:
+        yield session
+    finally:
+        await session.close()
 
 async def test_db_write(value: str) -> bool:
     pool = await get_db_pool()
