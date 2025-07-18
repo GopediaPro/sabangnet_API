@@ -82,7 +82,7 @@ def compare_excel_sheets(workbook, sheet1_name, sheet2_name, red_fill):
             color1 = get_cell_background_color_hex(cell1)
             color2 = get_cell_background_color_hex(cell2)
 
-            # 수식 여부 확인
+            # 수식 여부 확인. 수식 검증 하지 않도록 수정
             # is_formula1 = cell1.data_type == 'f' # 'f'는 수식을 의미
             # is_formula2 = cell2.data_type == 'f'
             is_formula1 = False

@@ -52,10 +52,8 @@ class ERPAliMacro:
                 else:
                     col_h.a_formula_column(ws[f"A{row}"])
                 self._jeju_address_column(ws, row, ws[f"J{row}"])
-                col_h.convert_int_column(ws[f"M{row}"])
                 col_h.convert_int_column(ws[f"P{row}"])
                 col_h.convert_int_column(ws[f"Q{row}"])
-                col_h.convert_int_column(ws[f"W{row}"])
             print(f"[{ws.title}] 서식 및 디자인 적용 완료")
 
         output_path = self.ex.save_file(self.file_path)

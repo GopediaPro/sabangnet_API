@@ -47,7 +47,6 @@ class ERPZigzagMacro:
                                ws[f"V{row}"])  # =U2+V2
                 col_h.e_column(ws[f"E{row}"])
                 col_h.f_column(ws[f"F{row}"])
-                col_h.convert_int_column(ws[f"M{row}"])
             print(f"[{ws.title}] 서식 및 디자인 적용 완료")
 
         output_path = self.ex.save_file(self.file_path)

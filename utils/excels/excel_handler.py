@@ -620,6 +620,26 @@ class ExcelHandler:
             if tmp_path and os.path.exists(tmp_path):
                 os.remove(tmp_path)
         return df
+    
+    @staticmethod
+    def file_path_to_dataframe(file_path, sheet_index=0, **to_df_kwargs):
+        """
+        임시파일을 DataFrame으로 읽고, 임시 파일 삭제 후 DataFrame 반환
+        Args:
+            file_path: 업로드 된 파일 경로
+            sheet_index: 읽을 시트 인덱스(기본 0)
+            **to_df_kwargs: to_dataframe에 전달할 추가 인자
+        Returns:
+            pd.DataFrame
+        """
+        import os
+        from minio_handler import delete_temp_file
+        try:
+            ex = ExcelHandler.from_file(file_path, sheet_index=sheet_index)
+            df = ex.to_dataframe(**to_df_kwargs)
+        finally:
+            delete_temp_file(file_path)
+        return df
 
     def preprocess_and_update_ws(self, ws, sort_columns: list[int]):
         """

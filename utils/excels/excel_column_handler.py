@@ -36,11 +36,11 @@ class ExcelColumnHandler:
             return
 
         cell.number_format = 'General'
-        cell.value = sum(
+        cell.value = str(sum(
             float(source_cell.value)
             for source_cell in source_cells
             if source_cell.value is not None and self._is_number(source_cell.value)
-        )
+        ))
 
     def e_column(self, cell):
         """
