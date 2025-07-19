@@ -45,6 +45,13 @@ class Settings(BaseSettings):
 
     DEPLOY_ENV: Optional[str] = "development"
 
+    # Ecount
+    ECOUNT_API: Optional[str] = None
+    ECOUNT_ZONE: Optional[str] = None
+    ECOUNT_DOMAIN: Optional[str] = None
+    ECOUNT_USER_ID: Optional[str] = None
+    ECOUNT_COM_CODE: Optional[str] = None
+
     class Config:
         env_file = ".env"
 

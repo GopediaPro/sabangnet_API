@@ -68,7 +68,8 @@ def get_data_processing_usecase(session: AsyncSession = Depends(get_async_sessio
 async def down_form_orders(
     skip: int = Query(0, ge=0, description="건너뛸 건수"),
     limit: int = Query(200, ge=1, le=200, description="조회할 건수"),
-    down_form_order_read_service: DownFormOrderReadService = Depends(get_down_form_order_read_service),
+    down_form_order_read_service: DownFormOrderReadService = Depends(
+        get_down_form_order_read_service),
 ):
     down_form_orders: list[DownFormOrderDto] = await down_form_order_read_service.get_down_form_orders(skip=skip, limit=limit)
     response = DownFormOrderBulkResponse(
@@ -103,7 +104,8 @@ async def down_form_orders_pagination(
         None,
         description="form_name 필터링: 'all'은 전체, ''(빈값)은 form_name이 NULL 또는 빈 값, 그 외는 해당 값과 일치하는 항목 조회"
     ),
-    down_form_order_read_service: DownFormOrderReadService = Depends(get_down_form_order_read_service),
+    down_form_order_read_service: DownFormOrderReadService = Depends(
+        get_down_form_order_read_service),
 ):
     items, total = await down_form_order_read_service.get_down_form_orders_by_pagenation(page, page_size, template_code)
     dto_items: list[DownFormOrderDto] = [DownFormOrderDto.model_validate(item) for item in items]
@@ -124,7 +126,8 @@ async def down_form_orders_pagination(
 @router.post("/bulk", response_model=DownFormOrderBulkResponse)
 async def bulk_create_down_form_orders(
     request: DownFormOrderBulkCreateJsonRequest,
-    down_form_order_create_service: DownFormOrderCreateService = Depends(get_down_form_order_create_service),
+    down_form_order_create_service: DownFormOrderCreateService = Depends(
+        get_down_form_order_create_service),
 ):
     logger.info(f"[bulk_create] 요청: {request}")
     try:
@@ -145,7 +148,8 @@ async def bulk_create_down_form_orders(
 @router.put("/bulk", response_model=DownFormOrderBulkResponse)
 async def bulk_update_down_form_orders(
     request: DownFormOrderBulkUpdateJsonRequest,
-    down_form_order_update_service: DownFormOrderUpdateService = Depends(get_down_form_order_update_service),
+    down_form_order_update_service: DownFormOrderUpdateService = Depends(
+        get_down_form_order_update_service),
 ):
     logger.info(f"[bulk_update] 요청: {request}")
     try:
@@ -166,7 +170,8 @@ async def bulk_update_down_form_orders(
 @router.delete("/bulk", response_model=DownFormOrderBulkResponse)
 async def bulk_delete_down_form_orders(
     request: DownFormOrderBulkDeleteJsonRequest = Body(...),
-    down_form_order_delete_service: DownFormOrderDeleteService = Depends(get_down_form_order_delete_service),
+    down_form_order_delete_service: DownFormOrderDeleteService = Depends(
+        get_down_form_order_delete_service),
 ):
     logger.info(f"[bulk_delete] 요청: {request}")
     try:
@@ -186,7 +191,8 @@ async def bulk_delete_down_form_orders(
 
 @router.delete("/all")
 async def delete_all_down_form_orders(
-    down_form_order_delete_service: DownFormOrderDeleteService = Depends(get_down_form_order_delete_service),
+    down_form_order_delete_service: DownFormOrderDeleteService = Depends(
+        get_down_form_order_delete_service),
 ):
     try:
         await down_form_order_delete_service.delete_all_down_form_orders()
@@ -198,7 +204,8 @@ async def delete_all_down_form_orders(
 
 @router.delete("/duplicate")
 async def delete_duplicate_down_form_orders(
-    down_form_order_delete_service: DownFormOrderDeleteService = Depends(get_down_form_order_delete_service),
+    down_form_order_delete_service: DownFormOrderDeleteService = Depends(
+        get_down_form_order_delete_service),
 ):
     deleted_count = await down_form_order_delete_service.delete_duplicate_down_form_orders()
     return {"message": f"중복 데이터 삭제 완료: {deleted_count}개 행 삭제됨"}
@@ -214,7 +221,8 @@ async def upload_excel_file_and_get_url(
     """
     file_name = file.filename
     file_path = temp_file_to_object_name(file)
-    file_url, minio_object_name = upload_and_get_url(file_path, template_code, file_name)
+    file_url, minio_object_name = upload_and_get_url(
+        file_path, template_code, file_name)
     return {"file_url": file_url, "object_name": minio_object_name, "template_code": template_code}
 
 
@@ -222,7 +230,8 @@ async def upload_excel_file_and_get_url(
 async def get_excel_to_db(
     template_code: str = Form(...),
     file: UploadFile = File(...),
-    data_processing_usecase: DataProcessingUsecase = Depends(get_data_processing_usecase),
+    data_processing_usecase: DataProcessingUsecase = Depends(
+        get_data_processing_usecase),
 ):
     """
     프론트에서 template_code와 엑셀 파일을 받아 DB에 저장
@@ -260,7 +269,8 @@ async def bulk_create_down_form_orders_by_filter(
 ):
     try:
         template_code: str = request.template_code
-        filters: dict[str, Any] = request.filters.model_dump() if request.filters else {}
+        filters: dict[str, Any] = request.filters.model_dump(
+        ) if request.filters else {}
         down_form_order_bulk_dto: DownFormOrdersBulkDto = await data_processing_usecase.save_down_form_orders_from_receive_orders_by_filter(filters, template_code)
         return DownFormOrderBulkCreateResponse.from_dto(down_form_order_bulk_dto)
     except Exception as e:
@@ -297,3 +307,17 @@ async def bulk_create_down_form_orders_without_filter(
             saved_count=0,
             message=f"error: {str(e)}"
         )
+
+
+@router.post("/excel-macro-to-db")
+async def upload_excel_file_to_macro_get_url(
+    template_code: str = Form(...),
+    file: UploadFile = File(...),
+    data_processing_usecase: DataProcessingUsecase = Depends(
+        get_data_processing_usecase)
+):
+    """
+    프론트에서 template_code와 엑셀 파일을 받아 매크로 실행 후 down_form_orders 테이블에 저장 후 성공한 레코드 수 반환.
+    """
+    saved_count = await data_processing_usecase.save_down_form_orders_from_macro_run_excel(file, template_code, work_status="macro_run")
+    return {"saved_count": saved_count}
