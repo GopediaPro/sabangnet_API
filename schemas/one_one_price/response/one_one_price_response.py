@@ -1,7 +1,7 @@
 from decimal import Decimal
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 from models.one_one_price.one_one_price import OneOnePrice
 from schemas.one_one_price.one_one_price_dto import OneOnePriceDto, OneOnePriceBulkDto
 
@@ -10,11 +10,15 @@ class OneOnePriceResponse(BaseModel):
 
     """1+1 상품 가격 계산을 위한 데이터 응답"""
 
-    group_115: Optional[Decimal] = Field(..., description="1+1 115% 가격")
-    group_105: Optional[Decimal] = Field(..., description="1+1 105% 가격")
-    group_same: Optional[Decimal] = Field(..., description="1+1 기본 가격")
-    group_plus100: Optional[Decimal] = Field(..., description="1+1 + 100 가격")
+    group_115: Decimal = Field(..., description="1+1 115% 가격")
+    group_105: Decimal = Field(..., description="1+1 105% 가격")
+    group_same: Decimal = Field(..., description="1+1 기본 가격")
+    group_plus100: Decimal = Field(..., description="1+1 + 100 가격")
     created_at: Optional[datetime] = Field(None, description="생성일시")
+
+    @field_serializer("group_115", "group_105", "group_same", "group_plus100")
+    def serialize_decimal(self, v: Decimal, _info):
+        return float(v)
 
     @classmethod
     def from_dto(cls, dto: OneOnePriceDto) -> "OneOnePriceResponse":

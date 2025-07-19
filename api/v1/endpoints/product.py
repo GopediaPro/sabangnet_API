@@ -11,7 +11,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from services.product.product_read_service import ProductReadService
 from services.product.product_create_service import ProductCreateService
 from services.product.product_update_service import ProductUpdateService
-from services.usecase.product_db_excel_usecase import ProductDbExcelUsecase
 from services.usecase.product_db_xml_usecase import ProductDbXmlUsecase
 # schemas
 from schemas.product.db_xml_dto import DbToXmlResponse
@@ -45,12 +44,6 @@ def get_product_read_service(session: AsyncSession = Depends(get_async_session))
 
 def get_product_update_service(session: AsyncSession = Depends(get_async_session)) -> ProductUpdateService:
     return ProductUpdateService(session=session)
-
-
-def get_product_create_db_to_excel_usecase(
-    product_read_service: ProductReadService = Depends(get_product_read_service)
-) -> ProductDbExcelUsecase:
-    return ProductDbExcelUsecase(product_read_service=product_read_service)
 
 
 def get_product_db_xml_usecase(session: AsyncSession = Depends(get_async_session)) -> ProductDbXmlUsecase:
@@ -130,13 +123,16 @@ async def excel_to_xml_n8n_test(request: Request):
 
 @router.put("/name", response_model=ProductNameResponse)
 async def modify_product_name(
-    request: ModifyProductNameForm = Depends(),
+    request: ModifyProductNameForm,
     product_update_service: ProductUpdateService = Depends(get_product_update_service)
 ):
-    return ProductNameResponse.from_dto(await product_update_service.modify_product_name(
-        compayny_goods_cd=request.compayny_goods_cd,
-        product_name=request.name
-    ))
+    try:
+        return ProductNameResponse.from_dto(await product_update_service.modify_product_name(
+            compayny_goods_cd=request.compayny_goods_cd,
+            product_name=request.name
+        ))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("", response_model=ProductPageResponse)
@@ -144,15 +140,18 @@ async def get_products(
     page: int = Query(1, ge=1),
     product_read_service: ProductReadService = Depends(get_product_read_service)
 ):
-    return ProductPageResponse.builder(
-        products=[ProductResponse.from_dto(product) for product in await product_read_service.get_products_by_pagenation(page=page)],
-        current_page=page,
-        page_size=20
-    )
+    try:
+        return ProductPageResponse.builder(
+            products=[ProductResponse.from_dto(product) for product in await product_read_service.get_products_by_pagenation(page=page)],
+            current_page=page,
+            page_size=20
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/bulk/db-to-excel", response_class=StreamingResponse)
 async def bulk_db_to_excel(
-    product_create_db_to_excel_usecase: ProductDbExcelUsecase = Depends(get_product_create_db_to_excel_usecase)
+    product_read_service: ProductReadService = Depends(get_product_read_service)
 ) -> StreamingResponse:
-    return await product_create_db_to_excel_usecase.convert_db_to_excel()
+    return await product_read_service.convert_product_data_to_excel()

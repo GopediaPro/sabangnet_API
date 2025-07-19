@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, Query, Body, UploadFile, File, Form
 # service
 from services.usecase.data_processing_usecase import DataProcessingUsecase
-from services.usecase.down_form_order_template_usecase import DownFormOrderTemplateUsecase
 from services.down_form_orders.down_form_order_read_service import DownFormOrderReadService
 from services.down_form_orders.down_form_order_create_service import DownFormOrderCreateService
 from services.down_form_orders.down_form_order_delete_service import DownFormOrderDeleteService
@@ -40,8 +39,8 @@ logger = get_logger(__name__)
 
 
 router = APIRouter(
-    prefix="/down-form-order",
-    tags=["down-form-order"],
+    prefix="/down-form-orders",
+    tags=["down-form-orders"],
 )
 
 
@@ -65,10 +64,6 @@ def get_data_processing_usecase(session: AsyncSession = Depends(get_async_sessio
     return DataProcessingUsecase(session=session)
 
 
-def get_down_form_order_template_usecase(session: AsyncSession = Depends(get_async_session)) -> DownFormOrderTemplateUsecase:
-    return DownFormOrderTemplateUsecase(session=session)
-
-
 @router.get("", response_model=DownFormOrderBulkResponse)
 async def down_form_orders(
     skip: int = Query(0, ge=0, description="건너뛸 건수"),
@@ -84,7 +79,7 @@ async def down_form_orders(
         try:
             response.items.append(
                 DownFormOrderResponse(
-                    item=DownFormOrderDto.model_validate(down_form_order),
+                    content=DownFormOrderDto.model_validate(down_form_order),
                     status=RowStatus.SUCCESS,
                     message=None
                 )
@@ -92,7 +87,7 @@ async def down_form_orders(
         except Exception as e:
             response.items.append(
                 DownFormOrderResponse(
-                    item=None,
+                    content=None,
                     status=RowStatus.ERROR,
                     message=str(e)
                 )
@@ -118,7 +113,7 @@ async def down_form_orders_pagination(
         page_size=page_size,
         items=[
             DownFormOrderResponse(
-                item=dto,
+                content=dto,
                 status=RowStatus.SUCCESS,
                 message="success"
             ) for dto in dto_items
@@ -137,7 +132,7 @@ async def bulk_create_down_form_orders(
         logger.info(f"[bulk_create] 성공: {len(request.items)}건 생성")
         return DownFormOrderBulkResponse(items=[
             DownFormOrderResponse(
-                item=DownFormOrderDto.model_validate(item),
+                content=DownFormOrderDto.model_validate(item),
                 status=RowStatus.SUCCESS,
                 message="success"
             ) for item in request.items
@@ -158,7 +153,7 @@ async def bulk_update_down_form_orders(
         logger.info(f"[bulk_update] 성공: {len(request.items)}건 수정")
         return DownFormOrderBulkResponse(items=[
             DownFormOrderResponse(
-                item=DownFormOrderDto.model_validate(item),
+                content=DownFormOrderDto.model_validate(item),
                 status=RowStatus.SUCCESS,
                 message="success"
             ) for item in request.items
@@ -179,7 +174,7 @@ async def bulk_delete_down_form_orders(
         logger.info(f"[bulk_delete] 성공: {len(request.ids)}건 삭제")
         return DownFormOrderBulkResponse(items=[
             DownFormOrderResponse(
-                item=None,
+                content=None,
                 status=RowStatus.SUCCESS,
                 message="success"
             ) for order_id in request.ids
@@ -259,7 +254,7 @@ async def example_usage():
 
 @router.post("/bulk/filter", response_model=DownFormOrderBulkCreateResponse)
 async def bulk_create_down_form_orders_by_filter(
-    request: DownFormOrderBulkCreateFilterRequest = Depends(),
+    request: DownFormOrderBulkCreateFilterRequest = Form(...),
     data_processing_usecase: DataProcessingUsecase = Depends(
         get_data_processing_usecase)
 ):
@@ -274,26 +269,25 @@ async def bulk_create_down_form_orders_by_filter(
             template_code=template_code,
             processed_count=0,
             saved_count=0,
-            message=f"Error: {str(e)}"
+            message=f"error: {str(e)}"
         ))
 
 
 @router.post("/bulk/without-filter", response_model=DownFormOrderBulkCreateResponse)
 async def bulk_create_down_form_orders_without_filter(
     request: DownFormOrderCreateJsonRequest,
-    down_form_order_template_usecase: DownFormOrderTemplateUsecase = Depends(
-        get_down_form_order_template_usecase)
+    data_processing_usecase: DataProcessingUsecase = Depends(get_data_processing_usecase)
 ):
     try:
         template_code: str = request.template_code
         raw_data: list[dict[str, Any]] = request.raw_data
-        saved_count = await down_form_order_template_usecase.process_and_save(template_code, raw_data)
+        saved_count = await data_processing_usecase.save_down_form_orders_from_receive_orders_without_filter(template_code, raw_data)
         return DownFormOrderBulkCreateResponse(
             success=True,
             template_code=template_code,
             processed_count=len(raw_data),
             saved_count=saved_count,
-            message="Success"
+            message="success"
         )
     except Exception as e:
         return DownFormOrderBulkCreateResponse(
@@ -301,5 +295,5 @@ async def bulk_create_down_form_orders_without_filter(
             template_code=template_code,
             processed_count=len(raw_data),
             saved_count=0,
-            message=f"Error: {str(e)}"
+            message=f"error: {str(e)}"
         )

@@ -3,8 +3,8 @@ import os
 # core
 from core.db import get_async_session
 # fastapi
-from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, Query, Form
 # sql
 from sqlalchemy.ext.asyncio import AsyncSession
 # service
@@ -12,6 +12,7 @@ from services.receive_orders.receive_order_read_service import ReceiveOrderReadS
 from services.receive_orders.receive_order_create_service import ReceiveOrderCreateService
 # schema
 from schemas.receive_orders.request.receive_orders_request import ReceiveOrdersRequest
+# utils
 from schemas.receive_orders.response.receive_orders_response import (
     ReceiveOrdersResponse,
     ReceiveOrdersResponseList,
@@ -20,8 +21,8 @@ from schemas.receive_orders.response.receive_orders_response import (
 
 
 router = APIRouter(
-    prefix="/receive-order",
-    tags=["receive-order"],
+    prefix="/receive-orders",
+    tags=["receive-orders"],
 )
 
 
@@ -65,40 +66,52 @@ async def get_receive_order_by_idx(
     """
     주문 수집 데이터 단건 조회
     """
-    return ReceiveOrdersResponse.from_dto(await order_read_service.get_order_by_idx(idx))
+    order = await order_read_service.get_order_by_idx(idx)
+    if order is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="주문을 찾을 수 없습니다.")
+    return ReceiveOrdersResponse.from_dto(order)
 
 
-@router.post("/order-xml-template", response_class=StreamingResponse)
+@router.post("/xml-template", response_class=StreamingResponse)
 def make_and_get_receive_order_xml_template(
-    request: ReceiveOrdersRequest = Depends(),
+    request: ReceiveOrdersRequest = Form(...),
     order_create_service: ReceiveOrderCreateService = Depends(
         get_receive_order_create_service),
 ) -> StreamingResponse:
     """
     주문 수집 데이터 XML 템플릿만 생성하고 내려받음 (요청은 안함.)
     """
-    return order_create_service.get_order_xml_template(
-        ord_st_date=request.get_order_date_from_yyyymmdd(),
-        ord_ed_date=request.get_end_date_yyyymmdd(),
-        order_status=request.get_order_status_code()
-    )
+    try:
+        return order_create_service.get_order_xml_template(
+            ord_st_date=request.get_order_date_from_yyyymmdd(),
+            ord_ed_date=request.get_end_date_yyyymmdd(),
+            order_status=request.get_order_status_code()
+        )
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/orders-from-xml", response_model=ReceiveOrdersBulkCreateResponse)
+@router.post("/from-sabangnet/to-db", response_model=ReceiveOrdersBulkCreateResponse)
 async def save_receive_orders_to_db(
-    request: ReceiveOrdersRequest = Depends(),
+    request: ReceiveOrdersRequest = Form(...),
     order_create_service: ReceiveOrderCreateService = Depends(
         get_receive_order_create_service),
 ):
     """
     주문 수집 데이터 XML 파일을 업로드하여 주문 데이터를 생성함.
     """
-    xml_file_path = order_create_service.create_request_xml(
-        ord_st_date=request.get_order_date_from_yyyymmdd(),
-        ord_ed_date=request.get_end_date_yyyymmdd(),
-        order_status=request.get_order_status_code()
-    )
-    xml_url = order_create_service.get_xml_url_from_minio(xml_file_path)
-    xml_content = order_create_service.get_orders_from_sabangnet(xml_url)
-    safe_mode = os.getenv("DEPLOY_ENV", "production") != "production"
-    return await order_create_service.save_orders_to_db_from_xml(xml_content, safe_mode)
+    try:
+        xml_file_path = order_create_service.create_request_xml(
+            ord_st_date=request.get_order_date_from_yyyymmdd(),
+            ord_ed_date=request.get_end_date_yyyymmdd(),
+            order_status=request.get_order_status_code()
+        )
+        xml_url = order_create_service.get_xml_url_from_minio(xml_file_path)
+        xml_content = order_create_service.get_orders_from_sabangnet(xml_url)
+        safe_mode = os.getenv("DEPLOY_ENV", "production") != "production"
+        return await order_create_service.save_orders_to_db_from_xml(xml_content, safe_mode)
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=str(e))

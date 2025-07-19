@@ -3,18 +3,32 @@ pytest 설정, 픽스처 정의 파일
 fatapi 의 main.py 및 다른 설정 파일들과 같은 역할을 함
 다른 모듈에서 임포트 하지 않아도 pytest 가 자동으로 인식하고 적용시킴
 """
+
+
 import os
+import sys
+
+
+if sys.platform == "win32":
+    try:
+        import ctypes
+        # 콘솔 코드페이지를 65001(UTF-8)로 강제
+        ctypes.windll.kernel32.SetConsoleOutputCP(65001)
+        ctypes.windll.kernel32.SetConsoleCP(65001)
+    except Exception:
+        pass
+
+
 import pytest
 import asyncio
 from contextlib import asynccontextmanager
 
 from io import BytesIO
 from fastapi import FastAPI
-from httpx import AsyncClient
+from typing import Generator, Any
 from asyncio import AbstractEventLoop
 from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Generator, AsyncGenerator, Any, Optional
 
 from main import app
 from utils.logs.sabangnet_logger import get_logger
@@ -30,7 +44,6 @@ pytest_plugins = ["pytest_asyncio"]
 # 테스트용 lifespan 함수 (create_tables 제외)
 @asynccontextmanager
 async def test_lifespan(app: FastAPI):
-    """테스트용 lifespan - create_tables 실행하지 않음"""
     # 테스트에서는 create_tables를 실행하지 않음
     yield
     # 테스트 종료 후 정리 작업 (필요시)
@@ -43,44 +56,43 @@ def set_test_environment() -> None:
     
     test_env_vars = {
         # 사방넷 관련 설정
-        "SABANG_COMPANY_ID": "test_company",
+        "SABANG_COMPANY_ID": "test_company_id",
         "SABANG_AUTH_KEY": "test_auth_key",
-        "SABANG_ADMIN_URL": "https://test.example.com",
+        "SABANG_ADMIN_URL": "https://test.admin.url",
         
         # MinIO 관련 설정
-        "MINIO_ROOT_USER": "test_user",
-        "MINIO_ROOT_PASSWORD": "test_password",
+        "MINIO_ROOT_USER": "test_root_user",
+        "MINIO_ROOT_PASSWORD": "test_root_password",
         "MINIO_ACCESS_KEY": "test_access_key",
         "MINIO_SECRET_KEY": "test_secret_key",
-        "MINIO_ENDPOINT": "localhost:9000",
-        "MINIO_BUCKET_NAME": "test-bucket",
+        "MINIO_ENDPOINT": "test.endpoint",
+        "MINIO_BUCKET_NAME": "test_bucket",
         "MINIO_USE_SSL": "false",
         "MINIO_PORT": "9000",
         
         # 데이터베이스 관련 설정
-        "DB_HOST": "localhost",
+        "DB_HOST": "test.host",
         "DB_PORT": "5432",
         "DB_NAME": "test_db",
-        "DB_USER": "test_user",
-        "DB_PASSWORD": "test_password",
+        "DB_USER": "test_db_user",
+        "DB_PASSWORD": "test_db_password",
         "DB_SSLMODE": "disable",
         "DB_TEST_TABLE": "test_table",
         "DB_TEST_COLUMN": "test_column",
         
         # FastAPI 관련 설정
-        "FASTAPI_HOST": "localhost",
+        "FASTAPI_HOST": "test.host",
         "FASTAPI_PORT": "8000",
         
         # N8N 관련 설정
-        "N8N_WEBHOOK_BASE_URL": "https://test.n8n.com",
-        "N8N_WEBHOOK_PATH": "test_webhook",
+        "N8N_WEBHOOK_BASE_URL": "https://test.webhook-base.url",
+        "N8N_WEBHOOK_PATH": "test-webhook-path",
         
         # 테스트 모드 설정
         "COMPANY_GOODS_CD_TEST_MODE": "true",
         
         # 기타 설정
-        "ENVIRONMENT": "test",
-        "DEBUG": "true"
+        "DEPLOY_ENV": "test"
     }
     
     for key, value in test_env_vars.items():
@@ -135,6 +147,89 @@ def client(test_app: FastAPI) -> Generator[TestClient, Any, None]:
     """동기 테스트 클라이언트"""
 
     try:
+        # 모든 의존성 함수들을 mock으로 override
+        from unittest.mock import AsyncMock, MagicMock
+        
+        # Product 관련 의존성
+        from api.v1.endpoints.product import get_product_read_service, get_product_update_service, get_product_db_xml_usecase
+        from services.product.product_read_service import ProductReadService
+        from services.product.product_update_service import ProductUpdateService
+        from services.usecase.product_db_xml_usecase import ProductDbXmlUsecase
+        
+        mock_product_read_service = AsyncMock(spec=ProductReadService)
+        mock_product_update_service = AsyncMock(spec=ProductUpdateService)
+        mock_product_db_xml_usecase = AsyncMock(spec=ProductDbXmlUsecase)
+        
+        # 전역 mock 인스턴스들을 저장할 딕셔너리
+        global_mocks = {}
+        
+        # Product 관련 의존성
+        from api.v1.endpoints.product import get_product_read_service, get_product_update_service, get_product_db_xml_usecase
+        from services.product.product_read_service import ProductReadService
+        from services.product.product_update_service import ProductUpdateService
+        from services.usecase.product_db_xml_usecase import ProductDbXmlUsecase
+        
+        mock_product_read_service = AsyncMock(spec=ProductReadService)
+        mock_product_update_service = AsyncMock(spec=ProductUpdateService)
+        mock_product_db_xml_usecase = AsyncMock(spec=ProductDbXmlUsecase)
+        
+        global_mocks['product_read'] = mock_product_read_service
+        global_mocks['product_update'] = mock_product_update_service
+        global_mocks['product_db_xml'] = mock_product_db_xml_usecase
+        
+        test_app.dependency_overrides[get_product_read_service] = lambda: global_mocks['product_read']
+        test_app.dependency_overrides[get_product_update_service] = lambda: global_mocks['product_update']
+        test_app.dependency_overrides[get_product_db_xml_usecase] = lambda: global_mocks['product_db_xml']
+        
+        # ReceiveOrder 관련 의존성
+        from api.v1.endpoints.receive_order import get_receive_order_read_service, get_receive_order_create_service
+        from services.receive_orders.receive_order_read_service import ReceiveOrderReadService
+        from services.receive_orders.receive_order_create_service import ReceiveOrderCreateService
+        
+        mock_receive_order_read_service = AsyncMock(spec=ReceiveOrderReadService)
+        mock_receive_order_create_service = AsyncMock(spec=ReceiveOrderCreateService)
+        
+        global_mocks['receive_order_read'] = mock_receive_order_read_service
+        global_mocks['receive_order_create'] = mock_receive_order_create_service
+        
+        test_app.dependency_overrides[get_receive_order_read_service] = lambda: global_mocks['receive_order_read']
+        test_app.dependency_overrides[get_receive_order_create_service] = lambda: global_mocks['receive_order_create']
+        
+        # DownFormOrder 관련 의존성
+        from api.v1.endpoints.down_form_order import (
+            get_down_form_order_create_service, 
+            get_down_form_order_read_service,
+            get_down_form_order_update_service,
+            get_down_form_order_delete_service,
+            get_data_processing_usecase
+        )
+        from services.down_form_orders.down_form_order_create_service import DownFormOrderCreateService
+        from services.down_form_orders.down_form_order_read_service import DownFormOrderReadService
+        from services.down_form_orders.down_form_order_update_service import DownFormOrderUpdateService
+        from services.down_form_orders.down_form_order_delete_service import DownFormOrderDeleteService
+        from services.usecase.data_processing_usecase import DataProcessingUsecase
+        
+        mock_down_form_order_create_service = AsyncMock(spec=DownFormOrderCreateService)
+        mock_down_form_order_read_service = AsyncMock(spec=DownFormOrderReadService)
+        mock_down_form_order_update_service = AsyncMock(spec=DownFormOrderUpdateService)
+        mock_down_form_order_delete_service = AsyncMock(spec=DownFormOrderDeleteService)
+        mock_data_processing_usecase = AsyncMock(spec=DataProcessingUsecase)
+        
+        global_mocks['down_form_order_create'] = mock_down_form_order_create_service
+        global_mocks['down_form_order_read'] = mock_down_form_order_read_service
+        global_mocks['down_form_order_update'] = mock_down_form_order_update_service
+        global_mocks['down_form_order_delete'] = mock_down_form_order_delete_service
+        global_mocks['data_processing'] = mock_data_processing_usecase
+        
+        test_app.dependency_overrides[get_down_form_order_create_service] = lambda: global_mocks['down_form_order_create']
+        test_app.dependency_overrides[get_down_form_order_read_service] = lambda: global_mocks['down_form_order_read']
+        test_app.dependency_overrides[get_down_form_order_update_service] = lambda: global_mocks['down_form_order_update']
+        test_app.dependency_overrides[get_down_form_order_delete_service] = lambda: global_mocks['down_form_order_delete']
+        test_app.dependency_overrides[get_data_processing_usecase] = lambda: global_mocks['data_processing']
+        
+        # 전역 mock을 앱에 저장하여 테스트에서 접근 가능하도록 함
+        test_app.state.global_mocks = global_mocks
+        
         with TestClient(test_app) as test_client:
             yield test_client
     except Exception as e:
@@ -173,7 +268,12 @@ def mock_database_connections() -> Generator[MagicMock, Any, None]:
         with patch('core.db.get_async_session') as mock_session, \
              patch('core.db.async_engine') as mock_engine, \
              patch('core.db.create_tables') as mock_create_tables, \
-             patch('core.db.get_db_pool') as mock_get_db:
+             patch('core.db.get_db_pool') as mock_get_db, \
+             patch('core.db.AsyncSessionLocal') as mock_session_local, \
+             patch('core.db.test_db_write') as mock_test_db_write, \
+             patch('core.db.close_db_pool') as mock_close_db_pool, \
+             patch('sqlalchemy.ext.asyncio.create_async_engine') as mock_create_engine, \
+             patch('asyncpg.create_pool') as mock_create_pool:
             
             # 세션 모킹
             mock_session.return_value = MagicMock()
@@ -183,6 +283,12 @@ def mock_database_connections() -> Generator[MagicMock, Any, None]:
             mock_engine_instance.begin = AsyncMock()
             mock_engine.return_value = mock_engine_instance
             
+            # 세션 로컬 모킹
+            mock_session_local_instance = MagicMock()
+            mock_session_local_instance.__aenter__ = AsyncMock(return_value=mock_session.return_value)
+            mock_session_local_instance.__aexit__ = AsyncMock(return_value=None)
+            mock_session_local.return_value = mock_session_local_instance
+            
             # 테이블 생성 모킹
             mock_create_tables.return_value = None
             
@@ -191,6 +297,21 @@ def mock_database_connections() -> Generator[MagicMock, Any, None]:
             mock_db_context.__aenter__ = AsyncMock(return_value=mock_session.return_value)
             mock_db_context.__aexit__ = AsyncMock(return_value=None)
             mock_get_db.return_value = mock_db_context
+            
+            # 테스트 DB 쓰기 모킹
+            mock_test_db_write.return_value = True
+            
+            # DB 풀 종료 모킹
+            mock_close_db_pool.return_value = None
+            
+            # 엔진 생성 모킹
+            mock_create_engine.return_value = mock_engine_instance
+            
+            # 풀 생성 모킹
+            mock_pool = MagicMock()
+            mock_pool.acquire = AsyncMock()
+            mock_pool.close = AsyncMock()
+            mock_create_pool.return_value = mock_pool
             
             yield mock_session
     except Exception as e:
