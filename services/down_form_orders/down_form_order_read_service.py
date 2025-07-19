@@ -17,7 +17,7 @@ class DownFormOrderReadService:
     async def get_down_form_order_by_idx(self, idx: str) -> DownFormOrderDto:
         return DownFormOrderDto.model_validate(await self.down_form_order_repository.get_down_form_order_by_idx(idx))
 
-    async def get_down_form_orders_paginated(
+    async def get_down_form_orders_by_pagenation(
             self,
             page: int = 1,
             page_size: int = 100,

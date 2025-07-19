@@ -1,8 +1,8 @@
 from datetime import date
-from typing import Optional
+from typing import Optional, Union
 from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
-from utils.validators.order_validators import is_start_valid_yyyymmdd, is_end_valid_yyyymmdd, is_valid_order_status
-from utils.mappings.order_status_label_mapping import STATUS_LABEL_TO_CODE, OrderStatusLabel, OrderStatus
+from utils.mappings.order_status_label_mapping import STATUS_LABEL_TO_CODE, OrderStatusLabel
+from utils.validators.order_validators import is_valid_date_from_yyyymmdd, is_valid_date_to_yyyymmdd, is_valid_order_status
 
 
 class BaseDateRangeRequest(BaseModel):
@@ -12,15 +12,54 @@ class BaseDateRangeRequest(BaseModel):
     date_from: Optional[date] = Field(None, description="시작 날짜", example="2025-06-02")
     date_to: Optional[date] = Field(None, description="종료 날짜", example="2025-06-06")
 
-    @field_validator("date_from")
+    @field_validator("date_from", mode='before')
     @classmethod
-    def validate_order_date_from(cls, date_from: Optional[date]) -> Optional[date]:
+    def validate_order_date_from(cls, date_from: Optional[Union[date, str]]) -> Optional[date]:
         if date_from is None:
             return None
+        
+        if isinstance(date_from, str):
+            """
+            프론트에서 문자열로 요청이 오는 경우 date 객체로 변환해줌
+            """
+            try:
+                date_from = date.fromisoformat(date_from)
+            except ValueError:
+                raise ValueError(f"시작 날짜 형식이 올바르지 않습니다. ({date_from})")
+        elif isinstance(date_from, date):
+            """
+            프론트에서 date 객체로 요청이 오는 경우 그대로 반환
+            """
+            pass
+        else:
+            raise ValueError(f"시작 날짜는 str 또는 date 객체여야 합니다. ({date_from})")
+        
         # YYYYMMDD 형식으로 변환 후 검증
         order_date_from_str = date_from.strftime('%Y%m%d')
-        is_start_valid_yyyymmdd(order_date_from_str)
+        is_valid_date_from_yyyymmdd(order_date_from_str)
         return date_from
+    
+    @field_validator("date_to", mode='before')
+    @classmethod
+    def validate_date_to(cls, date_to: Optional[Union[date, str]]) -> Optional[date]:
+        if date_to is None:
+            return None
+        
+        # 문자열인 경우 date 객체로 변환
+        if isinstance(date_to, str):
+            try:
+                date_to = date.fromisoformat(date_to)
+            except ValueError:
+                raise ValueError(f"종료날짜 형식이 올바르지 않습니다. ({date_to})")
+        elif isinstance(date_to, date):
+            """
+            프론트에서 date 객체로 요청이 오는 경우 그대로 반환
+            """
+            pass
+        else:
+            raise ValueError(f"종료날짜는 str 또는 date 객체여야 합니다. ({date_to})")
+        
+        return date_to
     
     @model_validator(mode='after')
     def validate_date_range(self):
@@ -30,7 +69,7 @@ class BaseDateRangeRequest(BaseModel):
         # YYYYMMDD 형식으로 변환 후 검증
         order_date_from_str = self.date_from.strftime('%Y%m%d')
         end_date_str = self.date_to.strftime('%Y%m%d')
-        is_end_valid_yyyymmdd(order_date_from_str, end_date_str)
+        is_valid_date_to_yyyymmdd(order_date_from_str, end_date_str)
         return self
     
     def get_order_date_from_yyyymmdd(self) -> Optional[str]:
@@ -47,11 +86,11 @@ class ReceiveOrdersRequest(BaseDateRangeRequest):
     날짜/주문상태 필수 요청 객체
     """
     # 부모 클래스의 Optional 필드들을 필수로 오버라이드
-    date_from: date = Field(default=date(2025, 6, 2), description="시작 날짜", example="2025-06-02")
-    date_to: date = Field(default=date(2025, 6, 6), description="종료 날짜", example="2025-06-06")
+    date_from: date = Field(..., description="시작 날짜", example="2025-06-02")
+    date_to: date = Field(..., description="종료 날짜", example="2025-06-06")
     
     order_status: OrderStatusLabel = Field(
-        default=OrderStatusLabel.SHIPMENT_COMPLETED,
+        ...,
         example=OrderStatusLabel.SHIPMENT_COMPLETED.value,
         description="""
             주문 상태
@@ -78,9 +117,20 @@ class ReceiveOrdersRequest(BaseDateRangeRequest):
         """
     )
 
-    @field_validator("order_status")
+    @field_validator("order_status", mode='before')
     @classmethod
-    def validate_order_status(cls, order_status: OrderStatusLabel) -> OrderStatusLabel:
+    def validate_order_status_required(cls, order_status: Optional[Union[OrderStatusLabel, str]]) -> Optional[OrderStatusLabel]:
+        # 문자열인 경우 OrderStatusLabel enum으로 변환 (프론트엔드에서 오는 경우)
+        if isinstance(order_status, str):
+            try:
+                order_status = OrderStatusLabel(order_status)
+            except ValueError:
+                raise ValueError(f"주문 상태 형식이 올바르지 않습니다. {order_status}")
+        elif isinstance(order_status, OrderStatusLabel):
+            pass
+        else:
+            raise ValueError(f"주문 상태는 str 또는 OrderStatusLabel이어야 합니다. ({order_status})")
+        
         # 한글 라벨을 코드로 변환하여 기존 validator에 전달
         order_code = STATUS_LABEL_TO_CODE[order_status]
         is_valid_order_status(order_code.value)
