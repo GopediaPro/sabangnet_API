@@ -14,5 +14,5 @@ class DownFormOrderCreateService:
         return await self.down_form_order_repository.create_down_form_order(DownFormOrderDto(idx=idx))
 
     async def bulk_create_down_form_orders(self, items: list[DownFormOrderDto]) -> int:
-        orm_objs = [item.to_orm(BaseDownFormOrder) for item in items]
+        orm_objs: list[BaseDownFormOrder] = [item.to_orm(BaseDownFormOrder) for item in items]
         return await self.down_form_order_repository.bulk_insert(orm_objs)

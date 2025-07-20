@@ -2,7 +2,7 @@ from datetime import datetime
 from utils.exceptions.order_validation_exceptions import OrderDateRangeException, OrderStatusException
 
 
-def is_start_valid_yyyymmdd(order_date_from_str: str) -> bool:
+def is_valid_date_from_yyyymmdd(order_date_from_str: str) -> bool:
     # 길이 검사 + 숫자만 포함하는지 확인
     if len(order_date_from_str) != 8 or not order_date_from_str.isdigit():
         raise OrderDateRangeException(f"시작 날짜 형식이 올바르지 않습니다. ({order_date_from_str})")
@@ -21,7 +21,7 @@ def is_start_valid_yyyymmdd(order_date_from_str: str) -> bool:
     return True
 
 
-def is_end_valid_yyyymmdd(order_date_from_str: str, end_date_str: str) -> bool:
+def is_valid_date_to_yyyymmdd(order_date_from_str: str, end_date_str: str) -> bool:
     # 길이 검사 + 숫자만 포함하는지 확인
     if len(end_date_str) != 8 or not end_date_str.isdigit():
         raise OrderDateRangeException(f"종료 날짜 형식이 올바르지 않습니다. ({end_date_str})")

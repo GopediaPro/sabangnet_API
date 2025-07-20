@@ -3,13 +3,13 @@
 """
 
 
-class OrderDateRangeException(Exception):
+class OrderDateRangeException(ValueError):
     def __init__(self, message: str):
         self.message = message
         super().__init__(self.message)
 
 
-class OrderStatusException(Exception):
+class OrderStatusException(ValueError):
     def __init__(self, message: str):
         self.message = message
         super().__init__(self.message)

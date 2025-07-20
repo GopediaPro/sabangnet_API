@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     # FastAPI
     FASTAPI_HOST: Optional[str] = None
     FASTAPI_PORT: Optional[int] = None
+    FASTAPI_RELOAD: Optional[bool] = None
 
     # Test Mode
     CONPANY_GOODS_CD_TEST_MODE: Optional[bool] = True

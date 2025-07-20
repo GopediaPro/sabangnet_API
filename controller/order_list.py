@@ -3,7 +3,7 @@ from core.db import AsyncSession
 from utils.logs.sabangnet_logger import get_logger
 from services.receive_orders.receive_order_create_service import ReceiveOrderCreateService
 from schemas.receive_orders.response.receive_orders_response import ReceiveOrdersBulkCreateResponse
-from utils.validators.order_validators import is_start_valid_yyyymmdd, is_end_valid_yyyymmdd, is_valid_order_status, OrderDateRangeException, OrderStatusException
+from utils.validators.order_validators import is_valid_date_from_yyyymmdd, is_valid_date_to_yyyymmdd, is_valid_order_status, OrderDateRangeException, OrderStatusException
 
 
 logger = get_logger(__name__)
@@ -13,8 +13,8 @@ def get_order_date_range():
     print("주문수집일의 범위를 입력하세요 (예: 20250602~20250606)")
     order_date_range = input("일주일 이전의 날짜 범위 권장: ")
     ord_raw_date = order_date_range.split("~")
-    is_start_valid_yyyymmdd(ord_raw_date[0])
-    is_end_valid_yyyymmdd(ord_raw_date[0], ord_raw_date[1])
+    is_valid_date_from_yyyymmdd(ord_raw_date[0])
+    is_valid_date_to_yyyymmdd(ord_raw_date[0], ord_raw_date[1])
     ord_st_date = ord_raw_date[0]
     ord_ed_date = ord_raw_date[1]
     return ord_st_date, ord_ed_date
