@@ -17,10 +17,11 @@ class DownFormOrderRepository:
         result = await self.session.execute(query)
         rows = result.scalars().all()
         return rows
-    
+
     async def get_down_form_order_by_id(self, down_form_order_id: int) -> BaseDownFormOrder:
         try:
-            query = select(BaseDownFormOrder).where(BaseDownFormOrder.id == down_form_order_id)
+            query = select(BaseDownFormOrder).where(
+                BaseDownFormOrder.id == down_form_order_id)
             result = await self.session.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
@@ -31,7 +32,8 @@ class DownFormOrderRepository:
 
     async def get_down_form_order_by_idx(self, idx: str) -> BaseDownFormOrder:
         try:
-            query = select(BaseDownFormOrder).where(BaseDownFormOrder.idx == idx)
+            query = select(BaseDownFormOrder).where(
+                BaseDownFormOrder.idx == idx)
             result = await self.session.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
@@ -46,9 +48,11 @@ class DownFormOrderRepository:
             if template_code == 'all':
                 pass  # no filter, fetch all
             elif template_code is None or template_code == '':
-                query = query.where((BaseDownFormOrder.form_name == None) | (BaseDownFormOrder.form_name == ''))
+                query = query.where((BaseDownFormOrder.form_name == None) | (
+                    BaseDownFormOrder.form_name == ''))
             else:
-                query = query.where(BaseDownFormOrder.form_name == template_code)
+                query = query.where(
+                    BaseDownFormOrder.form_name == template_code)
             if skip:
                 query = query.offset(skip)
             if limit:
@@ -66,7 +70,19 @@ class DownFormOrderRepository:
         skip = (page - 1) * page_size
         limit = page_size
         return await self.get_down_form_orders_by_template_code(skip, limit, template_code)
-    
+
+    async def get_down_form_orders_by_work_status(self, work_status: str) -> list[BaseDownFormOrder]:
+        try:
+            query = select(BaseDownFormOrder).where(
+                BaseDownFormOrder.work_status == work_status)
+            result = await self.session.execute(query)
+            return result.scalars().all()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+        finally:
+            await self.session.close()
+
     async def create_down_form_order(self, obj_in: DownFormOrderDto) -> BaseDownFormOrder:
         obj_in = BaseDownFormOrder(**obj_in.model_dump())
         try:
@@ -102,7 +118,8 @@ class DownFormOrderRepository:
                 if idx is None:
                     continue  # idx 없으면 skip
                 values['updated_at'] = func.now()
-                stmt = update(BaseDownFormOrder).where(BaseDownFormOrder.idx == idx).values(**values)
+                stmt = update(BaseDownFormOrder).where(
+                    BaseDownFormOrder.idx == idx).values(**values)
                 await self.session.execute(stmt)
             await self.session.commit()
             return len(objects)
@@ -169,9 +186,11 @@ class DownFormOrderRepository:
             if template_code == 'all':
                 pass  # no filter, fetch all
             elif template_code is None or template_code == '':
-                query = query.where((BaseDownFormOrder.form_name == None) | (BaseDownFormOrder.form_name == ''))
+                query = query.where((BaseDownFormOrder.form_name == None) | (
+                    BaseDownFormOrder.form_name == ''))
             else:
-                query = query.where(BaseDownFormOrder.form_name == template_code)
+                query = query.where(
+                    BaseDownFormOrder.form_name == template_code)
             result = await self.session.execute(query)
             return result.scalar_one()
         except Exception as e:
