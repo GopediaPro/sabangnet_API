@@ -1,9 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'python:3.12'
-        }
-    }
+    agent any
 
     // 파라미터 정의
     parameters {
@@ -145,6 +141,12 @@ pipeline {
                     }
                 }
                 stage('Test') {
+                    agent {
+                        docker {
+                            image 'python:3.12-slim'
+                            reuseNode true
+                        }
+                    }
                     steps {
                         script {
                             // 타임스탬프 변수를 Groovy에서 정의
@@ -157,7 +159,7 @@ pipeline {
                             sh 'python3 -m pip install -r requirements.txt'
                             
                             echo "🧪 pytest 테스트를 수행합니다..."
-                            sh '''
+                            sh """
                                 # 테스트 환경 설정
                                 export PYTHONPATH="\${WORKSPACE}:\${PYTHONPATH}"
                                 export TIME_STAMP="${timeStamp}"
@@ -194,7 +196,7 @@ pipeline {
                                 if [ -d coverage-report-\${TIME_STAMP} ]; then
                                     echo "커버리지 리포트 생성됨"
                                 fi
-                            '''
+                            """
                             // 파일명을 변수로 저장하여 post에서 사용
                             env.TEST_REPORT_HTML = "test-report-${timeStamp}.html"
                             env.COVERAGE_DIR = "coverage-report-${timeStamp}"
