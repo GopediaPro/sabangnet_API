@@ -151,6 +151,12 @@ pipeline {
                         script {
                             // 타임스탬프 변수를 Groovy에서 정의
                             def timeStamp = "${env.BUILD_NUMBER}_${new Date().format('MMdd_HHmmss')}"
+
+                            // 환경 변수 파일 import
+                            withCredentials([file(credentialsId: SABANGNET_ENV_FILE, variable: 'ENV_FILE')]) {
+                                sh "cp ${ENV_FILE} .env"
+                            }
+                            
                             echo "🔍 Python 환경 확인..."
                             sh 'python3 --version'
                             sh 'python3 -m pip --version'
@@ -202,6 +208,8 @@ pipeline {
                             env.COVERAGE_DIR = "coverage-report-${timeStamp}"
                             env.COVERAGE_XML = "coverage-${timeStamp}.xml"
                             env.TEST_RESULTS_XML = "test-results-${timeStamp}.xml"
+                            // .env 파일 삭제
+                            sh "rm -f .env"
                         }
                     }
                     post {
