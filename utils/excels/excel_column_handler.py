@@ -37,7 +37,7 @@ class ExcelColumnHandler:
 
         cell.number_format = 'General'
         cell.value = str(sum(
-            float(source_cell.value)
+            int(source_cell.value)
             for source_cell in source_cells
             if source_cell.value is not None and self._is_number(source_cell.value)
         ))
