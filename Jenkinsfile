@@ -234,8 +234,10 @@ pipeline {
                             echo "✅ 모든 테스트가 성공했습니다!"
                         }
                         failure {
-                            echo "❌ 일부 테스트가 실패했습니다. 빌드를 중단합니다."
-                            currentBuild.result = 'FAILURE'
+                            script {
+                                echo "❌ 일부 테스트가 실패했습니다. 빌드를 중단합니다."
+                                currentBuild.result = 'FAILURE'
+                            }
                         }
                     }
                 }
