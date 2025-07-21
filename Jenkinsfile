@@ -203,7 +203,7 @@ pipeline {
                             echo "📊 테스트 결과 저장..."
                             
                             // JUnit XML 결과 저장
-                            publishTestResults testResultsPattern: env.TEST_RESULTS_XML
+                            junit 'test-results-*.xml'
                             
                             // HTML 리포트 저장
                             publishHTML([
