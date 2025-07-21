@@ -240,9 +240,14 @@ pipeline {
                             ])
                             
                             // 커버리지 XML 결과 저장 (SonarQube 등과 연동용)
-                            publishCoverage adapters: [
-                                coberturaAdapter(env.COVERAGE_XML)
-                            ], sourceFileResolver: sourceFiles('STORE_LAST_BUILD')
+                            recordCoverage(
+                                tools: [[parser: 'COBERTURA', pattern: env.COVERAGE_XML]],
+                                name: 'Pytest Coverage',
+                                sourceCodeRetention: 'EVERY_BUILD',
+                                qualityGates: [
+                                    [threshold: 60.0, metric: 'LINE', baseline: 'PROJECT', unstable: true]
+                                ]
+                            )
                         }
                         success {
                             echo "✅ 모든 테스트가 성공했습니다!"
