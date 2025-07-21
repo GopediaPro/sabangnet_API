@@ -36,6 +36,15 @@ pipeline {
         IS_DEPLOYABLE = "${env.BRANCH_NAME in ['main', 'dev'] || env.BRANCH_NAME.contains('docker') ? 'true' : 'false'}"
         // Docker 이미지 태그용 안전한 브랜치명 (슬래시를 하이픈으로 변환)
         DOCKER_SAFE_BRANCH_NAME = "${env.BRANCH_NAME.replaceAll('/', '-')}"
+        
+        // 테스트 관련 설정
+        PYTEST_ADDOPTS = "--tb=short --disable-warnings"
+        PYTHONPATH = "${WORKSPACE}:${PYTHONPATH}"
+
+        // MINIO 서버 업로드
+        MINIO_CREDENTIAL_ID = 'minio-credentials-id'
+        MINIO_SERVER_URL = 'https://minio.lyckabc.xyz'
+        MINIO_BUCKET_NAME = 'test'
     }
 
     stages {
@@ -133,8 +142,101 @@ pipeline {
                 }
                 stage('Test') {
                     steps {
-                        echo "테스트를 수행합니다..."
-                        // sh 'pytest --maxfail=1 --disable-warnings'
+                        script {
+                            // 타임스탬프 변수를 Groovy에서 정의
+                            def timeStamp = "${env.BUILD_NUMBER}_${new Date().format('MMdd_HHmmss')}"
+                            echo "🔍 Python 환경 확인..."
+                            sh 'python --version'
+                            sh 'pip --version'
+                            
+                            echo "📦 의존성 설치 확인..."
+                            sh 'pip install -r requirements.txt'
+                            
+                            echo "🧪 pytest 테스트를 수행합니다..."
+                            sh '''
+                                # 테스트 환경 설정
+                                export PYTHONPATH="\${WORKSPACE}:\${PYTHONPATH}"
+                                export TIME_STAMP="${timeStamp}"
+                                
+                                # 테스트 디렉토리 확인
+                                echo "📁 테스트 디렉토리 구조 확인..."
+                                ls -la tests/
+                                
+                                # pytest 실행 (상세한 출력과 함께)
+                                echo "🚀 pytest 실행 시작..."
+                                python -m pytest tests/ \\
+                                    --verbose \\
+                                    --tb=short \\
+                                    --maxfail=3 \\
+                                    --disable-warnings \\
+                                    --junitxml=test-results-\${TIME_STAMP}.xml \\
+                                    --html=test-report-\${TIME_STAMP}.html \\
+                                    --self-contained-html \\
+                                    --durations=10 \\
+                                    --cov=tests \\
+                                    --cov-report=html:coverage-report-\${TIME_STAMP} \\
+                                    --cov-report=xml:coverage-\${TIME_STAMP}.xml
+                                
+                                echo "✅ 테스트 완료"
+                                
+                                # 테스트 결과 요약
+                                echo "📊 테스트 결과 요약:"
+                                if [ -f test-results-\${TIME_STAMP}.xml ]; then
+                                    echo "Pytest Unit XML 리포트 생성됨"
+                                fi
+                                if [ -f test-report-\${TIME_STAMP}.html ]; then
+                                    echo "Pytest HTML 리포트 생성됨"
+                                fi
+                                if [ -d coverage-report-\${TIME_STAMP} ]; then
+                                    echo "커버리지 리포트 생성됨"
+                                fi
+                            '''
+                            // 파일명을 변수로 저장하여 post에서 사용
+                            env.TEST_REPORT_HTML = "test-report-${timeStamp}.html"
+                            env.COVERAGE_DIR = "coverage-report-${timeStamp}"
+                            env.COVERAGE_XML = "coverage-${timeStamp}.xml"
+                            env.TEST_RESULTS_XML = "test-results-${timeStamp}.xml"
+                        }
+                    }
+                    post {
+                        always {
+                            echo "📊 테스트 결과 저장..."
+                            
+                            // JUnit XML 결과 저장
+                            publishTestResults testResultsPattern: env.TEST_RESULTS_XML
+                            
+                            // HTML 리포트 저장
+                            publishHTML([
+                                allowMissing: false,
+                                alwaysLinkToLastBuild: true,
+                                keepAll: true,
+                                reportDir: '.',
+                                reportFiles: env.TEST_REPORT_HTML,
+                                reportName: 'Pytest HTML Report'
+                            ])
+                            
+                            // 커버리지 리포트 저장
+                            publishHTML([
+                                allowMissing: true,
+                                alwaysLinkToLastBuild: true,
+                                keepAll: true,
+                                reportDir: env.COVERAGE_DIR,
+                                reportFiles: 'index.html',
+                                reportName: 'Coverage Report'
+                            ])
+                            
+                            // 커버리지 XML 결과 저장 (SonarQube 등과 연동용)
+                            publishCoverage adapters: [
+                                coberturaAdapter(env.COVERAGE_XML)
+                            ], sourceFileResolver: sourceFiles('STORE_LAST_BUILD')
+                        }
+                        success {
+                            echo "✅ 모든 테스트가 성공했습니다!"
+                        }
+                        failure {
+                            echo "❌ 일부 테스트가 실패했습니다. 빌드를 중단합니다."
+                            currentBuild.result = 'FAILURE'
+                        }
                     }
                 }
             }
