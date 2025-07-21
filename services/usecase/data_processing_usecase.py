@@ -39,23 +39,23 @@ class DataProcessingFunctions:
             return ""
         mapping = {"credit": "선불", "cod": "착불", "prepaid": "선불"}
         return mapping.get(str(value).lower(), str(value))
-    
+
     def _sku_quantity(self, value: Any, context: dict[str, Any]) -> str:
         sku_alias = context.get('sku_alias', '') or value or ''
         sale_cnt = context.get('sale_cnt', 0) or 0
         return f"{sku_alias} {sale_cnt}개" if sku_alias else ""
-    
+
     def _barcode_quantity(self, value: Any, context: dict[str, Any]) -> str:
         barcode = context.get('barcode', '') or value or ''
         sale_cnt = context.get('sale_cnt', 0) or 0
         return f"{barcode} {sale_cnt}개" if barcode else ""
-    
+
     def _calculate_service_fee(self, value: Any, context: dict[str, Any]) -> int:
         pay_cost = context.get('pay_cost', 0) or 0
         mall_won_cost = context.get('mall_won_cost', 0) or 0
         sale_cnt = context.get('sale_cnt', 0) or 0
         return int(pay_cost - (mall_won_cost * sale_cnt))
-    
+
     def _transform_data(self, raw_data: list[dict[str, Any]], config: dict) -> list[dict[str, Any]]:
         processed_data = []
         if config.get('is_aggregated'):
@@ -81,8 +81,8 @@ class DataProcessingFunctions:
                 }
                 base.update(map_raw_to_down_form(row, config))
                 processed_data.append(base)
-        return processed_data     
-    
+        return processed_data
+
     async def _create_mapping_field(self, template_config: dict) -> dict:
         """
         create mapping field
@@ -97,10 +97,10 @@ class DataProcessingFunctions:
         return mapping_field
 
     async def _process_simple_data(
-            self,
-            raw_data: list[dict[str, Any]],
-            config: dict
-        ) -> list[dict[str, Any]]:
+        self,
+        raw_data: list[dict[str, Any]],
+        config: dict
+    ) -> list[dict[str, Any]]:
         """단순 변환 (1:1 매핑)"""
         processed_data = []
         for seq, raw_row in enumerate(raw_data, start=1):
@@ -112,22 +112,22 @@ class DataProcessingFunctions:
             processed_row.update(map_raw_to_down_form(raw_row, config))
             processed_data.append(processed_row)
         return processed_data
-    
+
     async def _process_aggregated_data(
-            self,
-            raw_data: list[dict[str, Any]],
-            config: dict
-        ) -> list[dict[str, Any]]:
+        self,
+        raw_data: list[dict[str, Any]],
+        config: dict
+    ) -> list[dict[str, Any]]:
         """집계 변환 (합포장용)"""
         grouped_data = {}
         group_field_mapping = {
             'order_id': 'order_id',
-            'receive_name': 'receive_name', 
+            'receive_name': 'receive_name',
             'receive_addr': 'receive_addr'
         }
         for raw_row in raw_data:
             group_key = tuple(
-                raw_row.get(group_field_mapping.get(field, field), '') 
+                raw_row.get(group_field_mapping.get(field, field), '')
                 for field in config['group_by_fields']
             )
             if group_key not in grouped_data:
@@ -140,7 +140,8 @@ class DataProcessingFunctions:
                 'form_name': config['template_code'],
                 'seq': seq,
             }
-            processed_row.update(map_aggregated_to_down_form(group_rows, config))
+            processed_row.update(
+                map_aggregated_to_down_form(group_rows, config))
             processed_data.append(processed_row)
         return processed_data
 
@@ -192,9 +193,10 @@ class DataProcessingUsecase(DataProcessingFunctions):
         super().__init__(session)
         self.order_read_service = ReceiveOrderReadService(session)
         self.down_form_order_read_service = DownFormOrderReadService(session)
-        self.down_form_order_create_service = DownFormOrderCreateService(session)
+        self.down_form_order_create_service = DownFormOrderCreateService(
+            session)
         self.template_config_read_service = TemplateConfigReadService(session)
-        
+
     async def down_form_order_to_excel(self, template_code: str, file_path: str, file_name: str):
         """
         down_form_order_to_excel
@@ -207,12 +209,12 @@ class DataProcessingUsecase(DataProcessingFunctions):
         """
         template_config = await self.get_template_config_by_template_code(template_code)
         down_form_orders = await self.get_down_form_orders_by_template_code(template_code)
-        
+
         mapping_field = await self._create_mapping_field(template_config)
 
         convert_xlsx = ConvertXlsx()
         file_path = convert_xlsx.export_translated_to_excel(
-            down_form_orders, mapping_field, file_name, file_path="./files/excel")
+            down_form_orders, mapping_field, file_name, file_path=file_path)
         return file_path
 
     async def get_template_config_by_template_code(self, template_code: str) -> dict:
@@ -252,7 +254,8 @@ class DataProcessingUsecase(DataProcessingFunctions):
         returns:
             down_form_orders_bulk_dto: down_form_orders_bulk_dto
         """
-        logger.info(f"[START] save_down_form_orders_from_receive_orders_by_filter | template_code={template_code} | filters={filters}")
+        logger.info(
+            f"[START] save_down_form_orders_from_receive_orders_by_filter | template_code={template_code} | filters={filters}")
         # 1. receive_orders 조회하고 모델 받아옴
         receive_orders: list[ReceiveOrders] = await self.order_read_service.get_receive_orders_by_filters(filters)
         if not receive_orders:
@@ -274,7 +277,8 @@ class DataProcessingUsecase(DataProcessingFunctions):
             receive_orders_dict_list,
             template_code
         )
-        logger.info(f"[END] save_down_form_orders_from_receive_orders_by_filter | saved_count={saved_count}")
+        logger.info(
+            f"[END] save_down_form_orders_from_receive_orders_by_filter | saved_count={saved_count}")
         return DownFormOrdersBulkDto(
             success=True,
             template_code=template_code,
@@ -346,7 +350,7 @@ class DataProcessingUsecase(DataProcessingFunctions):
         logger.info(
             f"[END] process_excel_to_down_form_orders | saved_count={saved_count}")
         return saved_count
-    
+
     async def save_down_form_orders_from_receive_orders_without_filter(self, template_code: str, raw_data: list[dict[str, Any]]) -> int:
         """
         save down_form_orders from receive_orders without filter
@@ -356,7 +360,8 @@ class DataProcessingUsecase(DataProcessingFunctions):
         returns:
             saved_count: saved count
         """
-        logger.info(f"[START] save_down_form_orders_from_receive_orders_without_filter | template_code={template_code} | raw_data_count={len(raw_data)}")
+        logger.info(
+            f"[START] save_down_form_orders_from_receive_orders_without_filter | template_code={template_code} | raw_data_count={len(raw_data)}")
 
         # 1. 템플릿 config 조회
         config = await self.template_config_read_service.get_template_config_by_template_code(template_code)
@@ -367,10 +372,12 @@ class DataProcessingUsecase(DataProcessingFunctions):
 
         # 2. 데이터 변환/집계
         processed_data = self._transform_data(raw_data, config)
-        logger.info(f"Data processed. processed_data_count={len(processed_data)}")
+        logger.info(
+            f"Data processed. processed_data_count={len(processed_data)}")
 
         # 3. 저장
-        items: list[DownFormOrderDto] = [DownFormOrderDto.model_validate(row) for row in processed_data]
+        items: list[DownFormOrderDto] = [
+            DownFormOrderDto.model_validate(row) for row in processed_data]
         try:
             saved_count = await self.down_form_order_create_service.bulk_create_down_form_orders(items)
             logger.info(f"[END] process_and_save | saved_count={saved_count}")
@@ -394,11 +401,42 @@ class DataProcessingUsecase(DataProcessingFunctions):
             f"[START] save_down_form_orders_from_macro_run_excel | template_code={template_code} ")
         # 1. 임시 파일 생성
         file_name, file_path = await process_macro_with_tempfile(self.session, template_code, file)
-        logger.info(f"temporary file name: {file_name}")
+        logger.info(f"temporary file path: {file_path}, file name: {file_name}")
         # 2. 엑셀파일 데이터 파일 변환 후 임시파일 삭제
         dataframe = ExcelHandler.file_path_to_dataframe(file_path)
+        logger.info(f"dataframe: {len(dataframe)}")
         # # 3. 데이터 저장
         saved_count = await self.process_excel_to_down_form_orders(dataframe, template_code, work_status=work_status)
         logger.info(
             f"[END] save_down_form_orders_from_macro_run_excel | saved_count={saved_count}")
         return saved_count
+
+    async def export_down_form_orders_to_excel_by_work_status(self, template_code: str, work_status: str = None) -> str:
+        """
+        export down_form_orders to excel by work_status
+        args:
+            template_code: template code
+            work_status: work status
+        returns:
+            file_path: file path
+            file_name: file name
+        """
+        logger.info(
+            f"[START] get_down_form_orders_by_work_status | template_code={template_code} ")
+        # 1. 데이터 조회
+        down_form_orders = await self.down_form_order_read_service.get_down_form_orders_by_work_status(work_status)
+        logger.info(f"down_form_orders: {len(down_form_orders)}")
+        # 2. 템플릿 설정 조회
+        template_config = await self.get_template_config_by_template_code(template_code)
+        logger.info(f"template_config: {template_config}")
+        # 3. 매핑 필드 생성
+        mapping_field = await self._create_mapping_field(template_config)
+        logger.info(f"mapping_field: {mapping_field}")
+        # 4. 엑셀 파일 생성
+        file_name = f"{template_code}_{work_status}.xlsx"
+        convert_xlsx = ConvertXlsx()
+        temp_file_path = convert_xlsx.export_temp_excel(
+            down_form_orders, mapping_field, file_name)
+        logger.info(
+            f"[END] get_down_form_orders_by_work_status | temp_file_path={temp_file_path} | file_name={file_name}")
+        return temp_file_path, file_name
