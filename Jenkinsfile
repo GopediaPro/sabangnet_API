@@ -146,11 +146,11 @@ pipeline {
                             // 타임스탬프 변수를 Groovy에서 정의
                             def timeStamp = "${env.BUILD_NUMBER}_${new Date().format('MMdd_HHmmss')}"
                             echo "🔍 Python 환경 확인..."
-                            sh 'python --version'
-                            sh 'pip --version'
+                            sh 'python3 --version'
+                            sh 'python3 -m pip --version'
                             
                             echo "📦 의존성 설치 확인..."
-                            sh 'pip install -r requirements.txt'
+                            sh 'python3 -m pip install -r requirements.txt'
                             
                             echo "🧪 pytest 테스트를 수행합니다..."
                             sh '''
@@ -164,7 +164,7 @@ pipeline {
                                 
                                 # pytest 실행 (상세한 출력과 함께)
                                 echo "🚀 pytest 실행 시작..."
-                                python -m pytest tests/ \\
+                                python3 -m pytest tests/ \\
                                     --verbose \\
                                     --tb=short \\
                                     --maxfail=3 \\
