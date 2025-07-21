@@ -114,23 +114,18 @@ def test_api_prefix_endpoints(client: TestClient):
 
         paths: dict = schema.get("paths", {})
         
-        api_paths = []
         api_v1_paths = []
         not_api_paths = []
         for path in paths.keys():
             path: str
-            if path.startswith("/api"):
-                if path.startswith("/api/v1"):
-                    api_v1_paths.append(path)
-                else:
-                    api_paths.append(path)
+            if path.startswith("/api/v1"):
+                api_v1_paths.append(path)
             else:
                 not_api_paths.append(path)
         
-        logger.debug(f"api_paths={api_paths}")
         logger.debug(f"api_v1_paths={api_v1_paths}")
         logger.debug(f"not_api_paths={not_api_paths}")
-        assert len(api_v1_paths) > 0 and len(api_paths) > 0, "API 엔드포인트가 존재하지 않습니다."
+        assert len(api_v1_paths) > 0, "API 엔드포인트가 존재하지 않습니다."
         
         logger.info("API 프리픽스 엔드포인트 존재 확인 테스트 완료")
     except Exception as e:

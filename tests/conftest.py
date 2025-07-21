@@ -3,22 +3,50 @@ pytest 설정, 픽스처 정의 파일
 fatapi 의 main.py 및 다른 설정 파일들과 같은 역할을 함
 다른 모듈에서 임포트 하지 않아도 pytest 가 자동으로 인식하고 적용시킴
 """
+
+
 import os
+import sys
+
+
+if sys.platform == "win32":
+    try:
+        import ctypes
+        # 콘솔 코드페이지를 65001(UTF-8)로 강제
+        ctypes.windll.kernel32.SetConsoleOutputCP(65001)
+        ctypes.windll.kernel32.SetConsoleCP(65001)
+    except Exception:
+        pass
+
+
 import pytest
 import asyncio
+from contextlib import asynccontextmanager
 
 from io import BytesIO
 from fastapi import FastAPI
-from httpx import AsyncClient
+from typing import Generator, Any
 from asyncio import AbstractEventLoop
 from fastapi.testclient import TestClient
-from typing import Generator, AsyncGenerator, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from main import app
 from utils.logs.sabangnet_logger import get_logger
 
+
 logger = get_logger(__name__)
+
+
+# pytest-asyncio 설정
+pytest_plugins = ["pytest_asyncio"]
+
+
+# 테스트용 lifespan 함수 (create_tables 제외)
+@asynccontextmanager
+async def test_lifespan(app: FastAPI):
+    # 테스트에서는 create_tables를 실행하지 않음
+    yield
+    # 테스트 종료 후 정리 작업 (필요시)
 
 
 # 테스트 환경 설정
@@ -27,54 +55,91 @@ def set_test_environment() -> None:
     """테스트용 더미 환경변수 설정"""
     
     test_env_vars = {
-        "SABANG_COMPANY_ID": "test_company",
+        # 사방넷 관련 설정
+        "SABANG_COMPANY_ID": "test_company_id",
         "SABANG_AUTH_KEY": "test_auth_key",
-        "SABANG_ADMIN_URL": "https://test.example.com",
-        "MINIO_ROOT_USER": "test_user",
-        "MINIO_ROOT_PASSWORD": "test_password",
+        "SABANG_ADMIN_URL": "https://test.admin.url",
+        
+        # MinIO 관련 설정
+        "MINIO_ROOT_USER": "test_root_user",
+        "MINIO_ROOT_PASSWORD": "test_root_password",
         "MINIO_ACCESS_KEY": "test_access_key",
         "MINIO_SECRET_KEY": "test_secret_key",
-        "MINIO_ENDPOINT": "localhost:9000",
-        "MINIO_BUCKET_NAME": "test-bucket",
+        "MINIO_ENDPOINT": "test.endpoint",
+        "MINIO_BUCKET_NAME": "test_bucket",
         "MINIO_USE_SSL": "false",
         "MINIO_PORT": "9000",
-        "DB_HOST": "localhost",
+        
+        # 데이터베이스 관련 설정
+        "DB_HOST": "test.host",
         "DB_PORT": "5432",
         "DB_NAME": "test_db",
-        "DB_USER": "test_user",
-        "DB_PASSWORD": "test_password",
+        "DB_USER": "test_db_user",
+        "DB_PASSWORD": "test_db_password",
         "DB_SSLMODE": "disable",
         "DB_TEST_TABLE": "test_table",
         "DB_TEST_COLUMN": "test_column",
-        "FASTAPI_HOST": "localhost",
+        
+        # FastAPI 관련 설정
+        "FASTAPI_HOST": "test.host",
         "FASTAPI_PORT": "8000",
-        "N8N_WEBHOOK_BASE_URL": "https://test.n8n.com",
-        "N8N_WEBHOOK_PATH": "test_webhook",
-        "CONPANY_GOODS_CD_TEST_MODE": "true"
+        
+        # N8N 관련 설정
+        "N8N_WEBHOOK_BASE_URL": "https://test.webhook-base.url",
+        "N8N_WEBHOOK_PATH": "test-webhook-path",
+        
+        # 테스트 모드 설정
+        "COMPANY_GOODS_CD_TEST_MODE": "true",
+        
+        # 기타 설정
+        "DEPLOY_ENV": "test"
     }
     
     for key, value in test_env_vars.items():
         os.environ.setdefault(key, value)
     
+    logger.info("테스트 환경변수 설정 완료")
+
 
 @pytest.fixture(scope="session")
 def event_loop() -> Generator[AbstractEventLoop, Any, None]:
     """이벤트 루프 픽스처 (비동기 테스트용)"""
 
+    # 기존 이벤트 루프 정리
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            loop.stop()
+    except RuntimeError:
+        pass
+
+    # 새 이벤트 루프 생성
     loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
     yield loop
-    loop.close()
+    
+    # 정리
+    try:
+        pending = asyncio.all_tasks(loop)
+        loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+        loop.close()
+    except Exception as e:
+        logger.warning(f"이벤트 루프 정리 중 경고: {e}")
 
 
 @pytest.fixture
 def test_app() -> FastAPI:
-    """FastAPI 앱 픽스처"""
+    """FastAPI 앱 픽스처(lifespan 모킹)"""
 
     try:
-        # main.py에서 app 임포트됨
+        # lifespan을 테스트용으로 교체
+        app.router.lifespan_context = test_lifespan
+        
         return app
     except Exception as e:
         logger.error(f"fastapi app import 실패: {e}")
+        raise e
 
 
 @pytest.fixture
@@ -82,38 +147,116 @@ def client(test_app: FastAPI) -> Generator[TestClient, Any, None]:
     """동기 테스트 클라이언트"""
 
     try:
+        # 모든 의존성 함수들을 mock으로 override
+        from unittest.mock import AsyncMock, MagicMock
+        
+        # Product 관련 의존성
+        from api.v1.endpoints.product import get_product_read_service, get_product_update_service, get_product_db_xml_usecase
+        from services.product.product_read_service import ProductReadService
+        from services.product.product_update_service import ProductUpdateService
+        from services.usecase.product_db_xml_usecase import ProductDbXmlUsecase
+        
+        mock_product_read_service = AsyncMock(spec=ProductReadService)
+        mock_product_update_service = AsyncMock(spec=ProductUpdateService)
+        mock_product_db_xml_usecase = AsyncMock(spec=ProductDbXmlUsecase)
+        
+        # 전역 mock 인스턴스들을 저장할 딕셔너리
+        global_mocks = {}
+        
+        # Product 관련 의존성
+        from api.v1.endpoints.product import get_product_read_service, get_product_update_service, get_product_db_xml_usecase
+        from services.product.product_read_service import ProductReadService
+        from services.product.product_update_service import ProductUpdateService
+        from services.usecase.product_db_xml_usecase import ProductDbXmlUsecase
+        
+        mock_product_read_service = AsyncMock(spec=ProductReadService)
+        mock_product_update_service = AsyncMock(spec=ProductUpdateService)
+        mock_product_db_xml_usecase = AsyncMock(spec=ProductDbXmlUsecase)
+        
+        global_mocks['product_read'] = mock_product_read_service
+        global_mocks['product_update'] = mock_product_update_service
+        global_mocks['product_db_xml'] = mock_product_db_xml_usecase
+        
+        test_app.dependency_overrides[get_product_read_service] = lambda: global_mocks['product_read']
+        test_app.dependency_overrides[get_product_update_service] = lambda: global_mocks['product_update']
+        test_app.dependency_overrides[get_product_db_xml_usecase] = lambda: global_mocks['product_db_xml']
+        
+        # ReceiveOrder 관련 의존성
+        from api.v1.endpoints.receive_order import get_receive_order_read_service, get_receive_order_create_service
+        from services.receive_orders.receive_order_read_service import ReceiveOrderReadService
+        from services.receive_orders.receive_order_create_service import ReceiveOrderCreateService
+        
+        mock_receive_order_read_service = AsyncMock(spec=ReceiveOrderReadService)
+        mock_receive_order_create_service = AsyncMock(spec=ReceiveOrderCreateService)
+        
+        global_mocks['receive_order_read'] = mock_receive_order_read_service
+        global_mocks['receive_order_create'] = mock_receive_order_create_service
+        
+        test_app.dependency_overrides[get_receive_order_read_service] = lambda: global_mocks['receive_order_read']
+        test_app.dependency_overrides[get_receive_order_create_service] = lambda: global_mocks['receive_order_create']
+        
+        # DownFormOrder 관련 의존성
+        from api.v1.endpoints.down_form_order import (
+            get_down_form_order_create_service, 
+            get_down_form_order_read_service,
+            get_down_form_order_update_service,
+            get_down_form_order_delete_service,
+            get_data_processing_usecase
+        )
+        from services.down_form_orders.down_form_order_create_service import DownFormOrderCreateService
+        from services.down_form_orders.down_form_order_read_service import DownFormOrderReadService
+        from services.down_form_orders.down_form_order_update_service import DownFormOrderUpdateService
+        from services.down_form_orders.down_form_order_delete_service import DownFormOrderDeleteService
+        from services.usecase.data_processing_usecase import DataProcessingUsecase
+        
+        mock_down_form_order_create_service = AsyncMock(spec=DownFormOrderCreateService)
+        mock_down_form_order_read_service = AsyncMock(spec=DownFormOrderReadService)
+        mock_down_form_order_update_service = AsyncMock(spec=DownFormOrderUpdateService)
+        mock_down_form_order_delete_service = AsyncMock(spec=DownFormOrderDeleteService)
+        mock_data_processing_usecase = AsyncMock(spec=DataProcessingUsecase)
+        
+        global_mocks['down_form_order_create'] = mock_down_form_order_create_service
+        global_mocks['down_form_order_read'] = mock_down_form_order_read_service
+        global_mocks['down_form_order_update'] = mock_down_form_order_update_service
+        global_mocks['down_form_order_delete'] = mock_down_form_order_delete_service
+        global_mocks['data_processing'] = mock_data_processing_usecase
+        
+        test_app.dependency_overrides[get_down_form_order_create_service] = lambda: global_mocks['down_form_order_create']
+        test_app.dependency_overrides[get_down_form_order_read_service] = lambda: global_mocks['down_form_order_read']
+        test_app.dependency_overrides[get_down_form_order_update_service] = lambda: global_mocks['down_form_order_update']
+        test_app.dependency_overrides[get_down_form_order_delete_service] = lambda: global_mocks['down_form_order_delete']
+        test_app.dependency_overrides[get_data_processing_usecase] = lambda: global_mocks['data_processing']
+        
+        # 전역 mock을 앱에 저장하여 테스트에서 접근 가능하도록 함
+        test_app.state.global_mocks = global_mocks
+        
         with TestClient(test_app) as test_client:
             yield test_client
     except Exception as e:
         logger.error(f"동기 테스트 클라이언트 호출 실패: {e}")
+        raise e
 
 
 @pytest.fixture
-async def async_client(test_app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
-    """비동기 테스트 클라이언트"""
+def async_client(test_app: FastAPI) -> TestClient:
+    """비동기 테스트 클라이언트 (TestClient 사용)"""
 
     try:
-        async with AsyncClient(app=test_app, base_url="http://testserver") as client:
-            yield client
+        # DataProcessingUsecase 의존성 오버라이드
+        from services.usecase.data_processing_usecase import DataProcessingUsecase
+        from unittest.mock import AsyncMock
+        
+        mock_data_processing_usecase = AsyncMock(spec=DataProcessingUsecase)
+        mock_data_processing_usecase.process_excel_to_down_form_orders = AsyncMock(return_value=5)
+        
+        # 함수 참조로 오버라이드
+        from api.v1.endpoints.down_form_order import get_data_processing_usecase
+        test_app.dependency_overrides[get_data_processing_usecase] = lambda: mock_data_processing_usecase
+        
+        return TestClient(test_app)
     except Exception as e:
         logger.error(f"비동기 테스트 클라이언트 호출 실패: {e}")
-
-
-@pytest.fixture
-def mock_db_session() -> MagicMock:
-    """모킹된 데이터베이스 세션"""
-
-    try:
-        session = MagicMock()
-        session.execute = AsyncMock()
-        session.commit = AsyncMock()
-        session.rollback = AsyncMock()
-        session.close = AsyncMock()
-        session.scalar = AsyncMock()
-        session.scalars = AsyncMock()
-        return session
-    except Exception as e:
-        logger.error(f"테스트 세션 생성 실패: {e}")
+        raise e
 
 
 @pytest.fixture(autouse=True)
@@ -121,286 +264,171 @@ def mock_database_connections() -> Generator[MagicMock, Any, None]:
     """데이터베이스 연결 모킹 (자동 적용)"""
     
     try:
-        with patch('core.db.get_async_session') as mock_session:
+        # 데이터베이스 관련 모든 모듈 모킹
+        with patch('core.db.get_async_session') as mock_session, \
+             patch('core.db.async_engine') as mock_engine, \
+             patch('core.db.create_tables') as mock_create_tables, \
+             patch('core.db.get_db_pool') as mock_get_db, \
+             patch('core.db.AsyncSessionLocal') as mock_session_local, \
+             patch('core.db.test_db_write') as mock_test_db_write, \
+             patch('core.db.close_db_pool') as mock_close_db_pool, \
+             patch('sqlalchemy.ext.asyncio.create_async_engine') as mock_create_engine, \
+             patch('asyncpg.create_pool') as mock_create_pool:
+            
+            # 세션 모킹
             mock_session.return_value = MagicMock()
+            
+            # 엔진 모킹
+            mock_engine_instance = MagicMock()
+            mock_engine_instance.begin = AsyncMock()
+            mock_engine.return_value = mock_engine_instance
+            
+            # 세션 로컬 모킹
+            mock_session_local_instance = MagicMock()
+            mock_session_local_instance.__aenter__ = AsyncMock(return_value=mock_session.return_value)
+            mock_session_local_instance.__aexit__ = AsyncMock(return_value=None)
+            mock_session_local.return_value = mock_session_local_instance
+            
+            # 테이블 생성 모킹
+            mock_create_tables.return_value = None
+            
+            # DB 컨텍스트 매니저 모킹
+            mock_db_context = MagicMock()
+            mock_db_context.__aenter__ = AsyncMock(return_value=mock_session.return_value)
+            mock_db_context.__aexit__ = AsyncMock(return_value=None)
+            mock_get_db.return_value = mock_db_context
+            
+            # 테스트 DB 쓰기 모킹
+            mock_test_db_write.return_value = True
+            
+            # DB 풀 종료 모킹
+            mock_close_db_pool.return_value = None
+            
+            # 엔진 생성 모킹
+            mock_create_engine.return_value = mock_engine_instance
+            
+            # 풀 생성 모킹
+            mock_pool = MagicMock()
+            mock_pool.acquire = AsyncMock()
+            mock_pool.close = AsyncMock()
+            mock_create_pool.return_value = mock_pool
+            
             yield mock_session
     except Exception as e:
-        logger.error(f"테스트 db 연결 실패: {e}")
-
-
-@pytest.fixture
-def sample_product_data() -> dict:
-    """샘플 상품 데이터 (ProductRawData 모델 기반)"""
-
-    return {
-        "goods_nm": "테스트 상품명",
-        "goods_keyword": "테스트, 상품, 키워드",
-        "model_nm": "TEST-MODEL-001",
-        "model_no": "TEST-MODEL-NO-001",
-        "brand_nm": "테스트브랜드",
-        "compayny_goods_cd": "TEST_GOODS_001",
-        "goods_search": "테스트 상품 검색어",
-        "goods_gubun": 1,
-        "class_cd1": "TEST_CLASS_1",
-        "class_cd2": "TEST_CLASS_2",
-        "class_cd3": "TEST_CLASS_3",
-        "class_cd4": "TEST_CLASS_4",
-        "gubun": "마스터",
-        "partner_id": "PARTNER_001",
-        "dpartner_id": "DPARTNER_001",
-        "maker": "테스트제조사",
-        "origin": "국내",
-        "make_year": "2024",
-        "make_dm": "20240101",
-        "goods_season": 1,
-        "sex": 0,
-        "status": 1,
-        "deliv_able_region": 1,
-        "tax_yn": 1,
-        "delv_type": 1,
-        "delv_cost": 3000,
-        "banpum_area": 1,
-        "goods_cost": 12000,
-        "goods_price": 15000,
-        "goods_consumer_price": 20000,
-        "goods_cost2": 11000,
-        "char_1_nm": "색상",
-        "char_1_val": "빨강,파랑,노랑",
-        "char_2_nm": "사이즈",
-        "char_2_val": "S,M,L,XL",
-        "img_path": "https://example.com/test-image.jpg",
-        "img_path1": "https://example.com/test-image1.jpg",
-        "img_path2": "https://example.com/test-image2.jpg",
-        "img_path3": "https://example.com/test-image3.jpg",
-        "img_path4": "https://example.com/test-image4.jpg",
-        "img_path5": "https://example.com/test-image5.jpg",
-        "img_path6": "https://example.com/test-image6.jpg",
-        "img_path7": "https://example.com/test-image7.jpg",
-        "img_path8": "https://example.com/test-image8.jpg",
-        "img_path9": "https://example.com/test-image9.jpg",
-        "img_path10": "https://example.com/test-image10.jpg",
-        "img_path11": "https://example.com/test-image11.jpg",
-        "img_path12": "https://example.com/test-image12.jpg",
-        "img_path13": "https://example.com/test-image13.jpg",
-        "img_path14": "https://example.com/test-image14.jpg",
-        "img_path15": "https://example.com/test-image15.jpg",
-        "img_path16": "https://example.com/test-image16.jpg",
-        "img_path17": "https://example.com/test-image17.jpg",
-        "img_path18": "https://example.com/test-image18.jpg",
-        "img_path19": "https://example.com/test-image19.jpg",
-        "img_path20": "https://example.com/test-image20.jpg",
-        "img_path21": "https://example.com/test-image21.jpg",
-        "img_path22": "https://example.com/test-image22.jpg",
-        "img_path23": "https://example.com/test-image23.jpg",
-        "img_path24": "https://example.com/test-image24.jpg",
-        "goods_remarks": "테스트 상품 설명입니다.",
-        "certno": "TEST-CERT-001",
-        "avlst_dm": "20240101",
-        "avled_dm": "20241231",
-        "issuedate": "20240101",
-        "certdate": "20240101",
-        "cert_agency": "테스트 인증기관",
-        "certfield": "테스트 인증분야",
-        "material": "테스트 재료",
-        "stock_use_yn": "Y",
-        "opt_type": 2,
-        "prop1_cd": "001",
-        "prop_val1": "속성값1",
-        "prop_val2": "속성값2",
-        "prop_val3": "속성값3",
-        "prop_val4": "속성값4",
-        "prop_val5": "속성값5",
-        "prop_val6": "속성값6",
-        "prop_val7": "속성값7",
-        "prop_val8": "속성값8",
-        "prop_val9": "속성값9",
-        "prop_val10": "속성값10",
-        "prop_val11": "속성값11",
-        "prop_val12": "속성값12",
-        "prop_val13": "속성값13",
-        "prop_val14": "속성값14",
-        "prop_val15": "속성값15",
-        "prop_val16": "속성값16",
-        "prop_val17": "속성값17",
-        "prop_val18": "속성값18",
-        "prop_val19": "속성값19",
-        "prop_val20": "속성값20",
-        "prop_val21": "속성값21",
-        "prop_val22": "속성값22",
-        "prop_val23": "속성값23",
-        "prop_val24": "속성값24",
-        "prop_val25": "속성값25",
-        "prop_val26": "속성값26",
-        "prop_val27": "속성값27",
-        "prop_val28": "속성값28",
-        "prop_val29": "속성값29",
-        "prop_val30": "속성값30",
-        "prop_val31": "속성값31",
-        "prop_val32": "속성값32",
-        "prop_val33": "속성값33",
-        "pack_code_str": "PACK001,PACK002,PACK003",
-        "goods_nm_en": "Test Product Name",
-        "goods_nm_pr": "테스트 상품 프로모션명",
-        "goods_remarks2": "테스트 상품 설명2",
-        "goods_remarks3": "테스트 상품 설명3",
-        "goods_remarks4": "테스트 상품 설명4",
-        "importno": "IMP20240001",
-        "origin2": "한국",
-        "expire_dm": "20241231",
-        "supply_save_yn": "Y",
-        "descrition": "테스트 상품 상세 설명",
-        "product_nm": "테스트 상품",
-        "no_product": 1,
-        "detail_img_url": "https://example.com/detail-image.jpg",
-        "no_word": 10,
-        "no_keyword": 5,
-        "product_id": 1001
-    }
-
-
-@pytest.fixture
-def sample_order_data() -> dict:
-    """샘플 주문 데이터 (ReceiveOrders 모델 기반)"""
-
-    return {
-        "receive_dt": "2024-01-01T12:00:00",
-        "idx": "TEST_ORDER_001",
-        "order_id": "ORDER_20240101_001",
-        "mall_id": "TEST_MALL",
-        "mall_user_id": "test_user_001",
-        "mall_user_id2": "test_user_001_sub",
-        "order_status": "주문접수",
-        "user_id": "test_user_001",
-        "user_name": "테스트 주문자",
-        "user_tel": "02-1234-5678",
-        "user_cel": "010-1234-5678",
-        "user_email": "testuser@example.com",
-        "receive_name": "테스트 수취인",
-        "receive_tel": "02-8765-4321",
-        "receive_cel": "010-8765-4321",
-        "receive_email": "receiver@example.com",
-        "receive_zipcode": "12345",
-        "receive_addr": "서울특별시 강남구 테스트로 123 테스트빌딩 456호",
-        "delv_msg": "문앞에 놓아주세요",
-        "delv_msg1": "배송 전 연락 부탁드립니다",
-        "mul_delv_msg": "복수배송 메시지",
-        "etc_msg": "깨지기 쉬운 상품이니 조심히 배송해주세요",
-        "total_cost": 25000,
-        "pay_cost": 25000,
-        "sale_cost": 22000,
-        "mall_won_cost": 0,
-        "won_cost": 0,
-        "delv_cost": 3000,
-        "order_date": "2024-01-01",
-        "reg_date": "20240101120000",
-        "ord_confirm_date": "20240101130000",
-        "rtn_dt": "20240105120000",
-        "chng_dt": "20240102120000",
-        "delivery_confirm_date": "20240104120000",
-        "cancel_dt": None,
-        "hope_delv_date": "20240103000000",
-        "inv_send_dm": "20240102000000",
-        "partner_id": "PARTNER_001",
-        "dpartner_id": "DPARTNER_001",
-        "mall_product_id": "MALL_PROD_001",
-        "product_id": "PROD_001",
-        "sku_id": "SKU_001",
-        "p_product_name": "테스트 상품(원본)",
-        "p_sku_value": "색상:빨강,사이즈:M",
-        "product_name": "테스트 상품",
-        "sku_value": "빨강/M",
-        "compayny_goods_cd": "TEST_GOODS_001",
-        "sku_alias": "TEST-RED-M",
-        "goods_nm_pr": "테스트 상품 프로모션명",
-        "goods_keyword": "테스트, 상품, 키워드",
-        "model_no": "TEST-MODEL-001",
-        "model_name": "테스트 모델",
-        "barcode": "1234567890123",
-        "sale_cnt": 2,
-        "box_ea": 1,
-        "p_ea": 2,
-        "delivery_method_str": "택배",
-        "delivery_method_str2": "일반택배",
-        "order_gubun": "일반",
-        "set_gubun": "단품",
-        "jung_chk_yn": "N",
-        "mall_order_seq": "1",
-        "mall_order_id": "MALL_ORDER_001",
-        "etc_field3": "기타 필드 정보",
-        "ord_field2": "일반",
-        "copy_idx": "COPY_TEST_001",
-        "class_cd1": "TEST_CLASS_1",
-        "class_cd2": "TEST_CLASS_2",
-        "class_cd3": "TEST_CLASS_3",
-        "class_cd4": "TEST_CLASS_4",
-        "brand_nm": "테스트브랜드",
-        "delivery_id": "DELIVERY_001",
-        "invoice_no": "1234567890",
-        "inv_send_msg": "송장번호 발송 완료",
-        "free_gift": "테스트 사은품",
-        "fld_dsp": "필드 표시 정보",
-        "acnt_regs_srno": 12345,
-        "order_etc_1": "확장 필드 1",
-        "order_etc_2": "확장 필드 2",
-        "order_etc_3": "확장 필드 3",
-        "order_etc_4": "확장 필드 4",
-        "order_etc_5": "확장 필드 5",
-        "order_etc_6": "확장 필드 6",
-        "order_etc_7": "확장 필드 7",
-        "order_etc_8": "확장 필드 8",
-        "order_etc_9": "확장 필드 9",
-        "order_etc_10": "확장 필드 10",
-        "order_etc_11": "확장 필드 11",
-        "order_etc_12": "확장 필드 12",
-        "order_etc_13": "확장 필드 13",
-        "order_etc_14": "확장 필드 14"
-    }
+        logger.error(f"테스트 db 연결 모킹 실패: {e}")
+        raise e
 
 
 @pytest.fixture
 def mock_external_api() -> MagicMock:
     """외부 API 모킹"""
 
-    mock_api = MagicMock()
-    mock_api.get = AsyncMock(return_value={"status": "success", "data": {}})
-    mock_api.post = AsyncMock(return_value={"status": "success", "data": {}})
-    mock_api.put = AsyncMock(return_value={"status": "success", "data": {}})
-    mock_api.delete = AsyncMock(return_value={"status": "success", "data": {}})
-    return mock_api
+    try:
+        mock_api = MagicMock()
+        mock_api.get = AsyncMock(return_value={"status": "success", "data": {}})
+        mock_api.post = AsyncMock(return_value={"status": "success", "data": {}})
+        mock_api.put = AsyncMock(return_value={"status": "success", "data": {}})
+        mock_api.delete = AsyncMock(return_value={"status": "success", "data": {}})
+        return mock_api
+    except Exception as e:
+        logger.error(f"외부 API 모킹 생성 실패: {e}")
+        raise e
 
 
 @pytest.fixture
 def mock_file_upload() -> MagicMock:
     """파일 업로드 모킹"""
     
-    mock_file = MagicMock()
-    mock_file.filename = "test_file.xlsx"
-    mock_file.content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    try:
+        mock_file = MagicMock()
+        mock_file.filename = "test_file.xlsx"
+        mock_file.content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        mock_file.file = BytesIO(b"test file content")
+        mock_file.read = AsyncMock(return_value=b"test file content")
+        return mock_file
+    except Exception as e:
+        logger.error(f"파일 업로드 모킹 생성 실패: {e}")
+        raise e
 
-    mock_file.file = BytesIO(b"test file content")
-    mock_file.read = AsyncMock(return_value=b"test file content")
-    return mock_file
+
+@pytest.fixture
+def mock_minio_client() -> MagicMock:
+    """MinIO 클라이언트 모킹"""
+    
+    try:
+        mock_minio = MagicMock()
+        mock_minio.put_object = AsyncMock(return_value=None)
+        mock_minio.get_object = AsyncMock(return_value=BytesIO(b"test content"))
+        mock_minio.remove_object = AsyncMock(return_value=None)
+        mock_minio.presigned_get_object = MagicMock(return_value="https://test.com/file")
+        return mock_minio
+    except Exception as e:
+        logger.error(f"MinIO 클라이언트 모킹 생성 실패: {e}")
+        raise e
+
+
+@pytest.fixture
+def mock_httpx_client() -> MagicMock:
+    """httpx 클라이언트 모킹"""
+    
+    try:
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value={"success": True})
+        mock_response.text = "success"
+        
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client.post = AsyncMock(return_value=mock_response)
+        mock_client.put = AsyncMock(return_value=mock_response)
+        mock_client.delete = AsyncMock(return_value=mock_response)
+        
+        return mock_client
+    except Exception as e:
+        logger.error(f"httpx 클라이언트 모킹 생성 실패: {e}")
+        raise e
 
 
 # 테스트 마커 설정
-def pytest_configure(config: pytest.Config):
+def pytest_configure(config: pytest.Config) -> None:
     """pytest 설정"""
     
-    config.addinivalue_line(
-        "markers", "unit: 단위 테스트"
-    )
-    config.addinivalue_line(
-        "markers", "integration: 통합 테스트"
-    )
-    config.addinivalue_line(
-        "markers", "api: API 테스트"
-    )
-    config.addinivalue_line(
-        "markers", "slow: 느린 테스트"
-    )
-    config.addinivalue_line(
-        "markers", "db: 데이터베이스 관련 테스트"
-    )
-    config.addinivalue_line(
-        "markers", "external: 외부 서비스 의존 테스트"
-    ) 
+    try:
+        config.addinivalue_line(
+            "markers", "unit: 단위 테스트"
+        )
+        config.addinivalue_line(
+            "markers", "integration: 통합 테스트"
+        )
+        config.addinivalue_line(
+            "markers", "api: API 테스트"
+        )
+        config.addinivalue_line(
+            "markers", "db: 데이터베이스 관련 테스트"
+        )
+        config.addinivalue_line(
+            "markers", "external: 외부 서비스 의존 테스트"
+        )
+        config.addinivalue_line(
+            "markers", "asyncio: 비동기 테스트"
+        )
+        
+        logger.info("pytest 마커 설정 완료")
+    except Exception as e:
+        logger.error(f"pytest 마커 설정 실패: {e}")
+        raise e
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list) -> None:
+    """테스트 수집 후 아이템 수정"""
+    
+    try:
+        # 비동기 테스트에 asyncio 마커 자동 추가
+        for item in items:
+            if asyncio.iscoroutinefunction(item.function):
+                item.add_marker(pytest.mark.asyncio)
+        
+        logger.info("테스트 아이템 수정 완료")
+    except Exception as e:
+        logger.error(f"테스트 아이템 수정 실패: {e}")
+        raise e

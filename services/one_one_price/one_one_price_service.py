@@ -29,6 +29,7 @@ class OneOnePriceService:
 
     def __init__(self, session: AsyncSession):
         self.one_one_price_repository = OneOnePriceRepository(session)
+        self.one_one_price_calculator = OneOnePriceCalculator()
 
     async def calculate_and_save_one_one_price(
             self,
@@ -39,7 +40,7 @@ class OneOnePriceService:
             ) -> OneOnePriceDto:
 
         # 1. 제품의 1+1 가격 계산
-        one_one_price = self.calculate_one_one_price(standard_price)
+        one_one_price = self.one_one_price_calculator.calculate_one_one_price(standard_price)
 
         base_data = {
             'test_product_raw_data_id': test_product_raw_data_id,
@@ -57,19 +58,19 @@ class OneOnePriceService:
             shop_prices[shop] = one_one_price
 
         # 2-2. +100 그룹
-        shop_prices_plus_100 = self.calculate_shop_prices_plus_100(
+        shop_prices_plus_100 = self.one_one_price_calculator.calculate_shop_prices_plus_100(
             one_one_price)
         for shop in self.SHOP_PRICE_MAPPING['group_plus100']:
             shop_prices[shop] = shop_prices_plus_100
 
         # 2-3. 105% 그룹
-        shop_prices_105_percent = self.calculate_shop_prices_105_percent(
+        shop_prices_105_percent = self.one_one_price_calculator.calculate_shop_prices_105_percent(
             one_one_price)
         for shop in self.SHOP_PRICE_MAPPING['group_105']:
             shop_prices[shop] = shop_prices_105_percent
 
         # 2-4. 115% 그룹
-        shop_prices_115_percent = self.calculate_shop_prices_115_percent(
+        shop_prices_115_percent = self.one_one_price_calculator.calculate_shop_prices_115_percent(
             one_one_price)
         for shop in self.SHOP_PRICE_MAPPING['group_115']:
             shop_prices[shop] = shop_prices_115_percent
@@ -87,7 +88,12 @@ class OneOnePriceService:
 
         return OneOnePriceDto.model_validate(await self.one_one_price_repository.create_one_one_price_data(one_one_price_dto))
 
-    def roundup_to_thousands(self, value: Decimal) -> Decimal:
+
+class OneOnePriceCalculator:
+    
+    """1+1 가격 계산 계산기"""
+
+    def _roundup_to_thousands(self, value: Decimal) -> Decimal:
         """천의 자리에서 올림 (roundup) - 엑셀 ROUNDUP과 동일한 동작"""
         # 엑셀의 ROUNDUP(value, -3)과 동일한 로직
         # 천의 자리에서 올림: 11800 -> 12000, 11801 -> 12000, 11999 -> 12000
@@ -99,25 +105,25 @@ class OneOnePriceService:
         # if(기준가 + 100 < 10000, roundup(기준가 * 2 + 2000, -3) - 100, roundup(기준가 * 2 + 1000, -3) - 100)
         if standard_price + 100 < 10000:
             base_price = standard_price * 2 + 2000
-            rounded_price = self.roundup_to_thousands(base_price)
+            rounded_price = self._roundup_to_thousands(base_price)
             return rounded_price - 100
         else:
             base_price = standard_price * 2 + 1000
-            rounded_price = self.roundup_to_thousands(base_price)
+            rounded_price = self._roundup_to_thousands(base_price)
             return rounded_price - 100
 
     def calculate_shop_prices_115_percent(self, one_one_price: Decimal) -> Decimal:
         """115% 적용 샵들 가격 계산"""
         # roundup(1+1가격 * 1.15, -3) - 100
         base_price = one_one_price * Decimal('1.15')
-        rounded_price = self.roundup_to_thousands(base_price)
+        rounded_price = self._roundup_to_thousands(base_price)
         return rounded_price - 100
         
     def calculate_shop_prices_105_percent(self, one_one_price: Decimal) -> Decimal:
         """105% 적용 샵들 가격 계산"""
         # roundup(1+1가격 * 1.05, -3) - 100
         base_price = one_one_price * Decimal('1.05')
-        rounded_price = self.roundup_to_thousands(base_price)
+        rounded_price = self._roundup_to_thousands(base_price)
         return rounded_price - 100
         
     def calculate_shop_prices_plus_100(self, one_one_price: Decimal) -> Decimal:

@@ -23,7 +23,7 @@ def get_product_one_one_price_usecase(session: AsyncSession = Depends(get_async_
 
 @router.post("/", response_model=OneOnePriceResponse)
 async def one_one_price_setting(
-    request: OneOnePriceCreate = Depends(),
+    request: OneOnePriceCreate,
     product_one_one_price_usecase: ProductOneOnePriceUsecase = Depends(get_product_one_one_price_usecase)
 ) -> OneOnePriceResponse:
     try:
@@ -31,6 +31,9 @@ async def one_one_price_setting(
             product_nm=request.product_nm,
             gubun=request.gubun,
         ))
+    except ValueError as e:
+        # 상품을 찾을 수 없는 경우
+        raise HTTPException(status_code=404, detail="상품을 찾을 수 없습니다.")
     except DBAPIError as e:
         if "integer out of range" in str(e):
             raise HTTPException(status_code=400, detail="원본 상품 가격이 너무 커서 계산할 수 없습니다.")
@@ -39,17 +42,22 @@ async def one_one_price_setting(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.post("/bulk", response_model=OneOnePriceBulkResponse)
 async def one_one_price_bulk_setting(
-    request: OneOnePriceBulkCreate,
+    request: OneOnePriceBulkCreate,  # JSON 본문으로 받아야 함
     product_one_one_price_usecase: ProductOneOnePriceUsecase = Depends(get_product_one_one_price_usecase)
 ) -> OneOnePriceBulkResponse:
-    # JSON 데이터를 DTO로 변환
-    product_nm_and_gubun_list = request.to_dto()
+    """
+    1+1 가격 대량 설정 (JSON 본문으로 요청해야 함)
+    """
     try:
         return OneOnePriceBulkResponse.from_dto(await product_one_one_price_usecase.calculate_and_save_one_one_prices_bulk(
-            product_nm_and_gubun_list=product_nm_and_gubun_list,
+            product_nm_and_gubun_list=request.product_nm_and_gubun_list,
         ))
+    except ValueError as e:
+        # 상품을 찾을 수 없는 경우
+        raise HTTPException(status_code=404, detail="상품을 찾을 수 없습니다.")
     except DBAPIError as e:
         if "integer out of range" in str(e):
             raise HTTPException(status_code=400, detail="원본 상품 가격이 너무 커서 계산할 수 없습니다.")

@@ -5,7 +5,6 @@ from datetime import datetime
 from utils.excels.convert_xlsx import ConvertXlsx
 from utils.logs.sabangnet_logger import get_logger
 from utils.excels.excel_handler import ExcelHandler
-from services.macro.order_macro_service import process_macro_with_tempfile
 # sql
 from sqlalchemy.ext.asyncio import AsyncSession
 # model
@@ -15,9 +14,11 @@ from models.down_form_orders.down_form_order import BaseDownFormOrder
 from schemas.receive_orders.receive_orders_dto import ReceiveOrdersDto
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto, DownFormOrdersBulkDto
 # service
+from services.macro.order_macro_service import process_macro_with_tempfile
 from services.receive_orders.receive_order_read_service import ReceiveOrderReadService
 from services.down_form_orders.down_form_order_read_service import DownFormOrderReadService
 from services.down_form_orders.template_config_read_service import TemplateConfigReadService
+from services.down_form_orders.down_form_order_create_service import DownFormOrderCreateService
 # schema
 from schemas.down_form_orders.down_form_order_mapper import map_raw_to_down_form, map_aggregated_to_down_form, map_excel_to_down_form
 
@@ -25,20 +26,175 @@ from schemas.down_form_orders.down_form_order_mapper import map_raw_to_down_form
 logger = get_logger(__name__)
 
 
-class DataProcessingUsecase:
+class DataProcessingFunctions:
+    """
+    작업 처리용 클래스 (밑에 있는 DataProcessingUsecase 클래스가 이 클래스를 상속받아서 사용)
+    """
+
     def __init__(self, session: AsyncSession):
         self.session = session
+
+    def _convert_delivery_method(self, value: Any, context: dict[str, Any]) -> str:
+        if not value:
+            return ""
+        mapping = {"credit": "선불", "cod": "착불", "prepaid": "선불"}
+        return mapping.get(str(value).lower(), str(value))
+    
+    def _sku_quantity(self, value: Any, context: dict[str, Any]) -> str:
+        sku_alias = context.get('sku_alias', '') or value or ''
+        sale_cnt = context.get('sale_cnt', 0) or 0
+        return f"{sku_alias} {sale_cnt}개" if sku_alias else ""
+    
+    def _barcode_quantity(self, value: Any, context: dict[str, Any]) -> str:
+        barcode = context.get('barcode', '') or value or ''
+        sale_cnt = context.get('sale_cnt', 0) or 0
+        return f"{barcode} {sale_cnt}개" if barcode else ""
+    
+    def _calculate_service_fee(self, value: Any, context: dict[str, Any]) -> int:
+        pay_cost = context.get('pay_cost', 0) or 0
+        mall_won_cost = context.get('mall_won_cost', 0) or 0
+        sale_cnt = context.get('sale_cnt', 0) or 0
+        return int(pay_cost - (mall_won_cost * sale_cnt))
+    
+    def _transform_data(self, raw_data: list[dict[str, Any]], config: dict) -> list[dict[str, Any]]:
+        processed_data = []
+        if config.get('is_aggregated'):
+            group_by = config.get('group_by_fields', [])
+            grouped = {}
+            for row in raw_data:
+                key = tuple(row.get(f) for f in group_by)
+                grouped.setdefault(key, []).append(row)
+            for seq, (key, group_rows) in enumerate(grouped.items(), start=1):
+                base = {
+                    'process_dt': datetime.now(),
+                    'form_name': config['template_code'],
+                    'seq': seq,
+                }
+                base.update(map_aggregated_to_down_form(group_rows, config))
+                processed_data.append(base)
+        else:
+            for seq, row in enumerate(raw_data, start=1):
+                base = {
+                    'process_dt': datetime.now(),
+                    'form_name': config['template_code'],
+                    'seq': seq,
+                }
+                base.update(map_raw_to_down_form(row, config))
+                processed_data.append(base)
+        return processed_data     
+    
+    async def _create_mapping_field(self, template_config: dict) -> dict:
+        """
+        create mapping field
+        args:
+            template_config: 전체 템플릿 설정 (column_mappings 포함)
+        returns:
+            mapping_field: mapping field {"순번": "seq","사이트": "fld_dsp"...}
+        """
+        mapping_field = {}
+        for col in template_config["column_mappings"]:
+            mapping_field[col["target_column"]] = col["source_field"]
+        return mapping_field
+
+    async def _process_simple_data(
+            self,
+            raw_data: list[dict[str, Any]],
+            config: dict
+        ) -> list[dict[str, Any]]:
+        """단순 변환 (1:1 매핑)"""
+        processed_data = []
+        for seq, raw_row in enumerate(raw_data, start=1):
+            processed_row = {
+                'process_dt': datetime.now(),
+                'form_name': config['template_code'],
+                'seq': seq,
+            }
+            processed_row.update(map_raw_to_down_form(raw_row, config))
+            processed_data.append(processed_row)
+        return processed_data
+    
+    async def _process_aggregated_data(
+            self,
+            raw_data: list[dict[str, Any]],
+            config: dict
+        ) -> list[dict[str, Any]]:
+        """집계 변환 (합포장용)"""
+        grouped_data = {}
+        group_field_mapping = {
+            'order_id': 'order_id',
+            'receive_name': 'receive_name', 
+            'receive_addr': 'receive_addr'
+        }
+        for raw_row in raw_data:
+            group_key = tuple(
+                raw_row.get(group_field_mapping.get(field, field), '') 
+                for field in config['group_by_fields']
+            )
+            if group_key not in grouped_data:
+                grouped_data[group_key] = []
+            grouped_data[group_key].append(raw_row)
+        processed_data = []
+        for seq, (group_key, group_rows) in enumerate(grouped_data.items(), start=1):
+            processed_row = {
+                'process_dt': datetime.now(),
+                'form_name': config['template_code'],
+                'seq': seq,
+            }
+            processed_row.update(map_aggregated_to_down_form(group_rows, config))
+            processed_data.append(processed_row)
+        return processed_data
+
+    async def _save_to_down_form_orders(self, processed_data: list[dict[str, Any]], template_code: str) -> int:
+        logger.info(
+            f"[START] _save_to_down_form_orders | processed_data_count={len(processed_data)} | template_code={template_code}")
+        if not processed_data:
+            logger.warning("No processed data to save.")
+            return 0
+        try:
+            objects = [BaseDownFormOrder(**row) for row in processed_data]
+            self.session.add_all(objects)
+            await self.session.commit()
+            logger.info(
+                f"[END] _save_to_down_form_orders | saved_count={len(objects)}")
+            return len(objects)
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Exception during _save_to_down_form_orders: {e}")
+            raise
+
+    async def _process_excel_data(self, df, config, work_status: str = None) -> list[dict[str, Any]]:
+        """
+        DataFrame과 config(column_mappings)를 받아 DB 저장용 dict 리스트로 변환
+        """
+        raw_data = map_excel_to_down_form(df, config)
+        processed_data = []
+        for seq, raw_row in enumerate(raw_data, start=1):
+            processed_row = raw_row.copy()
+            processed_row.update({
+                'process_dt': datetime.now(),
+                'form_name': config['template_code'],
+                'seq': seq,
+                'work_status': work_status,
+            })
+            processed_data.append(processed_row)
+        return processed_data
+
+
+"""
+아래부터 메인 프로세스 클래스
+DataProcessingFunctions 클래스를 상속받아서 사용
+실제 유저의 요청을 받아서 처리함
+"""
+
+
+class DataProcessingUsecase(DataProcessingFunctions):
+    def __init__(self, session: AsyncSession):
+        super().__init__(session)
         self.order_read_service = ReceiveOrderReadService(session)
         self.down_form_order_read_service = DownFormOrderReadService(session)
+        self.down_form_order_create_service = DownFormOrderCreateService(session)
         self.template_config_read_service = TemplateConfigReadService(session)
-        # 변환 함수들
-        self.transformers = {
-            "convert_delivery_method": self._convert_delivery_method,
-            "sku_quantity": self._sku_quantity,
-            "barcode_quantity": self._barcode_quantity,
-            "calculate_service_fee": self._calculate_service_fee,
-        }
-
+        
     async def down_form_order_to_excel(self, template_code: str, file_path: str, file_name: str):
         """
         down_form_order_to_excel
@@ -51,6 +207,7 @@ class DataProcessingUsecase:
         """
         template_config = await self.get_template_config_by_template_code(template_code)
         down_form_orders = await self.get_down_form_orders_by_template_code(template_code)
+        
         mapping_field = await self._create_mapping_field(template_config)
 
         convert_xlsx = ConvertXlsx()
@@ -86,20 +243,17 @@ class DataProcessingUsecase:
 
         return down_form_order_dtos
 
-    async def _create_mapping_field(self, template_config: dict) -> dict:
-        """
-        create mapping field
-        args:
-            template_config: 전체 템플릿 설정 (column_mappings 포함)
-        returns:
-            mapping_field: mapping field {"순번": "seq","사이트": "fld_dsp"...}
-        """
-        mapping_field = {}
-        for col in template_config["column_mappings"]:
-            mapping_field[col["target_column"]] = col["source_field"]
-        return mapping_field
-
     async def save_down_form_orders_from_receive_orders_by_filter(self, filters: dict[str, Any], template_code: str) -> DownFormOrdersBulkDto:
+        """
+        save down_form_orders from receive_orders by filter
+        args:
+            filters: filters
+            template_code: template code
+        returns:
+            down_form_orders_bulk_dto: down_form_orders_bulk_dto
+        """
+        logger.info(f"[START] save_down_form_orders_from_receive_orders_by_filter | template_code={template_code} | filters={filters}")
+        # 1. receive_orders 조회하고 모델 받아옴
         receive_orders: list[ReceiveOrders] = await self.order_read_service.get_receive_orders_by_filters(filters)
         if not receive_orders:
             return DownFormOrdersBulkDto(
@@ -109,15 +263,18 @@ class DataProcessingUsecase:
                 saved_count=0,
                 message="No data found to process"
             )
+        # 2. receive_orders 데이터를 dto로 변환하고 그걸 다시 dict로 변환
         receive_orders_dict_list: list[dict[str, Any]] = []
         for receive_order in receive_orders:
             receive_orders_dto: ReceiveOrdersDto = ReceiveOrdersDto.model_validate(
                 receive_order)
             receive_orders_dict_list.append(receive_orders_dto.model_dump())
+        # 3. down_form_orders 저장
         saved_count = await self.save_down_form_orders_from_receive_orders(
             receive_orders_dict_list,
             template_code
         )
+        logger.info(f"[END] save_down_form_orders_from_receive_orders_by_filter | saved_count={saved_count}")
         return DownFormOrdersBulkDto(
             success=True,
             template_code=template_code,
@@ -168,88 +325,6 @@ class DataProcessingUsecase:
             f"[END] save_down_form_orders_from_receive_orders | saved_count={saved_count}")
         return saved_count
 
-    async def _process_simple_data(
-        self,
-        raw_data: list[dict[str, Any]],
-        config: dict
-    ) -> list[dict[str, Any]]:
-        """단순 변환 (1:1 매핑)"""
-        processed_data = []
-        for seq, raw_row in enumerate(raw_data, start=1):
-            processed_row = {
-                'process_dt': datetime.now(),
-                'form_name': config['template_code'],
-                'seq': seq,
-            }
-            processed_row.update(map_raw_to_down_form(raw_row, config))
-            processed_data.append(processed_row)
-        return processed_data
-
-    async def _process_aggregated_data(self,
-                                       raw_data: list[dict[str, Any]],
-                                       config: dict) -> list[dict[str, Any]]:
-        """집계 변환 (합포장용)"""
-        grouped_data = {}
-        group_field_mapping = {
-            'order_id': 'order_id',
-            'receive_name': 'receive_name',
-            'receive_addr': 'receive_addr'
-        }
-        for raw_row in raw_data:
-            group_key = tuple(
-                raw_row.get(group_field_mapping.get(field, field), '')
-                for field in config['group_by_fields']
-            )
-            if group_key not in grouped_data:
-                grouped_data[group_key] = []
-            grouped_data[group_key].append(raw_row)
-        processed_data = []
-        for seq, (group_key, group_rows) in enumerate(grouped_data.items(), start=1):
-            processed_row = {
-                'process_dt': datetime.now(),
-                'form_name': config['template_code'],
-                'seq': seq,
-            }
-            processed_row.update(
-                map_aggregated_to_down_form(group_rows, config))
-            processed_data.append(processed_row)
-        return processed_data
-
-    async def _save_to_down_form_orders(self, processed_data: list[dict[str, Any]], template_code: str) -> int:
-        logger.info(
-            f"[START] _save_to_down_form_orders | processed_data_count={len(processed_data)} | template_code={template_code}")
-        if not processed_data:
-            logger.warning("No processed data to save.")
-            return 0
-        try:
-            objects = [BaseDownFormOrder(**row) for row in processed_data]
-            self.session.add_all(objects)
-            await self.session.commit()
-            logger.info(
-                f"[END] _save_to_down_form_orders | saved_count={len(objects)}")
-            return len(objects)
-        except Exception as e:
-            await self.session.rollback()
-            logger.error(f"Exception during _save_to_down_form_orders: {e}")
-            raise
-
-    async def _process_excel_data(self, df, config, work_status: str = None):
-        """
-        DataFrame과 config(column_mappings)를 받아 DB 저장용 dict 리스트로 변환
-        """
-        raw_data = map_excel_to_down_form(df, config)
-        processed_data = []
-        for seq, raw_row in enumerate(raw_data, start=1):
-            processed_row = raw_row.copy()
-            processed_row.update({
-                'process_dt': datetime.now(),
-                'form_name': config['template_code'],
-                'seq': seq,
-                'work_status': work_status,
-            })
-            processed_data.append(processed_row)
-        return processed_data
-
     async def process_excel_to_down_form_orders(self, df, template_code: str, work_status: str = None) -> int:
         """
         Excel 파일을 읽어 config 매핑에 따라 데이터를 DB에 저장
@@ -271,29 +346,39 @@ class DataProcessingUsecase:
         logger.info(
             f"[END] process_excel_to_down_form_orders | saved_count={saved_count}")
         return saved_count
+    
+    async def save_down_form_orders_from_receive_orders_without_filter(self, template_code: str, raw_data: list[dict[str, Any]]) -> int:
+        """
+        save down_form_orders from receive_orders without filter
+        args:
+            template_code: template code
+            raw_data: raw data
+        returns:
+            saved_count: saved count
+        """
+        logger.info(f"[START] save_down_form_orders_from_receive_orders_without_filter | template_code={template_code} | raw_data_count={len(raw_data)}")
 
-    # 변환 함수들
-    def _convert_delivery_method(self, value: Any, context: dict[str, Any]) -> str:
-        if not value:
-            return ""
-        mapping = {"credit": "선불", "cod": "착불", "prepaid": "선불"}
-        return mapping.get(str(value).lower(), str(value))
+        # 1. 템플릿 config 조회
+        config = await self.template_config_read_service.get_template_config_by_template_code(template_code)
+        if not config:
+            logger.error(f"Template not found: {template_code}")
+            raise ValueError("Template not found")
+        logger.info(f"Loaded template config: {config}")
 
-    def _sku_quantity(self, value: Any, context: dict[str, Any]) -> str:
-        sku_alias = context.get('sku_alias', '') or value or ''
-        sale_cnt = context.get('sale_cnt', 0) or 0
-        return f"{sku_alias} {sale_cnt}개" if sku_alias else ""
+        # 2. 데이터 변환/집계
+        processed_data = self._transform_data(raw_data, config)
+        logger.info(f"Data processed. processed_data_count={len(processed_data)}")
 
-    def _barcode_quantity(self, value: Any, context: dict[str, Any]) -> str:
-        barcode = context.get('barcode', '') or value or ''
-        sale_cnt = context.get('sale_cnt', 0) or 0
-        return f"{barcode} {sale_cnt}개" if barcode else ""
-
-    def _calculate_service_fee(self, value: Any, context: dict[str, Any]) -> int:
-        pay_cost = context.get('pay_cost', 0) or 0
-        mall_won_cost = context.get('mall_won_cost', 0) or 0
-        sale_cnt = context.get('sale_cnt', 0) or 0
-        return int(pay_cost - (mall_won_cost * sale_cnt))
+        # 3. 저장
+        items: list[DownFormOrderDto] = [DownFormOrderDto.model_validate(row) for row in processed_data]
+        try:
+            saved_count = await self.down_form_order_create_service.bulk_create_down_form_orders(items)
+            logger.info(f"[END] process_and_save | saved_count={saved_count}")
+            return saved_count
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"DB Error: {e}")
+            raise
 
     async def save_down_form_orders_from_macro_run_excel(self, file, template_code: str, work_status: str = None) -> int:
         """

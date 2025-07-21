@@ -40,14 +40,14 @@ class DownFormOrderBulkCreateResponse(BaseModel):
 
 
 class DownFormOrderResponse(BaseModel):
-    item: Optional[DownFormOrderDto] = None
+    content: Optional[DownFormOrderDto] = None
     status: Optional[str] = None  # row별 상태(success, error 등)
-    message: Optional[str] = None # row별 에러 메시지 등
+    message: Optional[str] = None  # row별 에러 메시지 등
 
 
 class DownFormOrderBulkResponse(BaseModel):
     """CRUD 범용 응답 객체"""
-    
+
     items: list[DownFormOrderResponse]
 
 
