@@ -97,6 +97,32 @@ def to_num(val) -> float:
         return 0.0
 
 
+def calculate_d_column_with_numbers(ws: Worksheet) -> None:
+    """
+    D열에 U열과 V열의 실제 숫자 값을 더한 결과를 저장
+    수식이 아닌 실제 계산된 숫자 데이터를 입력
+    """
+    for row in range(2, ws.max_row + 1):
+        # U열 값 가져오기
+        u_value = ws[f"U{row}"].value
+        v_value = ws[f"V{row}"].value
+        
+        # 숫자로 변환 (None이나 빈 값은 0으로 처리)
+        try:
+            u_num = float(u_value) if u_value is not None else 0.0
+        except (ValueError, TypeError):
+            u_num = 0.0
+            
+        try:
+            v_num = float(v_value) if v_value is not None else 0.0
+        except (ValueError, TypeError):
+            v_num = 0.0
+        
+        # D열에 실제 계산된 숫자 저장
+        calculated_result = u_num + v_num
+        ws[f"D{row}"].value = calculated_result
+
+
 def copy_product_info(ws: Worksheet) -> None:
     """Z열 상품정보를 F열로 복사하고 정리"""
     for row in range(2, ws.max_row + 1):
@@ -140,7 +166,7 @@ def ali_merge_packaging(input_path: str) -> str:
     ex.sum_prow_with_slash()
     
     # 3. C→B 정렬
-    ex.sort_by_columns([3, 2])  # C열=3, B열=2
+    ex.sort_by_columns([2, 3])  # C열=3, B열=2
     
     # 4. 상품정보 복사 및 정리 (Z → F)
     copy_product_info(ws)
@@ -160,8 +186,8 @@ def ali_merge_packaging(input_path: str) -> str:
         ws[f"E{r}"].value = ws[f"F{r}"].value
     ws.delete_cols(6)
     
-    # 12. D열 수식 설정
-    ex.autofill_d_column(formula="=U{row}+V{row}")
+    # 12. D열 계산 (U열 + V열의 실제 숫자 값)
+    calculate_d_column_with_numbers(ws)
     
     # 13. A열 순번 설정
     ex.set_row_number(ws)
@@ -192,11 +218,11 @@ def ali_merge_packaging(input_path: str) -> str:
         if row_indices:  # 해당 사이트의 데이터가 있는 경우만
             splitter.copy_to_new_sheet(ex.wb, sheet_name, row_indices)
 
-    # 24. 시트 순서 정리
-    desired = ["자동화", "OK", "IY", "Sheet1"]
-    for name in reversed(desired):
-        if name in ex.wb.sheetnames:
-            ex.wb._sheets.insert(0, ex.wb._sheets.pop(ex.wb.sheetnames.index(name)))
+    # # 24. 시트 순서 정리
+    # desired = ["자동화", "OK", "IY", "Sheet1"]
+    # for name in reversed(desired):
+    #     if name in ex.wb.sheetnames:
+    #         ex.wb._sheets.insert(0, ex.wb._sheets.pop(ex.wb.sheetnames.index(name)))
             
     # 저장
     base_name = Path(input_path).stem  # 확장자 제거한 파일명
