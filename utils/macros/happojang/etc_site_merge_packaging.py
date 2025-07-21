@@ -20,9 +20,7 @@ BLUE_FILL = PatternFill(start_color="CCFFFF", end_color="CCFFFF", fill_type="sol
 
 # 시트 분리 설정 
 ACCOUNT_MAPPING = {
-    # TODO: 클로버프 확인 필요
-    "OK": ["오케이마트"],
-    "CL": ["클로버프"],
+    "OK": ["오케이마트", "클로버프"],
     "BB": ["베이지베이글"],
     "IY": ["아이예스"]
 }
