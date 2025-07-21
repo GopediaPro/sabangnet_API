@@ -20,6 +20,7 @@ BLUE_FILL = PatternFill(start_color="CCFFFF", end_color="CCFFFF", fill_type="sol
 
 # 시트 분리 설정 
 ACCOUNT_MAPPING = {
+    # TODO: 클로버프 확인 필요
     "OK": ["오케이마트"],
     "CL": ["클로버프"],
     "BB": ["베이지베이글"],
@@ -411,15 +412,12 @@ class ETCSheetManager:
         special.process_kakao_jeju()
         special.process_l_column()
         
-        # 7.5. F열 "+" 구분자 기준 행 분할 (클로버프 계정만, F열 텍스트 정리 전에 실행)
-        self.split_rows_by_plus_separator(ws)
-        
         # 8. F열 텍스트 정리
         for row in range(2, ws.max_row + 1):
             ws[f"F{row}"].value = ETCOrderUtils.clean_order_text(ws[f"F{row}"].value)
 
         # 9. 문자열→숫자 변환 
-        ex.convert_numeric_strings(cols=("F","M", "P", "Q", "W", "AA"))
+        ex.convert_numeric_strings(cols=("F","M", "W", "AA"))
 
         # 10. 열 정렬
         ex.set_column_alignment()
@@ -483,149 +481,6 @@ class ETCSheetManager:
             calculated_d = o_num + p_num + v_num
             ws[f'D{row}'].value = calculated_d
 
-    def split_rows_by_plus_separator(self, ws: Worksheet) -> None:
-        """
-        B열에 "클로버프"가 포함된 행에서 G열(수량) 기준으로 행을 분할 (기준 데이터 분석 결과)
-        - G = 1: 원본 행 복사하여 새 행 1개 추가 (총 2개)
-        - G = 2: 원본 1개 + 분할본 2개 (총 3개)
-        """
-        split_count = 0
-        
-        # 역순으로 처리 (행 삽입 시 인덱스 변화 방지)
-        for row in range(ws.max_row, 1, -1):
-            b_value = ws[f'B{row}'].value
-            g_value = ws[f'G{row}'].value
-            
-            # B열에 "클로버프"가 포함되고 G열이 1 또는 2인 경우만 처리
-            if not (b_value and "클로버프" in str(b_value) and g_value in [1, 2]):
-                continue
-                
-            split_count += 1
-            
-            if g_value == 1:
-                # 수량 1: 원본 행 복사하여 새 행 1개 추가
-                self._create_single_copy_row(ws, row)
-                
-            elif g_value == 2:
-                # 수량 2: 원본 1개 + 분할본 2개
-                self._create_split_rows_enhanced(ws, row)
-
-    def _create_single_copy_row(self, ws: Worksheet, original_row: int) -> None:
-        """수량 1인 경우: 원본 행을 그대로 복사하여 새 행 1개 추가"""
-        new_row = original_row + 1
-        
-        # 새 행 삽입
-        ws.insert_rows(new_row)
-        
-        # 원본 행의 모든 데이터를 새 행에 복사 (A, D, G 제외)
-        for col in range(1, ws.max_column + 1):
-            col_letter = ws.cell(row=1, column=col).column_letter
-            if col_letter not in ['A', 'D', 'G']:
-                ws.cell(row=new_row, column=col).value = ws.cell(row=original_row, column=col).value
-        
-        # 새 행 전용 설정
-        ws[f'G{new_row}'].value = 1  # 수량 1
-        ws[f'H{new_row}'].value = "010-0000-0000"  # 기본 전화번호
-        ws[f'I{new_row}'].value = "010-0000-0000"  # 기본 전화번호
-        
-        # D열 계산 (O + P + V, slash 처리 후 첫 값 사용)
-        self._calculate_d_column(ws, new_row)
-
-    def _create_split_rows(self, ws: Worksheet, original_row: int) -> None:
-        """수량 2인 경우: VBA와 100% 동일한 방식으로 분할"""
-        
-        # 분할 대상 열들의 원본 값 가져오기
-        split_columns = ['E', 'F', 'L', 'M', 'N', 'O', 'P', 'S', 'T', 'U', 'V', 'X', 'Y', 'Z', 'AA']
-        original_values = {}
-        split_data = {}
-        
-        for col in split_columns:
-            original_values[col] = ws[f'{col}{original_row}'].value
-            split_data[col] = self._split_slash_values(original_values[col], 2)
-        
-        # 원본 O열, U열 값 저장 (균등 분할용)
-        original_o_value = ws[f'O{original_row}'].value
-        original_u_value = ws[f'U{original_row}'].value
-        
-        # 2개의 새 행 생성
-        for i in range(2):
-            new_row = original_row + 1 + i
-            
-            # 새 행 삽입
-            ws.insert_rows(new_row)
-            
-            # 원본 행의 기본 데이터 복사 (분할되지 않는 열들)
-            for col in range(1, ws.max_column + 1):
-                col_letter = ws.cell(row=1, column=col).column_letter
-                if col_letter not in ['A', 'D', 'E', 'F', 'G', 'H', 'I', 'L', 'M', 'N', 'O', 'P', 'S', 'T', 'U', 'V', 'X', 'Y', 'Z', 'AA', 'AB']:
-                    ws.cell(row=new_row, column=col).value = ws.cell(row=original_row, column=col).value
-            
-            # 분할된 열들 설정
-            for col in split_columns:
-                if col == 'L':
-                    # L열은 "/" 구분자가 있어도 항상 빈칸으로 처리
-                    ws[f'{col}{new_row}'].value = ""
-                elif col == 'T':
-                    # T열은 "/" 구분자가 있어도 항상 빈칸으로 처리
-                    ws[f'{col}{new_row}'].value = ""
-                elif col == 'O':
-                    # O열은 균등 분할
-                    if original_o_value and isinstance(original_o_value, (int, float)):
-                        ws[f'{col}{new_row}'].value = original_o_value / 2
-                    else:
-                        ws[f'{col}{new_row}'].value = split_data[col][i] if i < len(split_data[col]) else ""
-                elif col == 'U':
-                    # U열은 균등 분할
-                    if original_u_value and isinstance(original_u_value, (int, float)):
-                        ws[f'{col}{new_row}'].value = original_u_value / 2
-                    else:
-                        ws[f'{col}{new_row}'].value = split_data[col][i] if i < len(split_data[col]) else ""
-                elif col == 'V':
-                    # V열은 VBA 특별 처리: "/" 구분자가 있으면 분할된 각 값 사용
-                    original_v_value = original_values['V']
-                    if original_v_value and "/" in str(original_v_value):
-                        # "/" 구분자가 있는 경우 분할된 값 사용
-                        value = split_data[col][i] if i < len(split_data[col]) and split_data[col][i] else ""
-                        if value and str(value).replace('.', '').replace('-', '').isdigit():
-                            try:
-                                ws[f'{col}{new_row}'].value = float(value)
-                            except (ValueError, TypeError):
-                                ws[f'{col}{new_row}'].value = value
-                        else:
-                            ws[f'{col}{new_row}'].value = value
-                    else:
-                        # "/" 구분자가 없는 경우 원본 값 유지
-                        ws[f'{col}{new_row}'].value = original_v_value
-                elif col == 'Z':
-                    # Z열은 특별한 패턴으로 분할: "상품명:사이즈/가격/개수" 단위로 분할
-                    original_z_value = original_values['Z']
-                    if original_z_value:
-                        z_split_parts = self._split_z_column_value(str(original_z_value), 2)
-                        ws[f'{col}{new_row}'].value = z_split_parts[i] if i < len(z_split_parts) else ""
-                    else:
-                        ws[f'{col}{new_row}'].value = ""
-                else:
-                    # 기타 열들은 분할된 값 사용
-                    value = split_data[col][i] if i < len(split_data[col]) and split_data[col][i] else ""
-                    ws[f'{col}{new_row}'].value = value
-            
-            # 새 행 전용 설정
-            ws[f'G{new_row}'].value = 1  # 수량 1
-            ws[f'H{new_row}'].value = "010-0000-0000"  # 기본 전화번호
-            ws[f'I{new_row}'].value = "010-0000-0000"  # 기본 전화번호
-            
-            # AB열에 상품 정보 설정
-            f_value = split_data['F'][i] if i < len(split_data['F']) and split_data['F'][i] else ""
-            ws[f'AB{new_row}'].value = f"{f_value.strip()} 1개" if f_value else "1개"
-            
-            # D열 계산
-            self._calculate_d_column(ws, new_row)
-        
-        # 원본 행의 V열 원본 값 유지 (VBA 로직과 동일)
-        original_v_value = original_values['V']
-        if original_v_value and "/" in str(original_v_value):
-            ws[f'V{original_row}'].value = original_v_value
-
     def _calculate_d_column(self, ws: Worksheet, row: int) -> None:
         """D열 계산: O + P + V (slash 처리 후 첫 값 사용)"""
         o_val = ws[f'O{row}'].value or 0
@@ -649,51 +504,6 @@ class ETCSheetManager:
             ws[f'D{row}'].value = calculated_d
         except (ValueError, TypeError):
             ws[f'D{row}'].value = ""
-
-    def _split_z_column_value(self, value: str, expected_count: int) -> List[str]:
-        """
-        Z열 특별 분할 로직: "상품명:사이즈/가격/개수" 패턴으로 분할
-        예: "WMSLV7_블랙:2XL/0원/1개/WMSLV7_화이트:2XL/0원/1개" 
-        → ["WMSLV7_블랙:2XL/0원/1개", "WMSLV7_화이트:2XL/0원/1개"]
-        """
-        if not value:
-            return [""] * expected_count
-        
-        # "상품명:사이즈/가격/개수" 패턴을 찾기 위한 정규식
-        # 패턴: 문자/숫자/기호 + : + 문자/숫자 + / + 숫자원 + / + 숫자개
-        import re
-        
-        # 더 간단한 접근: /숫자개/ 패턴을 찾아서 그 다음 항목까지를 하나의 단위로 인식
-        # 예: "1개/WMSLV7_화이트" 패턴에서 "1개" 다음부터 새로운 항목 시작
-        
-        parts = []
-        current_part = ""
-        segments = value.split("/")
-        
-        i = 0
-        while i < len(segments):
-            current_part += segments[i]
-            
-            # "숫자개" 패턴을 찾으면 하나의 완성된 항목으로 간주
-            if re.search(r'\d+개$', segments[i]):
-                parts.append(current_part.strip())
-                current_part = ""
-            elif i < len(segments) - 1:
-                current_part += "/"
-            
-            i += 1
-        
-        # 마지막 부분이 남아있으면 추가
-        if current_part.strip():
-            parts.append(current_part.strip())
-        
-        # expected_count만큼 맞추기
-        while len(parts) < expected_count:
-            parts.append("")
-        
-        result = parts[:expected_count]
-        
-        return result
 
     def _split_slash_values(self, value, expected_count: int) -> List[str]:
         """
@@ -739,104 +549,6 @@ class ETCSheetManager:
         for row in range(start_row, end_row + 1):
             ws[f'A{row}'].number_format = 'General'
             ws[f"A{row}"].value = "=ROW()-1"
-
-    def _create_split_rows_enhanced(self, ws: Worksheet, original_row: int) -> None:
-        """
-        수량 2인 경우: 기준 데이터 분석 결과에 따른 분할
-        - 원본 행 1개 (G=2, F열 "/" → "+" 변환)
-        - 분할본 2개 (G=1, F열 개별 상품명)
-        """
-        # 원본 행의 F열 값 가져오기
-        original_f_value = ws[f'F{original_row}'].value
-        
-        # "/" 구분자로 분할
-        if original_f_value and "/" in str(original_f_value):
-            # "/" 구분자가 있는 경우: 분할 처리
-            parts = str(original_f_value).split("/")
-            
-            # 원본 행의 F열을 "A + B" 형태로 변환
-            clean_parts = []
-            for part in parts:
-                # " 1개" 제거
-                clean_part = part.replace(" 1개", "").strip()
-                clean_parts.append(clean_part)
-            
-            # 원본 행 F열 수정: "/" → "+" 변환
-            ws[f'F{original_row}'].value = " + ".join(clean_parts)
-            
-            # 분할본 2개 생성
-            for i in range(2):
-                new_row = original_row + 1 + i
-                ws.insert_rows(new_row)
-                
-                # 원본 행의 모든 데이터 복사 (A, D, G 제외)
-                for col in range(1, ws.max_column + 1):
-                    col_letter = ws.cell(row=1, column=col).column_letter
-                    if col_letter not in ['A', 'D', 'G']:
-                        ws.cell(row=new_row, column=col).value = ws.cell(row=original_row, column=col).value
-                
-                # 분할본 전용 설정
-                ws[f'G{new_row}'].value = 1  # 수량 1
-                ws[f'H{new_row}'].value = "010-0000-0000"  # 기본 전화번호
-                ws[f'I{new_row}'].value = "010-0000-0000"  # 기본 전화번호
-                
-                # F열에 개별 상품명 설정
-                if i < len(clean_parts):
-                    ws[f'F{new_row}'].value = clean_parts[i]
-                
-                # AB열에 상품 정보 설정
-                if i < len(clean_parts):
-                    ws[f'AB{new_row}'].value = f"{clean_parts[i]} 1개"
-                
-                # 분할된 열들 처리 (V열, Z열 등)
-                self._process_split_columns(ws, original_row, new_row, i)
-                
-                # D열 계산
-                self._calculate_d_column(ws, new_row)
-        else:
-            # "/" 구분자가 없는 경우: 단순 복사
-            new_row = original_row + 1
-            ws.insert_rows(new_row)
-            
-            # 원본 행의 모든 데이터 복사
-            for col in range(1, ws.max_column + 1):
-                col_letter = ws.cell(row=1, column=col).column_letter
-                if col_letter not in ['A', 'D']:
-                    ws.cell(row=new_row, column=col).value = ws.cell(row=original_row, column=col).value
-            
-            # AB열에 상품 정보 설정
-            f_value = ws[f'F{original_row}'].value
-            if f_value:
-                clean_f = str(f_value).replace(" 1개", "").replace(" 2개", "").strip()
-                ws[f'AB{new_row}'].value = f"{clean_f} 2개"
-            
-            # D열 계산
-            self._calculate_d_column(ws, new_row)
-
-    def _process_split_columns(self, ws: Worksheet, original_row: int, new_row: int, split_index: int) -> None:
-        """분할된 열들 처리 (V열, Z열 등)"""
-        # V열 처리 (배송비 분할)
-        v_value = ws[f'V{original_row}'].value
-        if v_value and "/" in str(v_value):
-            v_parts = str(v_value).split("/")
-            if split_index < len(v_parts):
-                try:
-                    ws[f'V{new_row}'].value = float(v_parts[split_index].strip())
-                except (ValueError, TypeError):
-                    ws[f'V{new_row}'].value = v_parts[split_index].strip()
-        
-        # Z열 처리 (상품 옵션 분할)
-        z_value = ws[f'Z{original_row}'].value
-        if z_value and "/" in str(z_value):
-            z_parts = self._split_z_column_value(str(z_value), 2)
-            if split_index < len(z_parts):
-                ws[f'Z{new_row}'].value = z_parts[split_index]
-        
-        # O열, U열 균등 분할
-        for col in ['O', 'U']:
-            col_value = ws[f'{col}{original_row}'].value
-            if col_value and isinstance(col_value, (int, float)):
-                ws[f'{col}{new_row}'].value = col_value / 2
 
 if __name__ == "__main__":
     excel_file_path = "/Users/smith/Documents/github/OKMart/sabangnet_API/files/test-[기본양식]-합포장용.xlsx"
