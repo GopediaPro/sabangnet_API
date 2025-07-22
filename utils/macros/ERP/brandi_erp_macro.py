@@ -31,8 +31,6 @@ class ERPBrandiMacro:
             self._jeju_address_column(ws, row, ws[f"J{row}"])  # 확인필요
             col_h.e_column(ws[f"E{row}"])
             col_h.convert_int_column(ws[f"P{row}"])
-            col_h.convert_int_column(ws[f"P{row}"])
-            col_h.convert_int_column(ws[f"W{row}"])
         print(f'[{ws.title}] 서식 적용 완료')
 
         output_path = self.ex.save_file(self.file_path)

@@ -14,16 +14,18 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
-from api.v1.endpoints.order import router as order_router
-from api.v1.endpoints.product import router as products_router
-from api.v1.endpoints.mall_price import router as mall_price_router
-from utils.logs.sabangnet_logger import get_logger, HTTPLoggingMiddleware
-from api.v1.endpoints.one_one_price import router as one_one_price_router
-from api.v1.endpoints.product_registration import router as product_registration_router
-from api.v1.endpoints.down_form_order import router as down_form_order_router
+
 from api.v1.endpoints.macro import router as macro_router
+from api.v1.endpoints.product import router as products_router
+from api.v1.endpoints.ecount.erp import router as ecount_router
+from api.v1.endpoints.receive_order import router as order_router
+from api.v1.endpoints.mall_price import router as mall_price_router
+from api.v1.endpoints.one_one_price import router as one_one_price_router
+from api.v1.endpoints.down_form_order import router as down_form_order_router
+from api.v1.endpoints.product_registration import router as product_registration_router
 
 from core.db import create_tables
+from utils.logs.sabangnet_logger import get_logger, HTTPLoggingMiddleware
 from api.v1.endpoints.mall_certification_handling.mall_certification_handling import router as mall_certification_handling_router
 
 
@@ -65,6 +67,7 @@ master_router.include_router(down_form_order_router)
 master_router.include_router(macro_router)
 master_router.include_router(product_registration_router)
 master_router.include_router(mall_certification_handling_router)
+master_router.include_router(ecount_router)
 
 app.include_router(master_router)
 

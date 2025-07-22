@@ -1,63 +1,3 @@
-테스트관련 소스는 ~/project/sabangnet_API/test_macro/cmp.py 만 있으면 되므로 이것만 다운 받아서 사용하세요.
-아래는 실행방법이고, 실행 Command 아래쪽에는 엑셀과 리브레오피스에서 시트 복사하는 방법 설명입니다.
-
-cmp.py 수정한 다음 사용하시면 되십니다.<br/>
-  Line 182 : excel_file : 확인할 파일명<br/>
-  Line 183 : compare_selected_sheet_pairs의  2번째 파라미터 (비교할 시트쌍의 개수)<p/>
-실행:<br/>
-  python cmp.py [/filepath/compare_excel_filename.xlsx] <p/>
-
-엑셀 파일 1개에 파이선시트[시트1, 시트2, 시트3], 매크로 시트[시트1_m, 시트2_m, 시트3_m) 순서로 엑셀 통합(시트 선택한 다음 시트복사 하시면 됩니다.)
-시트 복사 방법
-    1. 복사할 원천 엑셀과 대상 엑셀을 실행해서 함께 열어둡니다.
-      <img width="1551" height="727" alt="image" src="https://github.com/user-attachments/assets/959ba2af-2484-4c00-886c-0a9190e6c55e" />
-    2. 원천엑셀의 복사할 시트를 선택합니다. Ctrl을 누른 상태로 시트의 이름을 선택하면 한꺼번에 여러 시트를 선택할 수 있습니다.
-       <img width="645" height="275" alt="image" src="https://github.com/user-attachments/assets/2416bf5f-a639-4cbb-9add-aea135d39375" />
-    3. 선택한 시트를 오른쪽 클립합니다.
-      <img width="463" height="382" alt="image" src="https://github.com/user-attachments/assets/d055510d-ff00-4381-8647-00cdcfbbb38b" />
-    4. 메뉴에서 이동/복사 선택
-    5. 통합대상문서 선택
-    6. 끝으로 이동 선택
-    7. 복사본 만들기 선택
-    8. 확인 => 여기까지 완료하면 시트가 복사된 것을 확인할 수 있습니다.
-
-엑셀이 없으면 리브레오피스를 사용하셔도 됩니다. 엑셀은 소스를 선택해서 대상에 붙여넣기 방식이지만 리브레는 현재 파일에 대상파일을 읽어오는 방식입니다.
-    1. 복사본을 가진 파일을 열어둔다.  ex) libreoffice target.xlsx
-    2. 메뉴 시트(S) > 파일에서 시트 삽입
-      <img width="538" height="500" alt="image" src="https://github.com/user-attachments/assets/d63416a2-f87f-4ef4-a942-b8ca88929d45" />
-    3. 읽어올 파일 선택 => 열기
-      <img width="782" height="246" alt="image" src="https://github.com/user-attachments/assets/42eda275-0579-45e1-abf0-0f263ffffd4c" />
-    4. 현재 시트 뒤에 선택
-       <img width="669" height="540" alt="image" src="https://github.com/user-attachments/assets/ceb76acb-e012-4fb5-87ab-57bdf840f756" />
-    5. 아래쪽의 파일에서 작성에서 읽어올 시트 선택(shift를 사용하면 여러개 선택 가능)
-       <img width="663" height="538" alt="image" src="https://github.com/user-attachments/assets/18f1a210-cf91-4f75-aa36-7a1dfa6c449c" />
-    6. 확인하면  => 여기까지 완료하면 시트가 복사된 것을 확인할 수 있습니다.
-
-
-# 1. 가상환경 생성
-Python 3.12.*
-
-python3 -m venv venv
-source venv/bin/activate  # Linux/Mac
-# 또는 venv\Scripts\activate  # Windows
-
-# 2. 의존성 설치
-pip3 install -r requirements.txt
-
-# 3. 환경변수 설정
-cp .env.example .env
-# .env 파일에 실제 값 입력
-
-# 4. 실행
-python app.py [command]
-python app.py --help          # Show help
-python app.py mall-list       # List malls
-python app.py order-list      # List orders
-
-# 사방넷 쇼핑몰 코드 조회 API
-
-사방넷의 쇼핑몰 코드 조회 API를 Python으로 구현한 클라이언트입니다.
-
 ## 설치 및 설정
 
 ### 1. 가상환경 생성 및 활성화
@@ -76,6 +16,7 @@ venv\Scripts\activate
 export OPENSSL_CONF=./config/openssl.cnf
 # 개발환경 명령어 (개인정보 마스킹용)
 export DEPLOY_ENV=development
+export DEPLOY_ENV=production
 
 # 의존성 설치
 
@@ -246,7 +187,7 @@ logger.critical(내용)
 
 ```bash
 # .env file
-# 사방넷 API 설정
+# SABANGNET 연결
 SABANG_COMPANY_ID=
 SABANG_AUTH_KEY=
 SABANG_ADMIN_URL=
@@ -266,14 +207,36 @@ DB_NAME=
 DB_USER=
 DB_PASSWORD=
 DB_SSLMODE=
-DB_TEST_COLUMN=
-DB_TEST_TABLE=
-# uvicorn
-FASTAPI_HOST=
-FASTAPI_PORT=
 # n8n 웹훅 테스트 URI
 N8N_WEBHOOK_BASE_URL=
 N8N_WEBHOOK_PATH=
+# uvicorn
+FASTAPI_HOST=
+FASTAPI_PORT=
+FASTAPI_RELOAD=
 # 엑셀 테스트 환경
 CONPANY_GOODS_CD_TEST_MODE=
+# 배포환경 감지 변수
+DEPLOY_ENV=
+# ecount 이카운트 API 연동관련
+ECOUNT_ID=
+ECOUNT_API=
+ECOUNT_ZONE=
+ECOUNT_DOMAIN=
 ```
+
+## 기술 스택
+
+| 구분            | 사용 기술 (버전)                                 |
+|-----------------|-------------------------------------------------|
+| Python          | Python >= 3.12                                  |
+| Web Framework   | FastAPI (0.115.12), Starlette (0.46.2), Uvicorn (0.34.3) |
+| ORM/DB          | SQLAlchemy (2.0.41), asyncpg (0.30.0)           |
+| 데이터 처리     | Pandas (2.3.0), lxml (5.4.0), openpyxl (3.1.5), xlsxwriter |
+| 환경설정        | python-dotenv (1.1.0), pydantic (2.11.7), pydantic-settings (2.9.1) |
+| HTTP 클라이언트 | Requests (2.32.4), httpx, aiohttp (>=3.8.0)     |
+| 파일 업로드     | python-multipart (0.0.20)                       |
+| 오브젝트 스토리지| Minio (7.2.15)                                  |
+| CLI             | Typer (0.16.0)                                  |
+| 테스트          | pytest, pytest-html, pytest-xdist, pytest-cov, pytest-asyncio |
+| 기타            | 없음                                            |

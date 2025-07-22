@@ -38,11 +38,19 @@ class Settings(BaseSettings):
     # FastAPI
     FASTAPI_HOST: Optional[str] = None
     FASTAPI_PORT: Optional[int] = None
+    FASTAPI_RELOAD: Optional[bool] = None
 
     # Test Mode
     CONPANY_GOODS_CD_TEST_MODE: Optional[bool] = True
 
     DEPLOY_ENV: Optional[str] = "development"
+
+    # Ecount
+    ECOUNT_API: Optional[str] = None
+    ECOUNT_ZONE: Optional[str] = None
+    ECOUNT_DOMAIN: Optional[str] = None
+    ECOUNT_USER_ID: Optional[str] = None
+    ECOUNT_COM_CODE: Optional[str] = None
 
     class Config:
         env_file = ".env"

@@ -23,6 +23,10 @@ class ERPZigzagMacro:
         sort_columns = [2, 3, 5]
         print("시트별 정렬, 시트 분리 시작...")
         headers, data = self.ex.preprocess_and_update_ws(self.ws, sort_columns)
+
+        # sheet1 vlookup 딕셔너리 생성 후 삭제
+        vlookup_dict = self.ex.create_vlookup_dict(self.wb)
+
         self.ex.split_and_write_ws_by_site(
             wb=self.wb,
             headers=headers,
@@ -47,18 +51,21 @@ class ERPZigzagMacro:
                                ws[f"V{row}"])  # =U2+V2
                 col_h.e_column(ws[f"E{row}"])
                 col_h.f_column(ws[f"F{row}"])
-                col_h.convert_int_column(ws[f"M{row}"])
+                # VLOOKUP 적용
+                self._vlookup_column(ws[f"M{row}"], ws[f"V{row}"], vlookup_dict)
             print(f"[{ws.title}] 서식 및 디자인 적용 완료")
 
         output_path = self.ex.save_file(self.file_path)
         print(f"✓ 지그재그 자동화 완료! 최종 파일: {output_path}")
         return output_path
 
-    def _vlookup_column(self):
+    def _vlookup_column(self, key_cell, value_cell, vlookup_dict):
         """
-        VLOOKUP 수식 입력 (V열)
+        VLOOKUP 적용
+        args:
+            key_cell: 키 셀
+            value_cell: 값 셀
+            vlookup_dict: VLOOKUP 딕셔너리
         """
-        last_row = self.ws.max_row
-        for row in range(2, last_row + 1):
-            self.ws[f'V{row}'].value = f'=VLOOKUP(M{row},Sheet1!$A:$B,2,0)'
-        print("VLOOKUP 수식 입력 완료")
+        if vlookup_dict.get(str(key_cell.value)):
+            value_cell.value = vlookup_dict.get(str(key_cell.value))

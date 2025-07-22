@@ -17,7 +17,7 @@ class DownFormOrderReadService:
     async def get_down_form_order_by_idx(self, idx: str) -> DownFormOrderDto:
         return DownFormOrderDto.model_validate(await self.down_form_order_repository.get_down_form_order_by_idx(idx))
 
-    async def get_down_form_orders_paginated(
+    async def get_down_form_orders_by_pagenation(
             self,
             page: int = 1,
             page_size: int = 100,
@@ -26,11 +26,18 @@ class DownFormOrderReadService:
         items: list[BaseDownFormOrder] = await self.down_form_order_repository.get_down_form_orders_pagination(page, page_size, template_code)
         total: int = await self.down_form_order_repository.count_all(template_code)
         return items, total
-    
+
     async def get_down_form_orders_by_template_code(self, template_code: str) -> list[DownFormOrderDto]:
         down_form_order_dtos: list[DownFormOrderDto] = []
         down_form_order_models: list[BaseDownFormOrder] = await self.down_form_order_repository.get_down_form_orders_by_template_code(template_code=template_code)
         for down_form_order_model in down_form_order_models:
-            down_form_order_dtos.append(DownFormOrderDto.model_validate(down_form_order_model))
+            down_form_order_dtos.append(
+                DownFormOrderDto.model_validate(down_form_order_model))
 
         return down_form_order_dtos
+
+    async def get_down_form_orders_by_work_status(self, work_status: str = None) -> list[BaseDownFormOrder]:
+        if  not work_status:
+            return await self.down_form_order_repository.get_down_form_orders()
+        down_form_order_models: list[BaseDownFormOrder] = await self.down_form_order_repository.get_down_form_orders_by_work_status(work_status=work_status)
+        return down_form_order_models

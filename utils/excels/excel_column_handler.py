@@ -36,28 +36,22 @@ class ExcelColumnHandler:
             return
 
         cell.number_format = 'General'
-        cell.value = sum(
-            float(source_cell.value)
+        cell.value = str(sum(
+            int(source_cell.value)
             for source_cell in source_cells
             if source_cell.value is not None and self._is_number(source_cell.value)
-        )
+        ))
 
     def e_column(self, cell):
         """
-        E 컬럼 포맷팅 - 숫자 변환 및 오른쪽 정렬
-        주의 : 엑셀 15자리 초과시 문자타입으로 저장
+        E 컬럼 포맷팅 - 문자타입으로 저장
         args:
             cell: 대상 셀
         """
         if cell.value and str(cell.value).replace('.', '').replace('-', '').isdigit():
             num_str = str(cell.value).replace('.', '').replace('-', '')
-            if len(num_str) >= 16:
-                # 16자리 이상은 문자열로 저장
-                cell.value = str(cell.value)
-                cell.number_format = '@'  # 텍스트 형식
-            else:
-                cell.value = self._convert_to_number(cell.value)
-                cell.number_format = '0'
+            cell.value = str(num_str)
+            cell.number_format = '@'  # 텍스트 형식
         cell.alignment = Alignment(horizontal='right')
 
     def f_column(self, cell):

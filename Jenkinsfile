@@ -12,7 +12,7 @@ pipeline {
         // Docker Registry 설정
         DOCKER_REGISTRY = 'registry.lyckabc.xyz'
         IMAGE_NAME = 'sabangnet-api'
-        DOMAIN = 'lyckabc.xyz'
+        DOMAIN = 'alohastudio.co.kr'
         DEV_DOMAIN = 'lyckabc.xyz'
         SUBDOMAIN = 'api'
         // Git 설정
@@ -21,7 +21,8 @@ pipeline {
         
         // 인증 정보
         REGISTRY_CREDENTIAL_ID = 'docker-registry-credentials'
-        SSH_CREDENTIAL_ID = 'lyckabc-ssh-key-id'
+        SSH_CREDENTIAL_ID = 'alohastudio-ssh-key-id'
+        SSH_CREDENTIAL_ID_DEV = 'lyckabc-ssh-key-id'
         DOCKER_REGISTRY_ID = 'docker-registry-id'
         DOCKER_REGISTRY_PW = 'docker-registry-pw'
         SABANGNET_ENV_FILE = 'sabangnet-env-file'
@@ -30,12 +31,22 @@ pipeline {
         DOCKER_COMPOSE_ENV_FILE_ID = 'sabangnet-docker-compose-env-file'
         
         // 배포 서버 설정 (브랜치별로 동적 설정)
-        DEPLOY_SERVER_PORT = '50022'
+        DEPLOY_SERVER_PORT = '5022'
+        DEV_DEPLOY_SERVER_PORT = '50022'
         
         // 브랜치별 설정을 위한 변수
         IS_DEPLOYABLE = "${env.BRANCH_NAME in ['main', 'dev'] || env.BRANCH_NAME.contains('docker') ? 'true' : 'false'}"
         // Docker 이미지 태그용 안전한 브랜치명 (슬래시를 하이픈으로 변환)
         DOCKER_SAFE_BRANCH_NAME = "${env.BRANCH_NAME.replaceAll('/', '-')}"
+        
+        // 테스트 관련 설정
+        PYTEST_ADDOPTS = "--tb=short --disable-warnings"
+        PYTHONPATH = "${WORKSPACE}:${PYTHONPATH}"
+
+        // MINIO 서버 업로드
+        MINIO_CREDENTIAL_ID = 'minio-credentials-id'
+        MINIO_SERVER_URL = 'https://minio.lyckabc.xyz'
+        MINIO_BUCKET_NAME = 'test'
     }
 
     stages {
@@ -43,21 +54,19 @@ pipeline {
             steps {
                 script {
                     echo "🔍 현재 브랜치: ${env.BRANCH_NAME}"
-                    
                     // 브랜치별 환경 설정
                     if (env.BRANCH_NAME == 'main') {
                         env.DEPLOY_ENV = 'production'
-                        env.DEPLOY_SERVER_USER_HOST = 'root@lyckabc.xyz'
-                    } else if (env.BRANCH_NAME == 'dev') {
+                        env.DEPLOY_SERVER_USER_HOST = 'root@alohastudio.co.kr'
+                        env.ACTUAL_SSH_CREDENTIAL_ID = SSH_CREDENTIAL_ID
+                        env.ACTUAL_DEPLOY_SERVER_PORT = DEPLOY_SERVER_PORT
+                        env.ACTUAL_DOMAIN = DOMAIN
+                    } else if (env.BRANCH_NAME == 'dev' || env.BRANCH_NAME.contains('docker')) {
                         env.DEPLOY_ENV = 'development'
                         env.DEPLOY_SERVER_USER_HOST = 'root@lyckabc.xyz'
-                        env.DOMAIN = DEV_DOMAIN
-                    } else if (env.BRANCH_NAME.contains('docker')) {
-                        env.DEPLOY_ENV = 'development'
-                        env.DEPLOY_SERVER_USER_HOST = 'root@lyckabc.xyz'
-                        env.DOMAIN = DEV_DOMAIN
-                        DOCKER_SAFE_BRANCH_NAME = "docker"
-                        echo "🐳 Docker 브랜치 감지: ${env.BRANCH_NAME}"
+                        env.ACTUAL_SSH_CREDENTIAL_ID = SSH_CREDENTIAL_ID_DEV
+                        env.ACTUAL_DEPLOY_SERVER_PORT = DEV_DEPLOY_SERVER_PORT
+                        env.ACTUAL_DOMAIN = DEV_DOMAIN
                     } else {
                         env.DEPLOY_ENV = 'none'
                         echo "⚠️ 브랜치 '${env.BRANCH_NAME}'는 자동 배포 대상이 아닙니다."
@@ -132,9 +141,123 @@ pipeline {
                     }
                 }
                 stage('Test') {
+                    agent {
+                        docker {
+                            image 'python:3.12-slim'
+                            reuseNode true
+                        }
+                    }
                     steps {
-                        echo "테스트를 수행합니다..."
-                        // sh 'pytest --maxfail=1 --disable-warnings'
+                        script {
+                            // 타임스탬프 변수를 Groovy에서 정의
+                            def timeStamp = "${env.BUILD_NUMBER}_${new Date().format('MMdd_HHmmss')}"
+
+                            // 환경 변수 파일 import
+                            withCredentials([file(credentialsId: SABANGNET_ENV_FILE, variable: 'ENV_FILE')]) {
+                                sh "cp ${ENV_FILE} .env"
+                            }
+                            
+                            echo "🔍 Python 환경 확인..."
+                            sh 'python3 --version'
+                            sh 'python3 -m pip --version'
+                            
+                            echo "📦 의존성 설치 확인..."
+                            sh 'python3 -m pip install -r requirements.txt'
+                            
+                            echo "🧪 pytest 테스트를 수행합니다..."
+                            sh """
+                                # 테스트 환경 설정
+                                export PYTHONPATH="\${WORKSPACE}:\${PYTHONPATH}"
+                                export TIME_STAMP="${timeStamp}"
+                                
+                                # 테스트 디렉토리 확인
+                                echo "📁 테스트 디렉토리 구조 확인..."
+                                ls -la tests/
+                                
+                                # pytest 실행 (상세한 출력과 함께)
+                                echo "🚀 pytest 실행 시작..."
+                                python3 -m pytest tests/ \\
+                                    --verbose \\
+                                    --tb=short \\
+                                    --maxfail=3 \\
+                                    --disable-warnings \\
+                                    --junitxml=test-results-\${TIME_STAMP}.xml \\
+                                    --html=test-report-\${TIME_STAMP}.html \\
+                                    --self-contained-html \\
+                                    --durations=10 \\
+                                    --cov=tests \\
+                                    --cov-report=html:coverage-report-\${TIME_STAMP} \\
+                                    --cov-report=xml:coverage-\${TIME_STAMP}.xml
+                                
+                                echo "✅ 테스트 완료"
+                                
+                                # 테스트 결과 요약
+                                echo "📊 테스트 결과 요약:"
+                                if [ -f test-results-\${TIME_STAMP}.xml ]; then
+                                    echo "Pytest Unit XML 리포트 생성됨"
+                                fi
+                                if [ -f test-report-\${TIME_STAMP}.html ]; then
+                                    echo "Pytest HTML 리포트 생성됨"
+                                fi
+                                if [ -d coverage-report-\${TIME_STAMP} ]; then
+                                    echo "커버리지 리포트 생성됨"
+                                fi
+                            """
+                            // 파일명을 변수로 저장하여 post에서 사용
+                            env.TEST_REPORT_HTML = "test-report-${timeStamp}.html"
+                            env.COVERAGE_DIR = "coverage-report-${timeStamp}"
+                            env.COVERAGE_XML = "coverage-${timeStamp}.xml"
+                            env.TEST_RESULTS_XML = "test-results-${timeStamp}.xml"
+                            // .env 파일 삭제
+                            sh "rm -f .env"
+                        }
+                    }
+                    post {
+                        always {
+                            echo "📊 테스트 결과 저장..."
+                            
+                            // JUnit XML 결과 저장
+                            junit 'test-results-*.xml'
+                            
+                            // HTML 리포트 저장
+                            publishHTML([
+                                allowMissing: false,
+                                alwaysLinkToLastBuild: true,
+                                keepAll: true,
+                                reportDir: '.',
+                                reportFiles: env.TEST_REPORT_HTML,
+                                reportName: 'Pytest HTML Report'
+                            ])
+                            
+                            // 커버리지 리포트 저장
+                            publishHTML([
+                                allowMissing: true,
+                                alwaysLinkToLastBuild: true,
+                                keepAll: true,
+                                reportDir: env.COVERAGE_DIR,
+                                reportFiles: 'index.html',
+                                reportName: 'Coverage Report'
+                            ])
+                            
+                            // 커버리지 XML 결과 저장 (SonarQube 등과 연동용)
+                            recordCoverage(
+                                tools: [[parser: 'COBERTURA', pattern: env.COVERAGE_XML]],
+                                name: 'Pytest Coverage',
+                                sourceCodeRetention: 'EVERY_BUILD',
+                                qualityGates: [
+                                    [threshold: 60.0, metric: 'LINE', baseline: 'PROJECT', unstable: true]
+                                ]
+                            )
+                        }
+                        success {
+                            echo "✅ 모든 테스트가 성공했습니다!"
+                        }
+                        failure {
+                            script {
+                                echo "❌ 일부 테스트가 실패했습니다. 빌드를 중단합니다."
+                                currentBuild.result = 'FAILURE'
+                            }
+                        }
                     }
                 }
             }
@@ -239,9 +362,10 @@ pipeline {
                 }
             }
             steps {
-                echo "배포 서버(${DEPLOY_SERVER_USER_HOST})에 ${env.DEPLOY_ENV} 환경으로 배포를 시작합니다..."
+                echo "배포 서버 ${ACTUAL_DOMAIN}에 (${DEPLOY_SERVER_USER_HOST})User의 ${DEPLOY_ENV} 환경으로 배포를 시작합니다..."
+                echo "SSH CREDENTIAL ID: ${ACTUAL_SSH_CREDENTIAL_ID}"
                 
-                sshagent(credentials: [SSH_CREDENTIAL_ID]) {
+                sshagent(credentials: [ACTUAL_SSH_CREDENTIAL_ID]) {
                     script {
                         // 브랜치별 환경 파일 선택
                         def envFileCredentialId = SABANGNET_ENV_FILE
@@ -281,7 +405,7 @@ pipeline {
                             ).trim()
                             
                             sh """
-                                ssh -p ${DEPLOY_SERVER_PORT} -o StrictHostKeyChecking=no ${DEPLOY_SERVER_USER_HOST} << 'EOF'
+                                ssh -p ${ACTUAL_DEPLOY_SERVER_PORT} -o StrictHostKeyChecking=no ${DEPLOY_SERVER_USER_HOST} << 'EOF'
                                 set -e
                                 
                                 echo ">> 배포 디렉토리로 이동"
@@ -381,8 +505,8 @@ EOF
                 // E2E 테스트, API 헬스체크 등
                 script {
                     def deployUrl = env.BRANCH_NAME == 'main' ? 
-                        "https://${SUBDOMAIN}.${DOMAIN}" : 
-                        "https://${SUBDOMAIN}.${DOMAIN}"
+                        "https://${SUBDOMAIN}.${ACTUAL_DOMAIN}" : 
+                        "https://${SUBDOMAIN}.${ACTUAL_DOMAIN}"
                     
                     // sh "curl -f ${deployUrl}/health || exit 1"
                 }

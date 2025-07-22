@@ -20,7 +20,10 @@ class ERPAliMacro:
             col_h.d_column(
                 # =U2+V2
                 self.ws[f'D{row}'], self.ws[f'U{row}'], self.ws[f'V{row}'])
+        # sheet1 vlookup 딕셔너리 생성 후 삭제
+        vlookup_dict = self.ex.create_vlookup_dict(self.wb)
 
+        # 시트 설정
         sheets_name = ["OK", "IY"]
         site_to_sheet = {
             "오케이마트": "OK",
@@ -52,10 +55,10 @@ class ERPAliMacro:
                 else:
                     col_h.a_formula_column(ws[f"A{row}"])
                 self._jeju_address_column(ws, row, ws[f"J{row}"])
-                col_h.convert_int_column(ws[f"M{row}"])
                 col_h.convert_int_column(ws[f"P{row}"])
                 col_h.convert_int_column(ws[f"Q{row}"])
-                col_h.convert_int_column(ws[f"W{row}"])
+                # VLOOKUP 적용
+                self._vlookup_column(ws[f"F{row}"], ws[f"S{row}"], vlookup_dict)
             print(f"[{ws.title}] 서식 및 디자인 적용 완료")
 
         output_path = self.ex.save_file(self.file_path)
@@ -111,56 +114,12 @@ class ERPAliMacro:
             self.ex.process_jeju_address(
                 ws, row, f_col='F', j_col='J')
 
-    def _vlookup_column(self):
+    def _vlookup_column(self, key_cell, value_cell, vlookup_dict):
         """
         S열 VLOOKUP 및 값 붙여넣기 및 #N/A → "S"
         """
         # S열에 VLOOKUP 수식 입력 (임시로 "S" 값 설정)F
-        for row in range(2, self.last_row + 1):
-            # 실제 VLOOKUP 계산은 복잡하므로 기본값 "S" 설정
-            self.ws[f'S{row}'].value = "S"
-            self.ws[f'S{row}'].number_format = 'General'
-
-
-def process_vlookup_simulation(file_path, lookup_sheet="sheet1", lookup_range="A:B"):
-    """
-    VLOOKUP 시뮬레이션 함수 (실제 조회 테이블이 있는 경우 사용)
-
-    Args:
-        file_path (str): Excel 파일 경로
-        lookup_sheet (str): 조회할 시트명
-        lookup_range (str): 조회 범위
-    """
-    try:
-        workbook = openpyxl.load_workbook(file_path)
-
-        # 조회 테이블이 있는지 확인
-        if lookup_sheet in workbook.sheetnames:
-            lookup_ws = workbook[lookup_sheet]
-
-            # 실제 VLOOKUP 로직 구현
-            for ws_name in workbook.sheetnames:
-                ws = workbook[ws_name]
-                if ws.max_row > 1:
-                    for row in range(2, ws.max_row + 1):
-                        f_value = ws[f'F{row}'].value
-                        if f_value:
-                            # 조회 로직 (간단한 예시)
-                            lookup_result = "S"  # 기본값
-
-                            # 실제 조회 테이블에서 값 찾기
-                            for lookup_row in range(1, lookup_ws.max_row + 1):
-                                lookup_key = lookup_ws[f'A{lookup_row}'].value
-                                if lookup_key and str(lookup_key).strip() == str(f_value).strip():
-                                    lookup_result = lookup_ws[f'B{lookup_row}'].value or "S"
-                                    break
-
-                            ws[f'S{row}'].value = lookup_result
-
-            workbook.save(file_path)
-            print("VLOOKUP 시뮬레이션 완료")
+        if vlookup_dict.get(str(key_cell.value)):
+            value_cell.value = vlookup_dict.get(str(key_cell.value))
         else:
-            print(f"조회 시트 '{lookup_sheet}'를 찾을 수 없습니다.")
-
-    except Exception as e:
-        print(f"VLOOKUP 처리 중 오류: {e}")
+            value_cell.value = "S"

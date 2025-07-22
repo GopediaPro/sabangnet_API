@@ -61,14 +61,11 @@ class ERPGmaAucMacro:
                 col_h.e_column(ws[f"E{row}"])
                 col_h.f_column(ws[f"F{row}"])
                 col_h.l_column(ws[f"L{row}"])
-                col_h.convert_int_column(ws[f"M{row}"])
-                col_h.convert_int_column(ws[f"O{row}"])
                 col_h.convert_int_column(ws[f"P{row}"])
-                col_h.convert_int_column(ws[f"Q{row}"])
                 col_h.convert_int_column(ws[f"R{row}"])
                 col_h.convert_int_column(ws[f"S{row}"])
                 col_h.convert_int_column(ws[f"V{row}"])
-                col_h.convert_int_column(ws[f"W{row}"])
+
             print(f"[{ws.title}] 서식 및 디자인 적용 완료")
 
         output_path = self.ex.save_file(self.file_path)

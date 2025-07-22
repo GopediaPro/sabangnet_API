@@ -8,27 +8,28 @@ from legacy_SSL_handler import LegacySSLHandler
 legacy_ssl_handler = LegacySSLHandler()
 legacy_ssl_handler.fix_legacy_ssl_config()
 # 레거시 SSL 수정 완료
-from core.settings import SETTINGS
-from controller.product import run_generate_and_save_all_product_code_data
-from core.db import AsyncSessionLocal
-from models.receive_orders.receive_orders import ReceiveOrders
-from sqlalchemy import select
-import asyncio
-from core.db import get_db_pool
-from controller import fetch_mall_list, fetch_order_list, test_one_one_price_calculation, request_product_create as request_product_create_controller
-from dotenv import load_dotenv
+# std
 import typer
-from services.receive_orders.receive_order_create_service import ReceiveOrderCreateService
+import asyncio
+# sql
+from sqlalchemy import select
+# core
+from core.settings import SETTINGS
 from core.initialization import initialize_program
+from core.db import AsyncSessionLocal, get_db_pool, test_db_write
+# model
+from models.receive_orders.receive_orders import ReceiveOrders
+# controller
+from controller.product import run_generate_and_save_all_product_code_data
+from controller import fetch_mall_list, fetch_order_list, test_one_one_price_calculation, request_product_create as request_product_create_controller
+# service
+from services.receive_orders.receive_order_create_service import ReceiveOrderCreateService
+# utils
 from utils.logs.sabangnet_logger import get_logger
-from core.db import test_db_write
 
 
 # Create Typer app instance
 app = typer.Typer(help="사방넷 쇼핑몰 API CLI 도구")
-
-# Load environment variables
-load_dotenv()
 
 # Environment variables
 SABANG_COMPANY_ID = SETTINGS.SABANG_COMPANY_ID
@@ -311,12 +312,6 @@ def calculate_one_one_price(product_nm: str = typer.Argument(..., help="상품�
 def start_server():
     from start_server import run_fastapi
     run_fastapi()
-
-
-@app.command(help="pytest 실행")
-def start_pytest():
-    from tests.run_test import main
-    main()
 
 
 def handle_error(e: Exception):
