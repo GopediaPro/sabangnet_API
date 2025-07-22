@@ -72,7 +72,7 @@ async def create_tables():
         from models.product.product_raw_data import ProductRawData
         from models.product.product_registration_data import ProductRegistrationRawData
         from models.receive_orders.receive_orders import ReceiveOrders
-        from models.down_form_orders.down_form_order import BaseDownFormOrder
+        from models.batch_process import BatchProcess
         async with async_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         
