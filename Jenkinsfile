@@ -377,18 +377,18 @@ pipeline {
                         def dockerComposeEnvFileId = DOCKER_COMPOSE_ENV_FILE_ID
                         if (env.BRANCH_NAME == 'dev' || env.BRANCH_NAME.contains('docker') ) {
                             envFileCredentialId = SABANGNET_ENV_FILE_DEV
-                            dockerComposeEnvFileId = DOCKER_COMPOSE_ENV_FILE_ID_DEV  // 개발용 환경 파일
+                            dockerComposeEnvFileId = DOCKER_COMPOSE_ENV_FILE_DEV_ID  // 개발용 환경 파일
                         }
                         
-                        withCredentials([
-                            file(credentialsId: envFileCredentialId, variable: 'ENV_FILE'),
-                            file(credentialsId: DOCKER_COMPOSE_FILE_ID, variable: 'DOCKER_COMPOSE_FILE'),
-                            file(credentialsId: dockerComposeEnvFileId, variable: 'DOCKER_COMPOSE_ENV_FILE'),
-                            usernamePassword(
-                                credentialsId: REGISTRY_CREDENTIAL_ID,
-                                usernameVariable: 'REGISTRY_USER',
-                                passwordVariable: 'REGISTRY_PASS'
-                            )
+                            withCredentials([
+                                file(credentialsId: envFileCredentialId, variable: 'ENV_FILE'),
+                                file(credentialsId: DOCKER_COMPOSE_FILE_ID, variable: 'DOCKER_COMPOSE_FILE'),
+                                file(credentialsId: dockerComposeEnvFileId, variable: 'DOCKER_COMPOSE_ENV_FILE'),
+                                usernamePassword(
+                                    credentialsId: REGISTRY_CREDENTIAL_ID,
+                                    usernameVariable: 'REGISTRY_USER',
+                                    passwordVariable: 'REGISTRY_PASS'
+                                )
                         ]) {
                             // 환경 파일 내용을 변수에 저장
                             def envFileContent = sh(
