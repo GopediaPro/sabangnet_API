@@ -362,7 +362,7 @@ pipeline {
                 }
             }
             steps {
-                echo "배포 서버 ${ACTUAL_DOMAIN}에 (${ACTUAL_DEPLOY_SERVER_USER_HOST})User의 ${DEPLOY_ENV} 환경으로 배포를 시작합니다..."
+                echo "배포 서버 ${ACTUAL_DOMAIN}에 (${DEPLOY_SERVER_USER_HOST})User의 ${DEPLOY_ENV} 환경으로 배포를 시작합니다..."
                 echo "SSH CREDENTIAL ID: ${ACTUAL_SSH_CREDENTIAL_ID}"
                 
                 sshagent(credentials: [ACTUAL_SSH_CREDENTIAL_ID]) {
@@ -405,7 +405,7 @@ pipeline {
                             ).trim()
                             
                             sh """
-                                ssh -p ${ACTUAL_DEPLOY_SERVER_PORT} -o StrictHostKeyChecking=no ${ACTUAL_DEPLOY_SERVER_USER_HOST} << 'EOF'
+                                ssh -p ${ACTUAL_DEPLOY_SERVER_PORT} -o StrictHostKeyChecking=no ${DEPLOY_SERVER_USER_HOST} << 'EOF'
                                 set -e
                                 
                                 echo ">> 배포 디렉토리로 이동"
