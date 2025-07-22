@@ -671,12 +671,12 @@ class ExcelHandler:
         site_col_idx: int = 2,
     ):
         """
-        ws: 원본 워크시트
         wb: 워크북
-        site_col_idx: 사이트 컬럼 인덱스 (1-based)
+        headers: 헤더
+        data: 데이터
         sheets_name: 생성할 시트명 리스트
-        site_mapping: {시트명: [사이트명, ...]}
-        sort_columns: 정렬 기준 열 번호 리스트 (1-based, 예: [2, 3])
+        site_to_sheet: {사이트명: 시트명}
+        site_col_idx: 사이트 컬럼 인덱스 (1-based) 기본값 2
         """
 
         # 4. 시트들 생성
@@ -847,6 +847,14 @@ class ExcelHandler:
                     src_width = source_ws.column_dimensions[col_letter].width
                     target_ws.column_dimensions[col_letter].width = src_width
 
+    def create_vlookup_dict(self, wb):
+        vlookup_dict = {}
+        for sheet in wb:
+            if sheet.title == "Sheet1":
+                for row in range(2, sheet.max_row + 1):
+                   vlookup_dict[str(sheet.cell(row=row, column=1).value)] = str(sheet.cell(row=row, column=2).value)
+                del wb[sheet.title]
+        return vlookup_dict
 
 class ReverseComparableString:
     def __init__(self, s):

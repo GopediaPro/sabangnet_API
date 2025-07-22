@@ -4,7 +4,7 @@ from models.base_model import Base
 from sqlalchemy.orm import Mapped, mapped_column
 from schemas.receive_orders.receive_orders_dto import ReceiveOrdersDto
 from sqlalchemy import TIMESTAMP, Integer, String, Text, Numeric, DateTime
-
+from sqlalchemy.dialects.postgresql import JSONB
 class BaseFormOrder(Base):
     """
     다운폼/내보내기 폼 주문 테이블의 공통 ORM 매핑 모델
@@ -14,7 +14,8 @@ class BaseFormOrder(Base):
     process_dt: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=False))
     form_name: Mapped[str | None] = mapped_column(String(30))
     seq: Mapped[int | None] = mapped_column(Integer)
-    idx: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)  # 사방넷주문번호
+    idx: Mapped[str] = mapped_column(String(50), nullable=False)  # 사방넷주문번호
+    # idx: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)  # 사방넷주문번호
     order_id: Mapped[str | None] = mapped_column(String(100))
     mall_order_id: Mapped[str | None] = mapped_column(Text)
     product_id: Mapped[str | None] = mapped_column(Text)
@@ -67,6 +68,7 @@ class BaseFormOrder(Base):
     hope_delv_date: Mapped[str | None] = mapped_column(String(14))
     inv_send_dm: Mapped[str | None] = mapped_column(String(14))
     work_status: Mapped[str | None] = mapped_column(String(14))
+    error_logs: Mapped[str | None] = mapped_column(JSONB, nullable=True)
 
     @classmethod
     def build_erp(cls, receive_orders_dto: ReceiveOrdersDto):
@@ -129,6 +131,7 @@ class BaseFormOrder(Base):
             cancel_dt=order_data.get('cancel_dt', None),
             hope_delv_date=order_data.get('hope_delv_date', None),
             inv_send_dm=order_data.get('inv_send_dm', None),
+            error_logs=order_data.get('error_logs', None),
         )
 
 

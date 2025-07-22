@@ -54,7 +54,7 @@ class DataProcessingUsecase:
 
         convert_xlsx = ConvertXlsx()
         file_path = convert_xlsx.export_translated_to_excel(
-            down_form_orders, mapping_field, file_name, file_path="./files/excel")
+            down_form_orders, mapping_field, file_name, file_path=file_path)
         return file_path
 
     async def get_template_config_by_template_code(self, template_code: str) -> dict:
@@ -121,7 +121,8 @@ class DataProcessingUsecase:
             receive_orders_dict_list,
             template_code
         )
-        logger.info(f"[END] save_down_form_orders_from_receive_orders_by_filter | saved_count={saved_count}")
+        logger.info(
+            f"[END] save_down_form_orders_from_receive_orders_by_filter | saved_count={saved_count}")
         return DownFormOrdersBulkDto(
             success=True,
             template_code=template_code,
@@ -211,7 +212,11 @@ class DataProcessingUsecase:
         returns:
             saved_count: saved count
         """
-        logger.info(f"[START] save_down_form_orders_from_receive_orders_without_filter | template_code={template_code} | raw_data_count={len(raw_data)}")
+        logger.info(f"\
+            [START] save_down_form_orders_from_receive_orders_without_filter | \
+            template_code={template_code} | \
+            raw_data_count={len(raw_data)}"
+        )
 
         # 1. 템플릿 config 조회
         config = await self.template_config_read_service.get_template_config_by_template_code(template_code)
@@ -325,3 +330,38 @@ class DataProcessingUsecase:
         except Exception as e:
             logger.error(f"Error running macro with db: {e}")
             raise
+    
+    async def export_down_form_orders_to_excel_by_work_status(self, template_code: str, work_status: str = None) -> str:
+        """
+        export down_form_orders to excel by work_status
+        args:
+            template_code: template code
+            work_status: work status
+        returns:
+            file_path: file path
+            file_name: file name
+        """
+        logger.info(f"[START] get_down_form_orders_by_work_status | template_code={template_code} ")
+        # 1. 데이터 조회
+        down_form_orders: list[BaseDownFormOrder] = await self.down_form_order_read_service.get_down_form_orders_by_work_status(work_status)
+        logger.info(f"down_form_orders: {len(down_form_orders)}")
+        # 2. 템플릿 설정 조회
+        template_config: dict = await self.template_config_read_service.get_template_config_by_template_code(template_code=template_code)
+        logger.info(f"template_config: {template_config}")
+        # 3. 매핑 필드 생성
+        mapping_field: dict = await DataProcessingUtils.create_mapping_field(template_config)
+        logger.info(f"mapping_field: {mapping_field}")
+        # 4. 엑셀 파일 생성
+        file_name = f"{template_code}_{work_status}.xlsx"
+        convert_xlsx = ConvertXlsx()
+        temp_file_path = convert_xlsx.export_temp_excel(
+            down_form_orders,
+            mapping_field,
+            file_name
+        )
+        logger.info(f"\
+            [END] get_down_form_orders_by_work_status | \
+            temp_file_path={temp_file_path} | \
+            file_name={file_name}"
+        )
+        return temp_file_path, file_name

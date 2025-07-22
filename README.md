@@ -1,63 +1,3 @@
-테스트관련 소스는 ~/project/sabangnet_API/test_macro/cmp.py 만 있으면 되므로 이것만 다운 받아서 사용하세요.
-아래는 실행방법이고, 실행 Command 아래쪽에는 엑셀과 리브레오피스에서 시트 복사하는 방법 설명입니다.
-
-cmp.py 수정한 다음 사용하시면 되십니다.<br/>
-  Line 182 : excel_file : 확인할 파일명<br/>
-  Line 183 : compare_selected_sheet_pairs의  2번째 파라미터 (비교할 시트쌍의 개수)<p/>
-실행:<br/>
-  python cmp.py [/filepath/compare_excel_filename.xlsx] <p/>
-
-엑셀 파일 1개에 파이선시트[시트1, 시트2, 시트3], 매크로 시트[시트1_m, 시트2_m, 시트3_m) 순서로 엑셀 통합(시트 선택한 다음 시트복사 하시면 됩니다.)
-시트 복사 방법
-    1. 복사할 원천 엑셀과 대상 엑셀을 실행해서 함께 열어둡니다.
-      <img width="1551" height="727" alt="image" src="https://github.com/user-attachments/assets/959ba2af-2484-4c00-886c-0a9190e6c55e" />
-    2. 원천엑셀의 복사할 시트를 선택합니다. Ctrl을 누른 상태로 시트의 이름을 선택하면 한꺼번에 여러 시트를 선택할 수 있습니다.
-       <img width="645" height="275" alt="image" src="https://github.com/user-attachments/assets/2416bf5f-a639-4cbb-9add-aea135d39375" />
-    3. 선택한 시트를 오른쪽 클립합니다.
-      <img width="463" height="382" alt="image" src="https://github.com/user-attachments/assets/d055510d-ff00-4381-8647-00cdcfbbb38b" />
-    4. 메뉴에서 이동/복사 선택
-    5. 통합대상문서 선택
-    6. 끝으로 이동 선택
-    7. 복사본 만들기 선택
-    8. 확인 => 여기까지 완료하면 시트가 복사된 것을 확인할 수 있습니다.
-
-엑셀이 없으면 리브레오피스를 사용하셔도 됩니다. 엑셀은 소스를 선택해서 대상에 붙여넣기 방식이지만 리브레는 현재 파일에 대상파일을 읽어오는 방식입니다.
-    1. 복사본을 가진 파일을 열어둔다.  ex) libreoffice target.xlsx
-    2. 메뉴 시트(S) > 파일에서 시트 삽입
-      <img width="538" height="500" alt="image" src="https://github.com/user-attachments/assets/d63416a2-f87f-4ef4-a942-b8ca88929d45" />
-    3. 읽어올 파일 선택 => 열기
-      <img width="782" height="246" alt="image" src="https://github.com/user-attachments/assets/42eda275-0579-45e1-abf0-0f263ffffd4c" />
-    4. 현재 시트 뒤에 선택
-       <img width="669" height="540" alt="image" src="https://github.com/user-attachments/assets/ceb76acb-e012-4fb5-87ab-57bdf840f756" />
-    5. 아래쪽의 파일에서 작성에서 읽어올 시트 선택(shift를 사용하면 여러개 선택 가능)
-       <img width="663" height="538" alt="image" src="https://github.com/user-attachments/assets/18f1a210-cf91-4f75-aa36-7a1dfa6c449c" />
-    6. 확인하면  => 여기까지 완료하면 시트가 복사된 것을 확인할 수 있습니다.
-
-
-# 1. 가상환경 생성
-Python 3.12.*
-
-python3 -m venv venv
-source venv/bin/activate  # Linux/Mac
-# 또는 venv\Scripts\activate  # Windows
-
-# 2. 의존성 설치
-pip3 install -r requirements.txt
-
-# 3. 환경변수 설정
-cp .env.example .env
-# .env 파일에 실제 값 입력
-
-# 4. 실행
-python app.py [command]
-python app.py --help          # Show help
-python app.py mall-list       # List malls
-python app.py order-list      # List orders
-
-# 사방넷 쇼핑몰 코드 조회 API
-
-사방넷의 쇼핑몰 코드 조회 API를 Python으로 구현한 클라이언트입니다.
-
 ## 설치 및 설정
 
 ### 1. 가상환경 생성 및 활성화
@@ -76,6 +16,7 @@ venv\Scripts\activate
 export OPENSSL_CONF=./config/openssl.cnf
 # 개발환경 명령어 (개인정보 마스킹용)
 export DEPLOY_ENV=development
+export DEPLOY_ENV=production
 
 # 의존성 설치
 
@@ -281,3 +222,66 @@ ECOUNT_API=
 ECOUNT_ZONE=
 ECOUNT_DOMAIN=
 ```
+
+## 기술 스택
+
+| 구분            | 사용 기술 (버전)                                 |
+|-----------------|-------------------------------------------------|
+| Python          | Python >= 3.12                                  |
+| Web Framework   | FastAPI (0.115.12), Starlette (0.46.2), Uvicorn (0.34.3) |
+| ORM/DB          | SQLAlchemy (2.0.41), asyncpg (0.30.0)           |
+| 데이터 처리     | Pandas (2.3.0), lxml (5.4.0), openpyxl (3.1.5), xlsxwriter |
+| 환경설정        | python-dotenv (1.1.0), pydantic (2.11.7), pydantic-settings (2.9.1) |
+| HTTP 클라이언트 | Requests (2.32.4), httpx, aiohttp (>=3.8.0)     |
+| 파일 업로드     | python-multipart (0.0.20)                       |
+| 오브젝트 스토리지| Minio (7.2.15)                                  |
+| CLI             | Typer (0.16.0)                                  |
+| 테스트          | pytest, pytest-html, pytest-xdist, pytest-cov, pytest-asyncio |
+| 기타            | 없음                                            |
+
+## Alembic (DB 마이그레이션) 적용 및 사용법
+
+### 1. Alembic 설치
+
+```bash
+pip install alembic
+```
+
+### 2. Alembic 환경설정
+- alembic.ini의 DB URL은 비워두고, alembic/env.py에서 환경변수 또는 settings를 통해 동적으로 DB URL을 주입합니다.
+- alembic/env.py에서 모든 모델이 Base.metadata에 등록되도록 `import models`를 반드시 추가합니다.
+- 마이그레이션 파일(예: alembic/versions/...)은 반드시 git에 커밋합니다.
+
+### 3. Alembic 기본 명령어
+
+```bash
+# 마이그레이션 파일 생성 (모델 변경 후)
+alembic revision --autogenerate -m "설명 메시지"
+
+# DB에 마이그레이션 적용
+alembic upgrade head
+
+# DB를 특정 리비전으로 되돌리기 (주의: 데이터 손실 가능)
+alembic downgrade <revision_id>
+
+# DB와 마이그레이션 버전 동기화만 (실제 구조 변경 X, 운영 DB에 적용 시)
+alembic stamp head
+```
+
+### 4. Alembic 적용 워크플로우
+1. 모델(Base) 변경 (필드 추가/삭제/수정 등)
+2. `alembic revision --autogenerate -m "설명"` 으로 마이그레이션 파일 생성
+3. 마이그레이션 파일을 검토/수정 (기본값, 데이터 변환 등 필요시)
+4. `alembic upgrade head`로 실제 DB에 적용
+
+### 5. 테스트 환경에서 Alembic 적용
+- pytest 실행 시, `tests/conftest.py`에서 자동으로 `alembic upgrade head`가 실행되어 테스트용 DB가 항상 최신 스키마로 유지됩니다.
+- 별도의 테이블 생성(create_tables) 코드는 사용하지 않습니다.
+
+### 6. 주의사항
+- alembic/versions/ 폴더와 마이그레이션 파일은 반드시 git에 포함해야 합니다.
+- .env 파일에 DB 정보가 올바르게 입력되어 있어야 합니다.
+- 운영 DB에 적용 전에는 반드시 백업을 권장합니다.
+- NOT NULL 컬럼 추가, UNIQUE 제약 추가 등은 기존 데이터와 충돌이 없는지 반드시 확인하세요.
+
+---

@@ -24,7 +24,6 @@ from api.v1.endpoints.one_one_price import router as one_one_price_router
 from api.v1.endpoints.down_form_order import router as down_form_order_router
 from api.v1.endpoints.product_registration import router as product_registration_router
 
-from core.db import create_tables
 from utils.logs.sabangnet_logger import get_logger, HTTPLoggingMiddleware
 from api.v1.endpoints.mall_certification_handling.mall_certification_handling import router as mall_certification_handling_router
 
@@ -36,7 +35,6 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # FastAPI 서버 시작 전 작업영역
-    await create_tables()
     yield
     # FastAPI 서버 종료 후 작업영역
 

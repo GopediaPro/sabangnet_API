@@ -7,6 +7,7 @@ fatapi 의 main.py 및 다른 설정 파일들과 같은 역할을 함
 
 import os
 import sys
+import subprocess
 
 
 if sys.platform == "win32":
@@ -40,6 +41,11 @@ logger = get_logger(__name__)
 # pytest-asyncio 설정
 pytest_plugins = ["pytest_asyncio"]
 
+# Alembic 마이그레이션을 테스트 DB에 자동 적용하는 fixture 추가
+@pytest.fixture(scope="session", autouse=True)
+def apply_migrations():
+    """테스트용 DB에 Alembic 마이그레이션 적용"""
+    subprocess.run(["alembic", "upgrade", "head"], check=True)
 
 # 테스트용 lifespan 함수 (create_tables 제외)
 @asynccontextmanager
@@ -50,7 +56,7 @@ async def test_lifespan(app: FastAPI):
 
 
 # 테스트 환경 설정
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def set_test_environment() -> None:
     """테스트용 더미 환경변수 설정"""
     
@@ -257,7 +263,6 @@ def mock_database_connections() -> Generator[MagicMock, Any, None]:
         # 데이터베이스 관련 모든 모듈 모킹
         with patch('core.db.get_async_session') as mock_session, \
              patch('core.db.async_engine') as mock_engine, \
-             patch('core.db.create_tables') as mock_create_tables, \
              patch('core.db.get_db_pool') as mock_get_db, \
              patch('core.db.AsyncSessionLocal') as mock_session_local, \
              patch('core.db.test_db_write') as mock_test_db_write, \
@@ -278,9 +283,6 @@ def mock_database_connections() -> Generator[MagicMock, Any, None]:
             mock_session_local_instance.__aenter__ = AsyncMock(return_value=mock_session.return_value)
             mock_session_local_instance.__aexit__ = AsyncMock(return_value=None)
             mock_session_local.return_value = mock_session_local_instance
-            
-            # 테이블 생성 모킹
-            mock_create_tables.return_value = None
             
             # DB 컨텍스트 매니저 모킹
             mock_db_context = MagicMock()
