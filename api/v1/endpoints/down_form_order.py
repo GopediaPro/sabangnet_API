@@ -108,7 +108,8 @@ async def down_form_orders_pagination(
         get_down_form_order_read_service),
 ):
     items, total = await down_form_order_read_service.get_down_form_orders_by_pagenation(page, page_size, template_code)
-    dto_items: list[DownFormOrderDto] = [DownFormOrderDto.model_validate(item) for item in items]
+    dto_items: list[DownFormOrderDto] = [
+        DownFormOrderDto.model_validate(item) for item in items]
     return DownFormOrderPaginationResponse(
         total=total,
         page=page,
@@ -286,7 +287,8 @@ async def bulk_create_down_form_orders_by_filter(
 @router.post("/bulk/without-filter", response_model=DownFormOrderBulkCreateResponse)
 async def bulk_create_down_form_orders_without_filter(
     request: DownFormOrderCreateJsonRequest,
-    data_processing_usecase: DataProcessingUsecase = Depends(get_data_processing_usecase)
+    data_processing_usecase: DataProcessingUsecase = Depends(
+        get_data_processing_usecase)
 ):
     try:
         template_code: str = request.template_code
@@ -321,3 +323,20 @@ async def upload_excel_file_to_macro_get_url(
     """
     saved_count = await data_processing_usecase.save_down_form_orders_from_macro_run_excel(file, template_code, work_status="macro_run")
     return {"saved_count": saved_count}
+
+
+@router.post("/db-to-excel")
+async def db_to_excel_url(
+    template_code: str = Form(...),
+    work_status: str = Form(None),
+    data_processing_usecase: DataProcessingUsecase = Depends(
+        get_data_processing_usecase)
+):
+    """
+    db에서 데이터를 work_status에 따라 가져와 엑셀 파일로 변환 후 MinIO에 업로드하고 URL을 반환합니다.
+    """
+    file_path, file_name = await data_processing_usecase.get_down_form_orders_by_work_status(work_status=work_status, template_code=template_code)
+    file_url, minio_object_name = upload_and_get_url(
+        file_path, template_code, file_name)
+
+    return {"file_url": file_url, "minio_object_name": minio_object_name}
