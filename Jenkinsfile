@@ -31,7 +31,8 @@ pipeline {
         DOCKER_COMPOSE_ENV_FILE_ID = 'sabangnet-docker-compose-env-file'
         
         // 배포 서버 설정 (브랜치별로 동적 설정)
-        DEPLOY_SERVER_PORT = '50022'
+        DEPLOY_SERVER_PORT = '5022'
+        DEV_DEPLOY_SERVER_PORT = '50022'
         
         // 브랜치별 설정을 위한 변수
         IS_DEPLOYABLE = "${env.BRANCH_NAME in ['main', 'dev'] || env.BRANCH_NAME.contains('docker') ? 'true' : 'false'}"
@@ -63,11 +64,13 @@ pipeline {
                         env.DEPLOY_SERVER_USER_HOST = 'root@lyckabc.xyz'
                         env.DOMAIN = DEV_DOMAIN
                         env.SSH_CREDENTIAL_ID = SSH_CREDENTIAL_ID_DEV
+                        env.DEPLOY_SERVER_PORT = DEV_DEPLOY_SERVER_PORT
                     } else if (env.BRANCH_NAME.contains('docker')) {
                         env.DEPLOY_ENV = 'development'
                         env.DEPLOY_SERVER_USER_HOST = 'root@lyckabc.xyz'
                         env.DOMAIN = DEV_DOMAIN
                         env.SSH_CREDENTIAL_ID = SSH_CREDENTIAL_ID_DEV
+                        env.DEPLOY_SERVER_PORT = DEV_DEPLOY_SERVER_PORT
                         DOCKER_SAFE_BRANCH_NAME = "docker"
                         echo "🐳 Docker 브랜치 감지: ${env.BRANCH_NAME}"
                     } else {
@@ -365,7 +368,8 @@ pipeline {
                 }
             }
             steps {
-                echo "배포 서버(${DEPLOY_SERVER_USER_HOST})에 ${env.DEPLOY_ENV} 환경으로 배포를 시작합니다..."
+                echo "배포 서버${DOMAIN}에 (${DEPLOY_SERVER_USER_HOST})User의 ${env.DEPLOY_ENV} 환경으로 배포를 시작합니다..."
+                echo "SSH CREDENTIAL ID: ${SSH_CREDENTIAL_ID}"
                 
                 sshagent(credentials: [SSH_CREDENTIAL_ID]) {
                     script {
