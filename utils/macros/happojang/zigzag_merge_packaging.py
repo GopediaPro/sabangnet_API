@@ -168,7 +168,7 @@ def zigzag_merge_packaging(input_path: str) -> str:
     ex.clear_borders()
     
     # 9. C→B 정렬
-    ex.sort_by_columns([3, 2])  # C열=3, B열=2
+    ex.sort_by_columns([2, 3])
     
     # 10. 시트 분리 (OK, IY)
     splitter = ZIGZAGSheetSplitter(ws)
@@ -179,7 +179,7 @@ def zigzag_merge_packaging(input_path: str) -> str:
             splitter.copy_to_new_sheet(ex.wb, sheet_name, row_indices)
 
     # 11. 시트 순서 정리
-    desired = ["자동화", "OK", "IY", "Sheet1"]
+    desired = ["자동화", "OK", "IY"]
     for name in reversed(desired):
         if name in ex.wb.sheetnames:
             ex.wb._sheets.insert(0, ex.wb._sheets.pop(ex.wb.sheetnames.index(name)))
