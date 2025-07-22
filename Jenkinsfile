@@ -62,16 +62,16 @@ pipeline {
                     } else if (env.BRANCH_NAME == 'dev') {
                         env.DEPLOY_ENV = 'development'
                         env.DEPLOY_SERVER_USER_HOST = 'root@lyckabc.xyz'
-                        env.DOMAIN = DEV_DOMAIN
-                        env.SSH_CREDENTIAL_ID = SSH_CREDENTIAL_ID_DEV
-                        env.DEPLOY_SERVER_PORT = DEV_DEPLOY_SERVER_PORT
+                        env.DOMAIN = env.DEV_DOMAIN
+                        env.SSH_CREDENTIAL_ID = env.SSH_CREDENTIAL_ID_DEV
+                        env.DEPLOY_SERVER_PORT = env.DEV_DEPLOY_SERVER_PORT
                     } else if (env.BRANCH_NAME.contains('docker')) {
                         env.DEPLOY_ENV = 'development'
                         env.DEPLOY_SERVER_USER_HOST = 'root@lyckabc.xyz'
-                        env.DOMAIN = DEV_DOMAIN
-                        env.SSH_CREDENTIAL_ID = SSH_CREDENTIAL_ID_DEV
-                        env.DEPLOY_SERVER_PORT = DEV_DEPLOY_SERVER_PORT
-                        DOCKER_SAFE_BRANCH_NAME = "docker"
+                        env.DOMAIN = env.DEV_DOMAIN
+                        env.SSH_CREDENTIAL_ID = env.SSH_CREDENTIAL_ID_DEV
+                        env.DEPLOY_SERVER_PORT = env.DEV_DEPLOY_SERVER_PORT
+                        env.DOCKER_SAFE_BRANCH_NAME = "docker"
                         echo "🐳 Docker 브랜치 감지: ${env.BRANCH_NAME}"
                     } else {
                         env.DEPLOY_ENV = 'none'
