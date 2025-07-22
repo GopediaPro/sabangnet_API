@@ -54,25 +54,19 @@ pipeline {
             steps {
                 script {
                     echo "🔍 현재 브랜치: ${env.BRANCH_NAME}"
-                    
                     // 브랜치별 환경 설정
                     if (env.BRANCH_NAME == 'main') {
                         env.DEPLOY_ENV = 'production'
                         env.DEPLOY_SERVER_USER_HOST = 'root@alohastudio.co.kr'
-                    } else if (env.BRANCH_NAME == 'dev') {
+                        env.ACTUAL_SSH_CREDENTIAL_ID = SSH_CREDENTIAL_ID
+                        env.ACTUAL_DEPLOY_SERVER_PORT = DEPLOY_SERVER_PORT
+                        env.ACTUAL_DOMAIN = DOMAIN
+                    } else if (env.BRANCH_NAME == 'dev' || env.BRANCH_NAME.contains('docker')) {
                         env.DEPLOY_ENV = 'development'
                         env.DEPLOY_SERVER_USER_HOST = 'root@lyckabc.xyz'
-                        env.DOMAIN = env.DEV_DOMAIN
-                        env.SSH_CREDENTIAL_ID = env.SSH_CREDENTIAL_ID_DEV
-                        env.DEPLOY_SERVER_PORT = env.DEV_DEPLOY_SERVER_PORT
-                    } else if (env.BRANCH_NAME.contains('docker')) {
-                        env.DEPLOY_ENV = 'development'
-                        env.DEPLOY_SERVER_USER_HOST = 'root@lyckabc.xyz'
-                        env.DOMAIN = env.DEV_DOMAIN
-                        env.SSH_CREDENTIAL_ID = env.SSH_CREDENTIAL_ID_DEV
-                        env.DEPLOY_SERVER_PORT = env.DEV_DEPLOY_SERVER_PORT
-                        env.DOCKER_SAFE_BRANCH_NAME = "docker"
-                        echo "🐳 Docker 브랜치 감지: ${env.BRANCH_NAME}"
+                        env.ACTUAL_SSH_CREDENTIAL_ID = SSH_CREDENTIAL_ID_DEV
+                        env.ACTUAL_DEPLOY_SERVER_PORT = DEV_DEPLOY_SERVER_PORT
+                        env.ACTUAL_DOMAIN = DEV_DOMAIN
                     } else {
                         env.DEPLOY_ENV = 'none'
                         echo "⚠️ 브랜치 '${env.BRANCH_NAME}'는 자동 배포 대상이 아닙니다."
@@ -368,10 +362,10 @@ pipeline {
                 }
             }
             steps {
-                echo "배포 서버${DOMAIN}에 (${DEPLOY_SERVER_USER_HOST})User의 ${env.DEPLOY_ENV} 환경으로 배포를 시작합니다..."
-                echo "SSH CREDENTIAL ID: ${SSH_CREDENTIAL_ID}"
+                echo "배포 서버 ${ACTUAL_DOMAIN}에 (${ACTUAL_DEPLOY_SERVER_USER_HOST})User의 ${DEPLOY_ENV} 환경으로 배포를 시작합니다..."
+                echo "SSH CREDENTIAL ID: ${ACTUAL_SSH_CREDENTIAL_ID}"
                 
-                sshagent(credentials: [SSH_CREDENTIAL_ID]) {
+                sshagent(credentials: [ACTUAL_SSH_CREDENTIAL_ID]) {
                     script {
                         // 브랜치별 환경 파일 선택
                         def envFileCredentialId = SABANGNET_ENV_FILE
@@ -411,7 +405,7 @@ pipeline {
                             ).trim()
                             
                             sh """
-                                ssh -p ${DEPLOY_SERVER_PORT} -o StrictHostKeyChecking=no ${DEPLOY_SERVER_USER_HOST} << 'EOF'
+                                ssh -p ${ACTUAL_DEPLOY_SERVER_PORT} -o StrictHostKeyChecking=no ${ACTUAL_DEPLOY_SERVER_USER_HOST} << 'EOF'
                                 set -e
                                 
                                 echo ">> 배포 디렉토리로 이동"
@@ -511,8 +505,8 @@ EOF
                 // E2E 테스트, API 헬스체크 등
                 script {
                     def deployUrl = env.BRANCH_NAME == 'main' ? 
-                        "https://${SUBDOMAIN}.${DOMAIN}" : 
-                        "https://${SUBDOMAIN}.${DOMAIN}"
+                        "https://${SUBDOMAIN}.${ACTUAL_DOMAIN}" : 
+                        "https://${SUBDOMAIN}.${ACTUAL_DOMAIN}"
                     
                     // sh "curl -f ${deployUrl}/health || exit 1"
                 }
