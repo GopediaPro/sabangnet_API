@@ -29,6 +29,7 @@ pipeline {
         SABANGNET_ENV_FILE_DEV = 'sabangnet-env-file-dev'
         DOCKER_COMPOSE_FILE_ID = 'sabangnet-docker-compose-file'
         DOCKER_COMPOSE_ENV_FILE_ID = 'sabangnet-docker-compose-env-file'
+        DOCKER_COMPOSE_ENV_FILE_DEV_ID = 'sabangnet-docker-compose-env-file-dev'
         
         // 배포 서버 설정 (브랜치별로 동적 설정)
         DEPLOY_SERVER_PORT = '5022'
@@ -151,9 +152,13 @@ pipeline {
                         script {
                             // 타임스탬프 변수를 Groovy에서 정의
                             def timeStamp = "${env.BUILD_NUMBER}_${new Date().format('MMdd_HHmmss')}"
-
+                            // 브랜치별 환경 파일 선택
+                            def envFileCredentialId = SABANGNET_ENV_FILE
+                            if (env.BRANCH_NAME == 'dev' || env.BRANCH_NAME.contains('docker') ) {
+                                envFileCredentialId = SABANGNET_ENV_FILE_DEV
+                            }
                             // 환경 변수 파일 import
-                            withCredentials([file(credentialsId: SABANGNET_ENV_FILE, variable: 'ENV_FILE')]) {
+                            withCredentials([file(credentialsId: envFileCredentialId, variable: 'ENV_FILE')]) {
                                 sh "cp ${ENV_FILE} .env"
                             }
                             
@@ -280,8 +285,8 @@ pipeline {
                     
                     // 브랜치별 환경 파일 선택
                     def envFileCredentialId = SABANGNET_ENV_FILE
-                    if (env.BRANCH_NAME == 'dev') {
-                        envFileCredentialId = SABANGNET_ENV_FILE_DEV  // 개발용 환경 파일
+                    if (env.BRANCH_NAME == 'dev' || env.BRANCH_NAME.contains('docker') ) {
+                        envFileCredentialId = SABANGNET_ENV_FILE_DEV
                     }
                     
                     withCredentials([file(credentialsId: envFileCredentialId, variable: 'ENV_FILE')]) {
@@ -369,14 +374,16 @@ pipeline {
                     script {
                         // 브랜치별 환경 파일 선택
                         def envFileCredentialId = SABANGNET_ENV_FILE
-                        if (env.BRANCH_NAME == 'dev') {
-                            envFileCredentialId = SABANGNET_ENV_FILE_DEV  // 개발용 환경 파일
+                        def dockerComposeEnvFileId = DOCKER_COMPOSE_ENV_FILE_ID
+                        if (env.BRANCH_NAME == 'dev' || env.BRANCH_NAME.contains('docker') ) {
+                            envFileCredentialId = SABANGNET_ENV_FILE_DEV
+                            dockerComposeEnvFileId = DOCKER_COMPOSE_ENV_FILE_ID_DEV  // 개발용 환경 파일
                         }
                         
                         withCredentials([
                             file(credentialsId: envFileCredentialId, variable: 'ENV_FILE'),
                             file(credentialsId: DOCKER_COMPOSE_FILE_ID, variable: 'DOCKER_COMPOSE_FILE'),
-                            file(credentialsId: DOCKER_COMPOSE_ENV_FILE_ID, variable: 'DOCKER_COMPOSE_ENV_FILE'),
+                            file(credentialsId: dockerComposeEnvFileId, variable: 'DOCKER_COMPOSE_ENV_FILE'),
                             usernamePassword(
                                 credentialsId: REGISTRY_CREDENTIAL_ID,
                                 usernameVariable: 'REGISTRY_USER',
