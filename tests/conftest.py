@@ -147,18 +147,8 @@ def client(test_app: FastAPI) -> Generator[TestClient, Any, None]:
     """동기 테스트 클라이언트"""
 
     try:
-        # 모든 의존성 함수들을 mock으로 override
+        # 의존성 함수들 mock으로 override
         from unittest.mock import AsyncMock, MagicMock
-        
-        # Product 관련 의존성
-        from api.v1.endpoints.product import get_product_read_service, get_product_update_service, get_product_db_xml_usecase
-        from services.product.product_read_service import ProductReadService
-        from services.product.product_update_service import ProductUpdateService
-        from services.usecase.product_db_xml_usecase import ProductDbXmlUsecase
-        
-        mock_product_read_service = AsyncMock(spec=ProductReadService)
-        mock_product_update_service = AsyncMock(spec=ProductUpdateService)
-        mock_product_db_xml_usecase = AsyncMock(spec=ProductDbXmlUsecase)
         
         # 전역 mock 인스턴스들을 저장할 딕셔너리
         global_mocks = {}
@@ -197,35 +187,35 @@ def client(test_app: FastAPI) -> Generator[TestClient, Any, None]:
         
         # DownFormOrder 관련 의존성
         from api.v1.endpoints.down_form_order import (
-            get_down_form_order_create_service, 
-            get_down_form_order_read_service,
+            # get_down_form_order_create_service, 
+            # get_down_form_order_read_service,
             get_down_form_order_update_service,
             get_down_form_order_delete_service,
             get_data_processing_usecase
         )
-        from services.down_form_orders.down_form_order_create_service import DownFormOrderCreateService
-        from services.down_form_orders.down_form_order_read_service import DownFormOrderReadService
+        # from services.down_form_orders.down_form_order_create_service import DownFormOrderCreateService
+        # from services.down_form_orders.down_form_order_read_service import DownFormOrderReadService
         from services.down_form_orders.down_form_order_update_service import DownFormOrderUpdateService
         from services.down_form_orders.down_form_order_delete_service import DownFormOrderDeleteService
-        from services.usecase.data_processing_usecase import DataProcessingUsecase
+        # from services.usecase.data_processing_usecase import DataProcessingUsecase
         
-        mock_down_form_order_create_service = AsyncMock(spec=DownFormOrderCreateService)
-        mock_down_form_order_read_service = AsyncMock(spec=DownFormOrderReadService)
+        # mock_down_form_order_create_service = AsyncMock(spec=DownFormOrderCreateService)
+        # mock_down_form_order_read_service = AsyncMock(spec=DownFormOrderReadService)
         mock_down_form_order_update_service = AsyncMock(spec=DownFormOrderUpdateService)
         mock_down_form_order_delete_service = AsyncMock(spec=DownFormOrderDeleteService)
-        mock_data_processing_usecase = AsyncMock(spec=DataProcessingUsecase)
+        # mock_data_processing_usecase = AsyncMock(spec=DataProcessingUsecase)
         
-        global_mocks['down_form_order_create'] = mock_down_form_order_create_service
-        global_mocks['down_form_order_read'] = mock_down_form_order_read_service
+        # global_mocks['down_form_order_create'] = mock_down_form_order_create_service
+        # global_mocks['down_form_order_read'] = mock_down_form_order_read_service
         global_mocks['down_form_order_update'] = mock_down_form_order_update_service
         global_mocks['down_form_order_delete'] = mock_down_form_order_delete_service
-        global_mocks['data_processing'] = mock_data_processing_usecase
+        # global_mocks['data_processing'] = mock_data_processing_usecase
         
-        test_app.dependency_overrides[get_down_form_order_create_service] = lambda: global_mocks['down_form_order_create']
-        test_app.dependency_overrides[get_down_form_order_read_service] = lambda: global_mocks['down_form_order_read']
+        # test_app.dependency_overrides[get_down_form_order_create_service] = lambda: global_mocks['down_form_order_create']
+        # test_app.dependency_overrides[get_down_form_order_read_service] = lambda: global_mocks['down_form_order_read']
         test_app.dependency_overrides[get_down_form_order_update_service] = lambda: global_mocks['down_form_order_update']
         test_app.dependency_overrides[get_down_form_order_delete_service] = lambda: global_mocks['down_form_order_delete']
-        test_app.dependency_overrides[get_data_processing_usecase] = lambda: global_mocks['data_processing']
+        # test_app.dependency_overrides[get_data_processing_usecase] = lambda: global_mocks['data_processing']
         
         # 전역 mock을 앱에 저장하여 테스트에서 접근 가능하도록 함
         test_app.state.global_mocks = global_mocks
@@ -237,26 +227,26 @@ def client(test_app: FastAPI) -> Generator[TestClient, Any, None]:
         raise e
 
 
-@pytest.fixture
-def async_client(test_app: FastAPI) -> TestClient:
-    """비동기 테스트 클라이언트 (TestClient 사용)"""
+# @pytest.fixture
+# def async_client(test_app: FastAPI) -> TestClient:
+#     """비동기 테스트 클라이언트 (TestClient 사용)"""
 
-    try:
-        # DataProcessingUsecase 의존성 오버라이드
-        from services.usecase.data_processing_usecase import DataProcessingUsecase
-        from unittest.mock import AsyncMock
+#     try:
+#         # DataProcessingUsecase 의존성 오버라이드
+#         from services.usecase.data_processing_usecase import DataProcessingUsecase
+#         from unittest.mock import AsyncMock
         
-        mock_data_processing_usecase = AsyncMock(spec=DataProcessingUsecase)
-        mock_data_processing_usecase.process_excel_to_down_form_orders = AsyncMock(return_value=5)
+#         mock_data_processing_usecase = AsyncMock(spec=DataProcessingUsecase)
+#         mock_data_processing_usecase.process_excel_to_down_form_orders = AsyncMock(return_value=5)
         
-        # 함수 참조로 오버라이드
-        from api.v1.endpoints.down_form_order import get_data_processing_usecase
-        test_app.dependency_overrides[get_data_processing_usecase] = lambda: mock_data_processing_usecase
+#         # 함수 참조로 오버라이드
+#         from api.v1.endpoints.down_form_order import get_data_processing_usecase
+#         test_app.dependency_overrides[get_data_processing_usecase] = lambda: mock_data_processing_usecase
         
-        return TestClient(test_app)
-    except Exception as e:
-        logger.error(f"비동기 테스트 클라이언트 호출 실패: {e}")
-        raise e
+#         return TestClient(test_app)
+#     except Exception as e:
+#         logger.error(f"비동기 테스트 클라이언트 호출 실패: {e}")
+#         raise e
 
 
 @pytest.fixture(autouse=True)

@@ -2,10 +2,11 @@ import json
 from typing import Optional
 from sqlalchemy import text, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.macro.macro_info import MacroInfo
+from models.macro_batch_processing.macro_info import MacroInfo
 
 
 class TemplateConfigRepository:
+    # 테이블 model 만들다가 말았습니다. (models/export_templates, models/template_column_mappings)
     DEFAULT_TEMPLATE_META_QUERY = """
         SELECT id, template_code, template_name, is_aggregated, group_by_fields
         FROM export_templates
@@ -77,8 +78,7 @@ class TemplateConfigRepository:
             "column_mappings": input_columns
         }
     
-    async def get_macro_name_by_template_code(self, template_code: str) -> Optional[list[str]]:
-        query = select(MacroInfo.macro_name)
-        query = query.where(MacroInfo.form_name == template_code)
+    async def get_macro_name_by_template_code(self, template_code: str) -> Optional[str]:
+        query = select(MacroInfo.macro_name).where(MacroInfo.form_name == template_code)
         result = await self.session.execute(query)
         return result.scalars().first()

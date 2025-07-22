@@ -1,3 +1,4 @@
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from repository.template_config_repository import TemplateConfigRepository
 
@@ -18,3 +19,6 @@ class TemplateConfigReadService:
         
         template_config = await self.template_config_repository.get_template_config_by_template_code(template_code=template_code)
         return template_config
+    
+    async def get_macro_name_by_template_code(self, template_code: str) -> Optional[str]:
+        return await self.template_config_repository.get_macro_name_by_template_code(template_code)

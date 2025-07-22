@@ -67,7 +67,7 @@ def get_data_processing_usecase(session: AsyncSession = Depends(get_async_sessio
 @router.get("", response_model=DownFormOrderBulkResponse)
 async def down_form_orders(
     skip: int = Query(0, ge=0, description="건너뛸 건수"),
-    limit: int = Query(200, ge=1, le=200, description="조회할 건수"),
+    limit: int = Query(200, ge=1, description="조회할 건수"),
     down_form_order_read_service: DownFormOrderReadService = Depends(
         get_down_form_order_read_service),
 ):
@@ -319,5 +319,9 @@ async def upload_excel_file_to_macro_get_url(
     """
     프론트에서 template_code와 엑셀 파일을 받아 매크로 실행 후 down_form_orders 테이블에 저장 후 성공한 레코드 수 반환.
     """
-    saved_count = await data_processing_usecase.save_down_form_orders_from_macro_run_excel(file, template_code, work_status="macro_run")
+    saved_count = await data_processing_usecase.save_down_form_orders_from_macro_run_excel(
+        template_code=template_code,
+        file=file,
+        work_status="macro_run"
+    )
     return {"saved_count": saved_count}

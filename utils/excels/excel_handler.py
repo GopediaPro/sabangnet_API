@@ -1,10 +1,11 @@
-from typing import List
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border
 import re
+import openpyxl
 import pandas as pd
+from typing import List
 from openpyxl.utils import get_column_letter
-
+from openpyxl.workbook.workbook import Workbook
+from openpyxl.worksheet.worksheet import Worksheet
+from openpyxl.styles import Font, PatternFill, Alignment, Border
 """
 주문관리 Excel 파일 매크로 공통 처리 메소드
 - 기본 서식 설정
@@ -16,10 +17,10 @@ from openpyxl.utils import get_column_letter
 
 
 class ExcelHandler:
-    def __init__(self, ws, wb=None):
-        self.ws = ws
-        self.wb = wb
-        self.last_row = ws.max_row
+    def __init__(self, ws: Worksheet, wb: Workbook = None):
+        self.ws: Worksheet = ws
+        self.wb: Workbook = wb
+        self.last_row: int = ws.max_row
 
     @classmethod
     def from_file(cls, file_path, sheet_index=0):

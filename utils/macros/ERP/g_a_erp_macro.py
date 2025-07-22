@@ -1,16 +1,23 @@
 from openpyxl.cell import Cell
+from openpyxl.workbook.workbook import Workbook
+from openpyxl.worksheet.worksheet import Worksheet
+
+from utils.logs.sabangnet_logger import get_logger
 from utils.excels.excel_handler import ExcelHandler
 from utils.excels.excel_column_handler import ExcelColumnHandler
 
 
+logger = get_logger(__name__)
+
+
 class ERPGmaAucMacro:
     def __init__(self, file_path: str):
-        self.ex = ExcelHandler.from_file(file_path)
+        self.ex: ExcelHandler = ExcelHandler.from_file(file_path)
         self.file_path = file_path
-        self.ws = self.ex.ws
-        self.wb = self.ex.wb
+        self.ws: Worksheet = self.ex.ws
+        self.wb: Workbook = self.ex.wb
         self.basket_set = set()
-        self.headers = None
+        self.headers: list[str] = None
 
     def gauc_erp_macro_run(self):
         col_h = ExcelColumnHandler()
@@ -34,7 +41,7 @@ class ERPGmaAucMacro:
 
         # 정렬 기준: 2번째 컬럼(B) → 3번째 컬럼(C) 순으로 정렬
         sort_columns = [2, 3, 5, 6, 4]
-        print("시트별 정렬, 시트 분리 시작...")
+        logger.info("시트별 정렬, 시트 분리 시작...")
         headers, data = self.ex.preprocess_and_update_ws(self.ws, sort_columns)
         self.ex.split_and_write_ws_by_site(
             wb=self.wb,
@@ -44,9 +51,9 @@ class ERPGmaAucMacro:
             site_to_sheet=site_to_sheet,
             site_col_idx=2,
         )
-        print("시트별 정렬, 시트 분리 완료")
+        logger.info("시트별 정렬, 시트 분리 완료")
 
-        print("시트별 서식, 디자인 적용 시작...")
+        logger.info("시트별 서식, 디자인 적용 시작...")
         for ws in self.wb.worksheets:
             self.ex.set_header_style(ws)
             if ws.max_row <= 1:
@@ -68,10 +75,10 @@ class ERPGmaAucMacro:
                 col_h.convert_int_column(ws[f"S{row}"])
                 col_h.convert_int_column(ws[f"V{row}"])
 
-            print(f"[{ws.title}] 서식 및 디자인 적용 완료")
+            logger.info(f"[{ws.title}] 서식 및 디자인 적용 완료")
 
         output_path = self.ex.save_file(self.file_path)
-        print(f"✓ G,옥 ERP 자동화 완료! 최종 파일: {output_path}")
+        logger.info(f"✓ G,옥 ERP 자동화 완료! 최종 파일: {output_path}")
         return output_path
 
     def _basket_duplicate_column(self, basket_cell: Cell, shipping_cell: Cell):

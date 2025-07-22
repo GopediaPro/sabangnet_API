@@ -1,8 +1,8 @@
 import asyncpg
 from typing import Optional
 from core.settings import SETTINGS
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from utils.logs.sabangnet_logger import get_logger
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 logger = get_logger(__name__)
 
@@ -56,23 +56,29 @@ async def test_db_write(value: str) -> bool:
 
 async def create_tables():
     """
-    데이터베이스 테이블 생성 (폴더 이름 순서로 정렬)
+    데이터베이스 테이블 생성
     """
     try:
         from models.base_model import Base
-        from models.certification_detail.certification_detail import CertificationDetail
-        from models.count_executing_data.count_executing_data import CountExecuting
-        from models.down_form_orders.down_form_order import BaseDownFormOrder
-        from models.macro.macro_info import MacroInfo
-        from models.mall_certification_handling.mall_certification_handling import MallCertificationHandling
+        # price
         from models.mall_price.mall_price import MallPrice
         from models.one_one_price.one_one_price import OneOnePrice
-        from models.product.modified_product_data import ModifiedProductData
-        from models.product.product_mycategory_data import ProductMycategoryData
-        from models.product.product_raw_data import ProductRawData
-        from models.product.product_registration_data import ProductRegistrationRawData
+        # macro
+        from models.macro_batch_processing.macro_info import MacroInfo
+        from models.macro_batch_processing.batch_process import BatchProcess
+        # orders
         from models.receive_orders.receive_orders import ReceiveOrders
         from models.down_form_orders.down_form_order import BaseDownFormOrder
+        # product
+        from models.product.product_raw_data import ProductRawData
+        from models.product.modified_product_data import ModifiedProductData
+        from models.product.product_mycategory_data import ProductMycategoryData
+        from models.product.product_registration_data import ProductRegistrationRawData
+        # count
+        from models.count_executing_data.count_executing_data import CountExecuting
+        # mall
+        from models.certification_detail.certification_detail import CertificationDetail
+        from models.mall_certification_handling.mall_certification_handling import MallCertificationHandling
         async with async_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         

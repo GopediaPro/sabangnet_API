@@ -21,7 +21,12 @@ from core.db import AsyncSessionLocal, get_db_pool, test_db_write
 from models.receive_orders.receive_orders import ReceiveOrders
 # controller
 from controller.product import run_generate_and_save_all_product_code_data
-from controller import fetch_mall_list, fetch_order_list, test_one_one_price_calculation, request_product_create as request_product_create_controller
+from controller import (
+    fetch_mall_list,
+    fetch_order_list,
+    test_one_one_price_calculation,
+    request_product_create as request_product_create_controller
+)
 # service
 from services.receive_orders.receive_order_create_service import ReceiveOrderCreateService
 # utils

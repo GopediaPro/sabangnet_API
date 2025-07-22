@@ -1,8 +1,7 @@
-
-from sqlalchemy.ext.asyncio import AsyncSession
-from models.batch_process import BatchProcess
-from schemas.macros.batch_process_dto import BatchProcessDto
 from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+from models.macro_batch_processing.batch_process import BatchProcess
+from schemas.macro_batch_processing.batch_process_dto import BatchProcessDto
 
 
 class BatchInfoRepository:
