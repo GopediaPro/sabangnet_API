@@ -12,7 +12,7 @@ pipeline {
         // Docker Registry 설정
         DOCKER_REGISTRY = 'registry.lyckabc.xyz'
         IMAGE_NAME = 'sabangnet-api'
-        DOMAIN = 'lyckabc.xyz'
+        DOMAIN = 'alohastudio.co.kr'
         DEV_DOMAIN = 'lyckabc.xyz'
         SUBDOMAIN = 'api'
         // Git 설정
@@ -21,7 +21,8 @@ pipeline {
         
         // 인증 정보
         REGISTRY_CREDENTIAL_ID = 'docker-registry-credentials'
-        SSH_CREDENTIAL_ID = 'lyckabc-ssh-key-id'
+        SSH_CREDENTIAL_ID = 'alohastudio-ssh-key-id'
+        SSH_CREDENTIAL_ID_DEV = 'lyckabc-ssh-key-id'
         DOCKER_REGISTRY_ID = 'docker-registry-id'
         DOCKER_REGISTRY_PW = 'docker-registry-pw'
         SABANGNET_ENV_FILE = 'sabangnet-env-file'
@@ -56,15 +57,17 @@ pipeline {
                     // 브랜치별 환경 설정
                     if (env.BRANCH_NAME == 'main') {
                         env.DEPLOY_ENV = 'production'
-                        env.DEPLOY_SERVER_USER_HOST = 'root@lyckabc.xyz'
+                        env.DEPLOY_SERVER_USER_HOST = 'root@alohastudio.co.kr'
                     } else if (env.BRANCH_NAME == 'dev') {
                         env.DEPLOY_ENV = 'development'
                         env.DEPLOY_SERVER_USER_HOST = 'root@lyckabc.xyz'
                         env.DOMAIN = DEV_DOMAIN
+                        env.SSH_CREDENTIAL_ID = SSH_CREDENTIAL_ID_DEV
                     } else if (env.BRANCH_NAME.contains('docker')) {
                         env.DEPLOY_ENV = 'development'
                         env.DEPLOY_SERVER_USER_HOST = 'root@lyckabc.xyz'
                         env.DOMAIN = DEV_DOMAIN
+                        env.SSH_CREDENTIAL_ID = SSH_CREDENTIAL_ID_DEV
                         DOCKER_SAFE_BRANCH_NAME = "docker"
                         echo "🐳 Docker 브랜치 감지: ${env.BRANCH_NAME}"
                     } else {
