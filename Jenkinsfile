@@ -153,9 +153,10 @@ pipeline {
                             // 타임스탬프 변수를 Groovy에서 정의
                             def timeStamp = "${env.BUILD_NUMBER}_${new Date().format('MMdd_HHmmss')}"
                             // 브랜치별 환경 파일 선택
-                            def envFileCredentialId = SABANGNET_ENV_FILE
-                            if (env.BRANCH_NAME == 'dev' || env.BRANCH_NAME.contains('docker') ) {
-                                envFileCredentialId = SABANGNET_ENV_FILE_DEV
+                            def envFileCredentialId = SABANGNET_ENV_FILE_DEV
+                            if (env.BRANCH_NAME == 'main') {
+                                envFileCredentialId = SABANGNET_ENV_FILE
+                                echo "🔍 프로덕션 환경 파일 선택 완료"
                             }
                             // 환경 변수 파일 import
                             withCredentials([file(credentialsId: envFileCredentialId, variable: 'ENV_FILE')]) {
@@ -284,9 +285,10 @@ pipeline {
                     echo "Docker 이미지를 빌드합니다: ${DOCKER_REGISTRY}/${IMAGE_NAME}:${DOCKER_SAFE_BRANCH_NAME}-latest"
                     
                     // 브랜치별 환경 파일 선택
-                    def envFileCredentialId = SABANGNET_ENV_FILE
-                    if (env.BRANCH_NAME == 'dev' || env.BRANCH_NAME.contains('docker') ) {
-                        envFileCredentialId = SABANGNET_ENV_FILE_DEV
+                    def envFileCredentialId = SABANGNET_ENV_FILE_DEV
+                    if (env.BRANCH_NAME == 'main') {
+                        envFileCredentialId = SABANGNET_ENV_FILE
+                        echo "🔍 프로덕션 환경 파일 선택 완료"
                     }
                     
                     withCredentials([file(credentialsId: envFileCredentialId, variable: 'ENV_FILE')]) {
@@ -373,11 +375,12 @@ pipeline {
                 sshagent(credentials: [ACTUAL_SSH_CREDENTIAL_ID]) {
                     script {
                         // 브랜치별 환경 파일 선택
-                        def envFileCredentialId = SABANGNET_ENV_FILE
-                        def dockerComposeEnvFileId = DOCKER_COMPOSE_ENV_FILE_ID
-                        if (env.BRANCH_NAME == 'dev' || env.BRANCH_NAME.contains('docker') ) {
-                            envFileCredentialId = SABANGNET_ENV_FILE_DEV
-                            dockerComposeEnvFileId = DOCKER_COMPOSE_ENV_FILE_DEV_ID  // 개발용 환경 파일
+                        def envFileCredentialId = SABANGNET_ENV_FILE_DEV
+                        def dockerComposeEnvFileId = DOCKER_COMPOSE_ENV_FILE_DEV_ID
+                        if (env.BRANCH_NAME == 'main') {
+                            envFileCredentialId = SABANGNET_ENV_FILE
+                            dockerComposeEnvFileId = DOCKER_COMPOSE_ENV_FILE_ID  // 프로덕션용 환경 파일
+                            echo "🔍 프로덕션 환경 파일 선택 완료"
                         }
                         
                             withCredentials([
