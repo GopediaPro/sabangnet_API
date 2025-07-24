@@ -15,7 +15,7 @@ from models.down_form_orders.down_form_order import BaseDownFormOrder
 from schemas.receive_orders.receive_orders_dto import ReceiveOrdersDto
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto, DownFormOrdersBulkDto
 # service
-from services.macro.order_macro_service import find_template_by_filename, process_macro_with_tempfile
+from services.macro.order_macro_service import find_template_code_by_filename, process_macro_with_tempfile
 from services.receive_orders.receive_order_read_service import ReceiveOrderReadService
 from services.down_form_orders.down_form_order_read_service import DownFormOrderReadService
 from services.down_form_orders.template_config_read_service import TemplateConfigReadService
@@ -401,7 +401,7 @@ class DataProcessingUsecase(DataProcessingFunctions):
             f"[START] save_down_form_orders_from_macro_run_excel | file_name={file.filename} ")
         # 1. 파일 이름에서 템플릿 코드 조회
         try:
-            template_code = await find_template_by_filename(self.session, file.filename)
+            template_code = await find_template_code_by_filename(self.session, file.filename)
             logger.info(f"template_code: {template_code}")
         except Exception as e:
             logger.error(f"Template not found: {file.filename} | error: {e}")
