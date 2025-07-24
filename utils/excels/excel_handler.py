@@ -487,7 +487,7 @@ class ExcelHandler:
             if cell_value is not None and _should_highlight(txt):
                 ws[f"{col}{row}"].fill = light_color
 
-    def set_header_style(self, ws, headers: list, fill: PatternFill, font: Font, alignment: Alignment):
+    def set_header_style(self, ws):
         """
         지정한 워크시트의 헤더 행에 배경색, 폰트, 정렬을 일괄 적용
         Args:
@@ -497,12 +497,16 @@ class ExcelHandler:
             font: 폰트
             alignment: 정렬 
         """
-        for col in range(1, len(headers) + 1):
-            header_value = headers[col-1]
-            ws_cell = ws.cell(row=1, column=col, value=header_value)
-            ws_cell.fill = fill
-            ws_cell.font = font
-            ws_cell.alignment = alignment
+        white_font = Font(name='맑은 고딕', size=9, color="FFFFFF", bold=True)
+        center_alignment = Alignment(horizontal='center')
+        green_fill = PatternFill(start_color="008000",
+                                 end_color="008000", fill_type="solid")
+        for cell in ws[1]:
+            cell.fill = green_fill
+            cell.font = white_font
+            cell.alignment = center_alignment
+            cell.border = Border()
+            ws.row_dimensions[1].height = 15
 
     def convert_to_number(self, cell_value):
         """
@@ -686,3 +690,247 @@ class ExcelHandler:
             # 합계를 D열에 입력
             ws[f'D{row}'].value = total
             ws[f'D{row}'].number_format = 'General'
+
+    @staticmethod
+    def file_path_to_dataframe(file_path, sheet_index=0, **to_df_kwargs):
+        """
+        임시파일을 DataFrame으로 읽고, 임시 파일 삭제 후 DataFrame 반환
+        Args:
+            file_path: 업로드 된 파일 경로
+            sheet_index: 읽을 시트 인덱스(기본 0)
+            **to_df_kwargs: to_dataframe에 전달할 추가 인자
+        Returns:
+            pd.DataFrame
+        """
+        import os
+        from minio_handler import delete_temp_file
+        try:
+            ex = ExcelHandler.from_file(file_path, sheet_index=sheet_index)
+            df = ex.to_dataframe(**to_df_kwargs)
+        finally:
+            delete_temp_file(file_path)
+        return df
+
+    def preprocess_and_update_ws(self, ws, sort_columns: list[int]):
+        """
+        1. 헤더/데이터 추출
+        2. 데이터 정렬
+        3. 원본 시트 "자동화"로 이름 변경 및 정렬된 데이터로 업데이트
+        return: (headers, sorted_data)
+        """
+        # 1. 헤더와 데이터 추출
+        headers, data = self._extract_headers_and_data(ws)
+
+        # 2. 데이터 정렬
+        data = self._sort_data(data, sort_columns)
+
+        # 3. 원본 시트를 "자동화"로 이름 변경하고 정렬된 데이터로 업데이트
+        ws.title = "자동화"
+        self._update_worksheet_data(ws, data)
+
+        return headers, data
+
+    def split_and_write_ws_by_site(
+        self,
+        wb,
+        headers: list,
+        data: list[list],
+        sheets_name: list[str],
+        site_to_sheet: dict,
+        site_col_idx: int = 2,
+    ):
+        """
+        wb: 워크북
+        headers: 헤더
+        data: 데이터
+        sheets_name: 생성할 시트명 리스트
+        site_to_sheet: {사이트명: 시트명}
+        site_col_idx: 사이트 컬럼 인덱스 (1-based) 기본값 2
+        """
+
+        # 4. 시트들 생성
+        filtered_sheets = [name for name in sheets_name if name != "자동화"]
+        ws_map = self._create_sheets(
+            wb.worksheets[0], headers, filtered_sheets)
+
+        # 5. 각 필터링된 시트에 데이터 삽입
+        self._write_data_to_sheets(data, ws_map, site_to_sheet, site_col_idx)
+
+        # 6. 컬럼 너비 복사
+        self._copy_column_widths(wb)
+
+    def _extract_headers_and_data(self, ws) -> tuple[list, list[list]]:
+        """
+        워크시트에서 헤더와 데이터 추출
+        args:
+            ws: 워크시트
+        return:
+            headers: 헤더
+            data: 데이터
+        """
+        # 헤더 추출
+        headers = [ws.cell(row=1, column=c).value for c in range(
+            1, ws.max_column + 1)]
+
+        # 데이터 추출
+        data = [
+            [ws.cell(row=r, column=c).value for c in range(
+                1, ws.max_column + 1)]
+            for r in range(2, ws.max_row + 1)
+        ]
+
+        return headers, data
+    
+    def _sort_data(self, data: list[list], sort_columns: list[int]) -> list[list]:
+        """
+        데이터 정렬 (컬럼 인덱스) 2025-07-17 srot_columns에 음수 값이 입력되면 역순 정렬되도록 수정
+        args:
+            data: 데이터
+            sort_columns: 정렬 기준 컬럼 인덱스
+        return:
+            sorted_data: 정렬된 데이터
+        """
+        def dynamic_key(item):
+            key_tuple_elements = []
+            for col_idx in sort_columns:
+                value = item[abs(col_idx)-1] # 현재 열의 값
+                if col_idx > 0:
+                    key_tuple_elements.append(value)
+                elif col_idx < 0:
+                    # 값의 타입에 따라 내림차순 처리
+                    if isinstance(value, (int, float)):
+                        key_tuple_elements.append(-value) # 숫자는 음수화하여 내림차순
+                    elif isinstance(value, str):
+                        key_tuple_elements.append(ReverseComparableString(value)) 
+                        # 문자열은 커스텀 클래스 사용
+                    else:
+                        # 다른 타입일 경우 기본적으로는 오름차순으로 처리
+                        key_tuple_elements.append(value) 
+            return tuple(key_tuple_elements)
+        return sorted(data, key=dynamic_key)
+
+    def _update_worksheet_data(self, ws, data: list[list]):
+        """
+        워크시트에 정렬된 데이터 업데이트
+        args:
+            ws: 워크시트
+            data: 데이터
+        """
+        font = Font(name='맑은 고딕', size=9)
+        empty_fill = PatternFill()
+
+        # 정렬된 데이터 다시 삽입 및 기본 스타일 제거
+        for row_idx, row_data in enumerate(data, start=2):
+            for col_idx, value in enumerate(row_data, start=1):
+                cell = ws.cell(row=row_idx, column=col_idx,
+                               value=value if value or value == 0 else "")
+                cell.fill = empty_fill
+                cell.font = font
+                cell.alignment = Alignment(wrap_text=False)
+                cell.border = Border()
+            ws.row_dimensions[row_idx].height = 15
+            ws.sheet_view.showGridLines = True
+
+    def _create_sheets(self, ws, headers: list, filtered_sheets: list[str]) -> dict:
+        """
+        시트들 생성
+        args:
+            ws: 워크시트
+            headers: 헤더
+            filtered_sheets: 생성할 시트명 리스트
+        """
+        ws_map = {}
+
+        for sheet_name in filtered_sheets:
+            # 기존 시트 삭제 (존재하는 경우)
+            if sheet_name in ws.parent.sheetnames:
+                del ws.parent[sheet_name]
+
+            new_ws = ws.parent.create_sheet(title=sheet_name)
+
+            # 헤더 추가
+            for col, header in enumerate(headers, start=1):
+                new_ws.cell(row=1, column=col, value=header)
+
+            ws_map[sheet_name] = new_ws
+
+        return ws_map
+
+    def _write_data_to_sheets(self, data: list[list], ws_map: dict, site_to_sheet: dict, site_col_idx: int = 2):
+        """
+        데이터를 스트리밍 방식으로 각 시트에 삽입
+        args:
+            data: 데이터
+            ws_map: 시트 매핑
+            site_to_sheet: 사이트 매핑
+        """
+        account_pattern = re.compile(r'^\[([^\]]+)\]')
+        empty_fill = PatternFill()
+        font = Font(name='맑은 고딕', size=9)
+
+        for row in data:
+            # 사이트 정보 추출
+            site_value = str(
+                row[site_col_idx - 1]) if len(row) > site_col_idx - 1 and row[site_col_idx - 1] else ""
+
+            # 계정명 추출
+            match = account_pattern.match(site_value)
+            if match:
+                account_name = match.group(1)
+                target_sheet_name = site_to_sheet.get(account_name)
+
+                # 해당 시트에 즉시 데이터 삽입
+                if target_sheet_name and target_sheet_name in ws_map:
+                    target_ws = ws_map[target_sheet_name]
+
+                    # 다음 빈 행에 데이터 삽입 (max_row + 1)
+                    next_row = target_ws.max_row + 1
+
+                    # 행 데이터 삽입
+                    for col_idx, value in enumerate(row, start=1):
+                        cell = target_ws.cell(
+                            row=next_row, column=col_idx, value=value)
+                        cell.fill = empty_fill
+                        cell.font = font
+                        cell.alignment = Alignment(wrap_text=False)
+                    # 행 높이 설정
+                    target_ws.row_dimensions[next_row].height = 15
+
+    def _copy_column_widths(self, wb):
+        """
+        컬럼 너비 복사
+        args:
+            wb: 워크북
+        추가 : 너비 설정 확인 필요
+        """
+        from openpyxl.utils import get_column_letter
+
+        for target_ws in wb.worksheets[1:]:
+            source_ws = wb.worksheets[0]
+            for col_num in range(1, source_ws.max_column + 1):
+                col_letter = get_column_letter(col_num)
+                # 소스 워크시트에서 컬럼 너비 가져오기
+                if col_letter in source_ws.column_dimensions:
+                    src_width = source_ws.column_dimensions[col_letter].width
+                    target_ws.column_dimensions[col_letter].width = src_width
+
+    def create_vlookup_dict(self, wb):
+        vlookup_dict = {}
+        for sheet in wb:
+            if sheet.title == "Sheet1":
+                for row in range(2, sheet.max_row + 1):
+                   vlookup_dict[str(sheet.cell(row=row, column=1).value)] = str(sheet.cell(row=row, column=2).value)
+                del wb[sheet.title]
+        return vlookup_dict
+
+class ReverseComparableString:
+    def __init__(self, s):
+        self.s = s
+
+    # '작다' (<) 연산을 뒤집어 '크다' (>)로 동작하게 함
+    def __lt__(self, other):
+        return self.s > other.s
+
+    # '같다' (==) 연산은 그대로
+    def __eq__(self, other):
+        return self.s == other.s
