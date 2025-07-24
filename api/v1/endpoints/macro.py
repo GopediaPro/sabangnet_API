@@ -142,19 +142,3 @@ async def upload_excel_file_to_macro_get_url(
         "successful_results": successful_results,
         "failed_results": failed_results
     }
-
-
-@router.post("/excel-run-macro-db-bulk")
-async def upload_excel_file_to_macro_get_url(
-    files: list[UploadFile] = File(...),
-    data_processing_usecase: DataProcessingUsecase = Depends(
-        get_data_processing_usecase)
-):
-    """
-    프론트에서 엑셀 파일을 받아 파일 이름에서 template_code를 조회하여 매크로 실행 후 down_form_orders 테이블에 저장.
-    """
-    total_saved_count = 0
-    for file in files:
-        saved_count = await data_processing_usecase.save_down_form_orders_from_macro_run_excel(file, work_status="macro_run")
-        total_saved_count += saved_count
-    return {"saved_count": total_saved_count}
