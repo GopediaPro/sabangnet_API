@@ -1,6 +1,7 @@
 # std
 from typing import Any
 from datetime import datetime
+import asyncio
 # util
 from utils.excels.convert_xlsx import ConvertXlsx
 from utils.logs.sabangnet_logger import get_logger
@@ -14,7 +15,7 @@ from models.down_form_orders.down_form_order import BaseDownFormOrder
 from schemas.receive_orders.receive_orders_dto import ReceiveOrdersDto
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto, DownFormOrdersBulkDto
 # service
-from services.macro.order_macro_service import process_macro_with_tempfile
+from services.macro.order_macro_service import find_template_by_filename, process_macro_with_tempfile
 from services.receive_orders.receive_order_read_service import ReceiveOrderReadService
 from services.down_form_orders.down_form_order_read_service import DownFormOrderReadService
 from services.down_form_orders.template_config_read_service import TemplateConfigReadService
@@ -387,25 +388,32 @@ class DataProcessingUsecase(DataProcessingFunctions):
             logger.error(f"DB Error: {e}")
             raise
 
-    async def save_down_form_orders_from_macro_run_excel(self, file, template_code: str, work_status: str = None) -> int:
+    async def save_down_form_orders_from_macro_run_excel(self, file,  work_status: str = None) -> int:
         """
         save down form orders from macro run excel
         args:
             file: excel file
-            template_code: template code
             work_status: work status
         returns:
             saved_count: saved count
         """
         logger.info(
-            f"[START] save_down_form_orders_from_macro_run_excel | template_code={template_code} ")
-        # 1. 임시 파일 생성
+            f"[START] save_down_form_orders_from_macro_run_excel | file_name={file.filename} ")
+        # 1. 파일 이름에서 템플릿 코드 조회
+        try:
+            template_code = await find_template_by_filename(self.session, file.filename)
+            logger.info(f"template_code: {template_code}")
+        except Exception as e:
+            logger.error(f"Template not found: {file.filename} | error: {e}")
+            raise
+        # 2. 임시 파일 생성
         file_name, file_path = await process_macro_with_tempfile(self.session, template_code, file)
-        logger.info(f"temporary file path: {file_path}, file name: {file_name}")
-        # 2. 엑셀파일 데이터 파일 변환 후 임시파일 삭제
+        logger.info(
+            f"temporary file path: {file_path}, file name: {file_name}")
+        # 3. 엑셀파일 데이터 파일 변환 후 임시파일 삭제
         dataframe = ExcelHandler.file_path_to_dataframe(file_path)
         logger.info(f"dataframe: {len(dataframe)}")
-        # # 3. 데이터 저장
+        # 4. 데이터 저장
         saved_count = await self.process_excel_to_down_form_orders(dataframe, template_code, work_status=work_status)
         logger.info(
             f"[END] save_down_form_orders_from_macro_run_excel | saved_count={saved_count}")
@@ -440,3 +448,53 @@ class DataProcessingUsecase(DataProcessingFunctions):
         logger.info(
             f"[END] get_down_form_orders_by_work_status | temp_file_path={temp_file_path} | file_name={file_name}")
         return temp_file_path, file_name
+
+    async def bulk_save_down_form_orders_from_macro_run_excel(self, files: list) -> dict:
+        """
+        bulk save down form orders from macro run excel
+        args:
+            files: list of files
+        returns:
+            successful_results: list of successful results
+            failed_results: list of failed results
+            total_saved_count: total saved count
+        """
+        logger.info(
+            f"[START] bulk_save_down_form_orders_from_macro_run_excel | file_count={len(files)}")
+        # 1. 세마포어 설정
+        semaphore = asyncio.Semaphore(5) # 최대 5개 작업 동시 실행
+        successful_results = []
+        failed_results = []
+        total_saved_count = 0
+        # 2. 파일 처리
+        for file in files:
+            result = await self._process_file(file, semaphore)
+            saved_count = result.get('saved_count')
+            if saved_count:
+                successful_results.append(result)
+                total_saved_count += saved_count
+            else:
+                failed_results.append(result)
+            logger.info(f"result: {result}")
+        logger.info(
+            f"[END] bulk_save_down_form_orders_from_macro_run_excel | successful_results={successful_results} | failed_results={failed_results} | total_saved_count={total_saved_count}")
+        return successful_results, failed_results, total_saved_count
+
+
+    async def _process_file(self, file, semaphore) -> dict:
+        """
+        process file
+        args:
+            file: file
+            semaphore: semaphore for concurrency control
+        returns:
+            dict: {"filename": str, "saved_count": int} or {"filename": str, "error": str}
+        """
+        async with semaphore:
+            try:
+                saved_count = await self.save_down_form_orders_from_macro_run_excel(
+                    file, work_status="macro_run"
+                )
+                return {"filename": file.filename, "saved_count": saved_count}
+            except Exception as e:
+                return {"filename": file.filename, "error": str(e)}

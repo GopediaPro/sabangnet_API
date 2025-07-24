@@ -240,3 +240,50 @@ ECOUNT_DOMAIN=
 | CLI             | Typer (0.16.0)                                  |
 | 테스트          | pytest, pytest-html, pytest-xdist, pytest-cov, pytest-asyncio |
 | 기타            | 없음                                            |
+
+## Alembic (DB 마이그레이션) 적용 및 사용법
+
+### 1. Alembic 설치
+
+```bash
+pip install alembic
+```
+
+### 2. Alembic 환경설정
+- alembic.ini의 DB URL은 비워두고, alembic/env.py에서 환경변수 또는 settings를 통해 동적으로 DB URL을 주입합니다.
+- alembic/env.py에서 모든 모델이 Base.metadata에 등록되도록 `import models`를 반드시 추가합니다.
+- 마이그레이션 파일(예: alembic/versions/...)은 반드시 git에 커밋합니다.
+
+### 3. Alembic 기본 명령어
+
+```bash
+# 마이그레이션 파일 생성 (모델 변경 후)
+alembic revision --autogenerate -m "설명 메시지"
+
+# DB에 마이그레이션 적용
+alembic upgrade head
+
+# DB를 특정 리비전으로 되돌리기 (주의: 데이터 손실 가능)
+alembic downgrade <revision_id>
+
+# DB와 마이그레이션 버전 동기화만 (실제 구조 변경 X, 운영 DB에 적용 시)
+alembic stamp head
+```
+
+### 4. Alembic 적용 워크플로우
+1. 모델(Base) 변경 (필드 추가/삭제/수정 등)
+2. `alembic revision --autogenerate -m "설명"` 으로 마이그레이션 파일 생성
+3. 마이그레이션 파일을 검토/수정 (기본값, 데이터 변환 등 필요시)
+4. `alembic upgrade head`로 실제 DB에 적용
+
+### 5. 테스트 환경에서 Alembic 적용
+- pytest 실행 시, `tests/conftest.py`에서 자동으로 `alembic upgrade head`가 실행되어 테스트용 DB가 항상 최신 스키마로 유지됩니다.
+- 별도의 테이블 생성(create_tables) 코드는 사용하지 않습니다.
+
+### 6. 주의사항
+- alembic/versions/ 폴더와 마이그레이션 파일은 반드시 git에 포함해야 합니다.
+- .env 파일에 DB 정보가 올바르게 입력되어 있어야 합니다.
+- 운영 DB에 적용 전에는 반드시 백업을 권장합니다.
+- NOT NULL 컬럼 추가, UNIQUE 제약 추가 등은 기존 데이터와 충돌이 없는지 반드시 확인하세요.
+
+---

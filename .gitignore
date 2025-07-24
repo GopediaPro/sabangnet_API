@@ -16,3 +16,12 @@ venv
 
 !files/xml/templates/*
 !templates/*
+
+# Alembic cache/pycache
+alembic/__pycache__/
+alembic/*.pyc
+alembic/*.pyo
+alembic/*.pyd
+
+# (필요하다면) 환경별 alembic.ini
+# alembic.ini
