@@ -114,17 +114,26 @@ def etc_site_merge_packaging(input_path: str) -> str:
     splitter = ETCSheetManager(ws, ACCOUNT_MAPPING)
     splitter.apply_automation_logic(ws)
     
-    # ========== VBA 매크로 14단계: 시트분리 (OK, CL, BB, IY) ==========
+    # ========== 자동화 시트 생성 (맨 앞에 위치) ==========
+    # 매크로가 적용된 전체 시트를 "자동화" 이름으로 맨 앞에 복사
+    splitter.create_automation_sheet(ex.wb)
+    
+    # ========== VBA 매크로 14단계: 시트분리 (OK, BB, IY) ==========
     # 자동화 처리가 완료된 원본 시트에서 시트분리 수행
     rows_by_sheet = splitter.get_rows_by_sheet()
     
-    # 모든 필수 시트 생성 (데이터 유무와 무관하게 OK, CL, BB, IY 시트 생성)
+    # 모든 필수 시트 생성 (데이터 유무와 무관하게 OK, BB, IY 시트 생성)
     for sheet_name in REQUIRED_SHEETS:
         splitter.copy_to_new_sheet_simple(
             ex.wb,
             sheet_name, 
             rows_by_sheet.get(sheet_name, [])
         )
+    
+    # 원본 시트 삭제 (자동화 시트로 대체되었으므로)
+    original_sheet_name = ws.title
+    if original_sheet_name in ex.wb.sheetnames and original_sheet_name != "자동화":
+        del ex.wb[original_sheet_name]
     
     # 저장
     base_name = Path(input_path).stem  # 확장자 제거한 파일명
@@ -547,6 +556,21 @@ class ETCSheetManager:
         for row in range(start_row, end_row + 1):
             ws[f'A{row}'].number_format = 'General'
             ws[f"A{row}"].value = "=ROW()-1"
+
+    def create_automation_sheet(self, wb) -> None:
+        """
+        매크로가 적용된 전체 시트를 "자동화"라는 이름으로 맨 앞에 복사
+        """
+        # 기존 "자동화" 시트가 있으면 삭제
+        if "자동화" in wb.sheetnames:
+            del wb["자동화"]
+        
+        # 현재 워크시트를 복사하여 "자동화" 시트 생성
+        automation_ws = wb.copy_worksheet(self.ws)
+        automation_ws.title = "자동화"
+        
+        # "자동화" 시트를 맨 앞으로 이동
+        wb.move_sheet(automation_ws, offset=-len(wb.sheetnames) + 1)
 
 if __name__ == "__main__":
     excel_file_path = "/Users/smith/Documents/github/OKMart/sabangnet_API/files/test-[기본양식]-합포장용.xlsx"
