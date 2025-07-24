@@ -17,6 +17,14 @@ from utils.excels.excel_handler import ExcelHandler
 MALL_NAME = "지그재그"
 BLUE_FILL = PatternFill(start_color="CCE8FF", end_color="CCE8FF", fill_type="solid")
 
+# 시트 분리 설정 
+ACCOUNT_MAPPING = {
+    "OK": ["오케이마트"],
+    "IY": ["아이예스"]
+}
+
+# 필수 생성 시트 목록
+REQUIRED_SHEETS = list(ACCOUNT_MAPPING.keys())
 
 FONT_MALGUN = Font(name="맑은 고딕", size=9)
 HDR_FILL = PatternFill(start_color="006100", end_color="006100", fill_type="solid")
@@ -131,6 +139,49 @@ class ZIGZAGSheetSplitter:
                           value=self.ws.cell(row=r, column=c).value)
             new_ws[f"A{idx}"].value = "=ROW()-1"
 
+    def create_automation_sheet(self, wb) -> None:
+        """
+        매크로가 적용된 전체 시트를 "자동화"라는 이름으로 맨 앞에 복사
+        """
+        # 기존 "자동화" 시트가 있으면 삭제
+        if "자동화" in wb.sheetnames:
+            del wb["자동화"]
+        
+        # 현재 워크시트를 복사하여 "자동화" 시트 생성
+        automation_ws = wb.copy_worksheet(self.ws)
+        automation_ws.title = "자동화"
+        
+        # "자동화" 시트를 맨 앞으로 이동
+        wb.move_sheet(automation_ws, offset=-len(wb.sheetnames) + 1)
+
+    def copy_to_new_sheet_simple(self, 
+                                wb: Workbook, 
+                                sheet_name: str, 
+                                row_indices: List[int] = None) -> None:
+        """
+        VBA와 동일한 방식으로 새 시트 생성
+        - 원본 시트의 처리된 데이터를 각 계정명별로 복사만 수행
+        - 추가 자동화 로직 적용하지 않음
+        """
+        if sheet_name in wb.sheetnames:
+            del wb[sheet_name]
+            
+        new_ws = wb.create_sheet(sheet_name)
+        
+        # 헤더와 열 너비 복사
+        for c in range(1, self.last_col + 1):
+            new_ws.cell(row=1, column=c, 
+                       value=self.ws.cell(row=1, column=c).value)
+            new_ws.column_dimensions[get_column_letter(c)].width = self.col_widths[c - 1]
+        
+        # 데이터 복사 (행이 있는 경우만)
+        if row_indices:
+            for idx, r in enumerate(row_indices, start=2):
+                for c in range(1, self.last_col + 1):
+                    new_ws.cell(row=idx, column=c, 
+                              value=self.ws.cell(row=r, column=c).value)
+                new_ws[f"A{idx}"].value = "=ROW()-1"
+
 
 def zigzag_merge_packaging(input_path: str) -> str:
     """지그재그 주문 합포장 자동화 처리"""
@@ -138,6 +189,7 @@ def zigzag_merge_packaging(input_path: str) -> str:
     ex = ExcelHandler.from_file(input_path)
     ws = ex.ws
 
+    # ========== 자동화 로직 적용 ==========
     # 1. 기본 서식 적용
     ex.set_basic_format()
     
@@ -168,27 +220,34 @@ def zigzag_merge_packaging(input_path: str) -> str:
     ex.clear_borders()
     
     # 9. C→B 정렬
-    ex.sort_by_columns([3, 2])  # C열=3, B열=2
-    
-    # 10. 시트 분리 (OK, IY)
+    ex.sort_by_columns([2, 3])
+
+    # ========== 자동화 시트 생성 (맨 앞에 위치) ==========
+    # 매크로가 적용된 전체 시트를 "자동화" 이름으로 맨 앞에 복사
     splitter = ZIGZAGSheetSplitter(ws)
+    splitter.create_automation_sheet(ex.wb)
+    
+    # ========== 시트분리 (OK, IY) ==========
+    # 자동화 처리가 완료된 원본 시트에서 시트분리 수행
     rows_by_sheet = splitter.get_rows_by_sheet()
     
-    for sheet_name, row_indices in rows_by_sheet.items():
-        if row_indices:  # 해당 사이트의 데이터가 있는 경우만
-            splitter.copy_to_new_sheet(ex.wb, sheet_name, row_indices)
-
-    # 11. 시트 순서 정리
-    desired = ["자동화", "OK", "IY", "Sheet1"]
-    for name in reversed(desired):
-        if name in ex.wb.sheetnames:
-            ex.wb._sheets.insert(0, ex.wb._sheets.pop(ex.wb.sheetnames.index(name)))
+    # 모든 필수 시트 생성 (데이터 유무와 무관하게 OK, IY 시트 생성)
+    for sheet_name in REQUIRED_SHEETS:
+        splitter.copy_to_new_sheet_simple(
+            ex.wb,
+            sheet_name, 
+            rows_by_sheet.get(sheet_name, [])
+        )
+    
+    # 원본 시트 삭제 (자동화 시트로 대체되었으므로)
+    original_sheet_name = ws.title
+    if original_sheet_name in ex.wb.sheetnames and original_sheet_name != "자동화":
+        del ex.wb[original_sheet_name]
     
     # 저장
     base_name = Path(input_path).stem  # 확장자 제거한 파일명
     output_path = ex.happojang_save_file(base_name=base_name)
-    
-    print(f"◼︎ [{MALL_NAME}] 합포장 자동화 완료!")
+    ex.wb.close()
     
     return output_path
 
