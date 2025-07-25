@@ -38,14 +38,16 @@ class ETCSiteConfig:
     # 배송비 무료 사이트
     FREE_DELIVERY_SITES: Set[str] = {"오늘의집"}
     
-    # 주문번호 길이 제한
+    # 주문번호 길이 제한 
     ORDER_NUMBER_LENGTHS: Dict[str, int] = {
         "YES24": 11,
         "CJ온스타일": 26,
         "GSSHOP": 21,
         "스마트스토어": 16,
         "에이블리": 13,
-        "올웨이즈": 14,
+        "올웨이즈": 36,  
+        "카카오선물하기": 10,  
+        "카카오톡스토어": 10,  
         "위메프": 13,
         "인터파크": 12,
         "쿠팡": 13,
@@ -260,7 +262,6 @@ class ETCSheetManager:
         self.last_row = ws.max_row
         self.last_col = ws.max_column
         
-        # 열 너비 저장 (VBA 매크로와 동일)
         self.col_widths = [
             ws.column_dimensions[get_column_letter(c)].width
             for c in range(1, self.last_col + 1)
@@ -439,35 +440,11 @@ class ETCSheetManager:
 
     def _calculate_d_column_custom(self, ws: Worksheet) -> None:
         """
-        D열 계산: O + P(슬래시 합산) + V(슬래시 합산)
-        - P열: "780/780" → 780 + 780 = 1560
-        - V열: "3000/3000" → 3000 + 3000 = 6000
+        D열 계산: U + V(슬래시 합산)
         """
         for row in range(2, ws.max_row + 1):
-            o_val = ws[f'O{row}'].value or 0
-            p_val = ws[f'P{row}'].value or 0
+            u_val = ws[f'U{row}'].value or 0
             v_val = ws[f'V{row}'].value or 0
-            
-            # O열 처리 (숫자로 변환)
-            try:
-                o_num = float(o_val) if o_val else 0
-            except (ValueError, TypeError):
-                o_num = 0
-            
-            # P열 처리: "/" 구분자가 있으면 모든 숫자를 합산
-            p_num = 0
-            if p_val and "/" in str(p_val):
-                p_parts = str(p_val).split("/")
-                for part in p_parts:
-                    try:
-                        p_num += float(part.strip())
-                    except (ValueError, TypeError):
-                        pass  # 숫자가 아닌 경우 무시
-            else:
-                try:
-                    p_num = float(p_val) if p_val else 0
-                except (ValueError, TypeError):
-                    p_num = 0
             
             # V열 처리: "/" 구분자가 있으면 모든 숫자를 합산 (P열과 동일)
             v_num = 0
@@ -485,32 +462,8 @@ class ETCSheetManager:
                     v_num = 0
             
             # D열에 계산 결과 설정
-            calculated_d = o_num + p_num + v_num
+            calculated_d = u_val + v_num
             ws[f'D{row}'].value = calculated_d
-
-    def _calculate_d_column(self, ws: Worksheet, row: int) -> None:
-        """D열 계산: O + P + V (slash 처리 후 첫 값 사용)"""
-        o_val = ws[f'O{row}'].value or 0
-        p_val = ws[f'P{row}'].value or 0
-        v_val = ws[f'V{row}'].value or 0
-        
-        # P열이 "/" 구분자 포함 시 첫 번째 값만 사용
-        if p_val and "/" in str(p_val):
-            p_val = float(str(p_val).split("/")[0].strip() or 0)
-        else:
-            p_val = float(p_val) if p_val else 0
-        
-        # V열이 "/" 구분자 포함 시 첫 번째 값만 사용
-        if v_val and "/" in str(v_val):
-            v_val = float(str(v_val).split("/")[0].strip() or 0)
-        else:
-            v_val = float(v_val) if v_val else 0
-        
-        try:
-            calculated_d = float(o_val) + p_val + v_val
-            ws[f'D{row}'].value = calculated_d
-        except (ValueError, TypeError):
-            ws[f'D{row}'].value = ""
 
     def _split_slash_values(self, value, expected_count: int) -> List[str]:
         """
