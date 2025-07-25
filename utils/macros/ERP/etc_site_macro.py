@@ -77,7 +77,7 @@ class ERPEtcSiteMacro:
         """
         b_cell_text = str(b_cell.value)
         if "오늘의집" in b_cell_text:
-            b_cell.value = 0
+            self.ws[f"V{row}"].value = 0
         elif "톡스토어" in b_cell_text:
             order_key = str(self.ws[f"B{row}"].value).strip()
             if order_key:
@@ -115,7 +115,7 @@ class ERPEtcSiteMacro:
         """
         토스 주문 30000원 이하 처리
         """
-        for order_key, (total, first_row) in self.toss_order_info.items():
+        for _, (total, first_row) in self.toss_order_info.items():
             if total <= 30000:
                 self.ws[f"V{first_row}"].value = 3000
 
