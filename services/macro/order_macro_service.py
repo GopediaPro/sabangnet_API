@@ -194,11 +194,18 @@ async def find_template_code_by_filename(session: AsyncSession, file_name: str):
     for template in template_list:
         template_name = template.get('template_name', '').split(' ')
         try:
-            site_name:str = template_name[0]
-            # ERP, 합포장 구분
-            temp_type:str = template_name[1]
-            if site_name in file_name and temp_type in file_name:
-                return template.get('template_code')
+            # basic_erp 알리, 브랜디, 기타사이트 구분용
+            if len(template_name) > 2:
+                site_names:str = ' '.join(template_name[:-1])
+                temp_type:str = template_name[-1]
+                if any(site_name in file_name for site_name in site_names) and temp_type in file_name:
+                    return template.get('template_code')
+            if len(template_name) <= 2:
+                site_name:str = template_name[0]
+                # ERP, 합포장 구분
+                temp_type:str = template_name[1]
+                if site_name in file_name and temp_type in file_name:
+                    return template.get('template_code')
         except Exception as e:
             logger.error(f"Error template_name: {e}")
             continue
