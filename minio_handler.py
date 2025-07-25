@@ -58,8 +58,8 @@ def upload_file_to_minio(local_file_path, object_name=None):
             object_name,
             local_file_path
         )
-        logger.info(f"MinIO에 업로드된 XML 파일 이름: {object_name}")
-        logger.info(f"MinIO에 업로드된 XML 파일 경로: {local_file_path}")
+        logger.info(f"MinIO에 업로드된 파일 이름: {object_name}")
+        logger.info(f"MinIO에 업로드된 파일 경로: {local_file_path}")
         return object_name
     except S3Error as e:
         raise RuntimeError(f"MinIO upload failed: {e}")
