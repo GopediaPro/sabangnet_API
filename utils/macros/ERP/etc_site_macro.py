@@ -55,8 +55,7 @@ class ERPEtcSiteMacro:
                 continue
             for row in range(2, ws.max_row + 1):
                 col_h.a_value_column(ws[f"A{row}"])
-                col_h.d_column(self.ws[f"D{row}"],
-                           self.ws[f"U{row}"], self.ws[f"V{row}"])
+                col_h.d_column(ws[f"D{row}"],ws[f"U{row}"], ws[f"V{row}"])
                 col_h.e_column(ws[f"E{row}"])
                 col_h.f_column(ws[f"F{row}"])
                 col_h.l_column(ws[f"L{row}"])
