@@ -5,7 +5,7 @@ from models.config.export_templates import ExportTemplates
 from models.config.mall_form_macro import MallFormMacro
 from models.config.mall_info import MallInfo
 from models.config.template_column_mappings import TemplateColumnMappings 
-from models.down_form_orders.down_form_order import BaseDownFormOrder, TestDownFormOrder
+from models.down_form_orders.down_form_order import BaseDownFormOrder
 from models.mall_certification_handling.mall_certification_handling import MallCertificationHandling
 from models.mall_price.mall_price import MallPrice
 from models.one_one_price.one_one_price import OneOnePrice
@@ -16,3 +16,4 @@ from models.product.product_registration_data import ProductRegistrationRawData
 from models.receive_orders.receive_orders import ReceiveOrders
 from models.macro_batch_processing.macro_info import MacroInfo
 from models.macro_batch_processing.batch_process import BatchProcess 
+from models.down_form_orders.test_down_form_orders import TestDownFormOrder

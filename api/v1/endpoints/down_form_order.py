@@ -314,25 +314,6 @@ async def bulk_create_down_form_orders_without_filter(
             message=f"error: {str(e)}"
         )
 
-
-@router.post("/excel-macro-to-db")
-async def upload_excel_file_to_macro_get_url(
-    template_code: str = Form(...),
-    file: UploadFile = File(...),
-    data_processing_usecase: DataProcessingUsecase = Depends(
-        get_data_processing_usecase)
-):
-    """
-    프론트에서 template_code와 엑셀 파일을 받아 매크로 실행 후 down_form_orders 테이블에 저장 후 성공한 레코드 수 반환.
-    """
-    saved_count = await data_processing_usecase.save_down_form_orders_from_macro_run_excel(
-        template_code=template_code,
-        file=file,
-        work_status="macro_run"
-    )
-    return {"saved_count": saved_count}
-
-
 @router.post("/db-to-excel")
 async def db_to_excel_url(
     template_code: str = Form(...),

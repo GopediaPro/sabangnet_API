@@ -13,8 +13,8 @@ class BatchProcess(Base):
 
     batch_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True,comment="배치 프로세스 고유 ID")
     original_filename: Mapped[str | None] = mapped_column(String(255),comment="원본 파일 이름")
-    file_name: Mapped[str | None] = mapped_column(String(255),comment="배치 파일 이름")
-    file_url: Mapped[str | None] = mapped_column(Text,comment="배치 파일 URL")
+    file_name: Mapped[str | None] = mapped_column(Text, comment="배치 파일 이름")
+    file_url: Mapped[str | None] = mapped_column(Text, comment="배치 파일 URL")
     file_size: Mapped[int | None] = mapped_column(BigInteger,comment="배치 파일 크기")
     order_date_from: Mapped[datetime | None] = mapped_column(DateTime,comment="주문 시작 일자")
     order_date_to: Mapped[datetime | None] = mapped_column(DateTime,comment="주문 종료 일자")

@@ -1,5 +1,8 @@
 # std
+import asyncio
+import unicodedata
 import pandas as pd
+from datetime import datetime
 from fastapi import UploadFile
 from typing import Any, Optional
 # util
@@ -21,6 +24,7 @@ from services.receive_orders.receive_order_read_service import ReceiveOrderReadS
 from services.down_form_orders.down_form_order_read_service import DownFormOrderReadService
 from services.down_form_orders.template_config_read_service import TemplateConfigReadService
 from services.down_form_orders.down_form_order_create_service import DownFormOrderCreateService
+from services.export_templates.export_templates_read_service import ExportTemplatesReadService
 # file
 from minio_handler import temp_file_to_object_name, delete_temp_file
 
@@ -36,6 +40,7 @@ class DataProcessingUsecase:
         self.template_config_read_service = TemplateConfigReadService(session)
         self.down_form_order_read_service = DownFormOrderReadService(session)
         self.down_form_order_create_service = DownFormOrderCreateService(session)
+        self.export_templates_read_service = ExportTemplatesReadService(session)
         
     async def down_form_order_to_excel(self, template_code: str, file_path: str, file_name: str):
         """
@@ -235,28 +240,30 @@ class DataProcessingUsecase:
         logger.info(f"[END] save_down_form_orders_from_receive_orders_without_filter | saved_count={saved_count}")
         return saved_count
 
-    async def save_down_form_orders_from_macro_run_excel(
-            self,
-            template_code: str,
-            file: UploadFile,
-            work_status: str = None
-    ) -> int:
+    async def save_down_form_orders_from_macro_run_excel(self, file: UploadFile, work_status: str = None) -> int:
         """
         save down form orders from macro run excel
         args:
             file: excel file
-            template_code: template code
             work_status: work status
         returns:
             saved_count: saved count
         """
-        logger.info(f"[START] save_down_form_orders_from_macro_run_excel | template_code={template_code}")
-        # 1. 매크로 실행하고, 임시 파일 삭제하고, 파일 경로 반환
+        logger.info(f"[START] save_down_form_orders_from_macro_run_excel | file_name={file.filename} ")
+        # 1. 파일 이름에서 템플릿 코드 조회
+        try:
+            template_code = await self.find_template_code_by_filename(file.filename)
+            logger.info(f"template_code: {template_code}")
+        except Exception as e:
+            logger.error(f"Template not found: {file.filename} | error: {e}")
+            raise
+        # 2. 임시 파일 생성
         file_name, file_path = await self.process_macro_with_tempfile(template_code, file)
-        logger.info(f"temporary file name: {file_name}")
-        # 2. 엑셀파일 데이터 프레임으로 변환
+        logger.info(f"temporary file path: {file_path} | file name: {file_name}")
+        # 3. 엑셀파일 데이터 파일 변환 후 임시파일 삭제
         dataframe = ExcelHandler.file_path_to_dataframe(file_path)
-        # 3. 데이터 저장
+        logger.info(f"dataframe: {len(dataframe)}")
+        # 4. 데이터 저장
         saved_count = await self.process_excel_to_down_form_orders(dataframe, template_code, work_status=work_status)
         logger.info(f"[END] save_down_form_orders_from_macro_run_excel | saved_count={saved_count}")
         return saved_count
@@ -264,7 +271,7 @@ class DataProcessingUsecase:
     async def process_macro_with_tempfile(self, template_code: str, file: UploadFile) -> tuple[str, str]:
         """
         1. 업로드 파일을 임시 파일로 저장
-        2. 매크로 실행 (run_macro)
+        2. 매크로 실행 (run_macro_with_file)
         3. 임시 파일 삭제
         4. 파일명 반환
         5. (필요시) presigned URL에서 쿼리스트링 제거
@@ -319,7 +326,7 @@ class DataProcessingUsecase:
 
         # 2. db 데이터를 템플릿에 따라 df 데이터 run_macro 실행 (preprocess_order_data)
         down_order_data = await self.down_form_order_read_service.get_down_form_orders(template_code, limit=1000000)
-        processed_orders: list[dict] = self.order_macro_utils.process_orders_for_db(down_order_data)
+        processed_orders: list[dict[str, Any]] = self.order_macro_utils.process_orders_for_db(down_order_data)
 
         # 3. processed_orders 데이터를 "down_form_order" 테이블에 저장 후 성공한 레코드 수 반환
         try:
@@ -365,3 +372,81 @@ class DataProcessingUsecase:
             file_name={file_name}"
         )
         return temp_file_path, file_name
+
+    async def bulk_save_down_form_orders_from_macro_run_excel(self, files: list[UploadFile]) -> dict[str, Any]:
+        """
+        bulk save down form orders from macro run excel
+        args:
+            files: list of files
+        returns:
+            successful_results: list of successful results
+            failed_results: list of failed results
+            total_saved_count: total saved count
+        """
+        logger.info(f"[START] bulk_save_down_form_orders_from_macro_run_excel | file_count={len(files)}")
+        # 1. 세마포어 설정
+        semaphore = asyncio.Semaphore(5) # 최대 5개 작업 동시 실행
+        successful_results = []
+        failed_results = []
+        total_saved_count = 0
+        # 2. 파일 처리
+        for file in files:
+            result = await self._process_file(file, semaphore)
+            saved_count = result.get('saved_count')
+            if saved_count:
+                successful_results.append(result)
+                total_saved_count += saved_count
+            else:
+                failed_results.append(result)
+            logger.info(f"result: {result}")
+        logger.info(f"\
+            [END] bulk_save_down_form_orders_from_macro_run_excel | \
+            successful_results={successful_results} | \
+            failed_results={failed_results} | \
+            total_saved_count={total_saved_count}"
+        )
+        return successful_results, failed_results, total_saved_count
+
+    async def _process_file(self, file: UploadFile, semaphore: asyncio.Semaphore) -> dict[str, Any]:
+        """
+        세마포어 5개 따서 그걸로 병렬 처리하는 함수
+
+        네임스페이스 분리를 위해 비동기 함수로 만들어짐
+        args:
+            file: file
+            semaphore: semaphore for concurrency control
+        returns:
+            dict: {"filename": str, "saved_count": int} or {"filename": str, "error": str}
+        """
+        async with semaphore:
+            try:
+                saved_count = await self.save_down_form_orders_from_macro_run_excel(
+                    file, work_status="macro_run"
+                )
+                return {"filename": file.filename, "saved_count": saved_count}
+            except Exception as e:
+                return {"filename": file.filename, "error": str(e)}
+
+    async def find_template_code_by_filename(self, file_name: str) -> str:
+        template_list: list[dict[str, str]] = await self.export_templates_read_service.get_export_templates_code_and_name()
+        # 입력한 파일 데이터 정규화 -> 조합형(NFC) 형식으로 변환
+        file_name = unicodedata.normalize('NFC', file_name)
+        for template in template_list:
+            template_name = template.get('template_name', '').split(' ')
+            try:
+                # basic_erp 알리, 브랜디, 기타사이트 구분용
+                if len(template_name) > 2:
+                    site_names:str = ' '.join(template_name[:-1])
+                    temp_type:str = template_name[-1]
+                    if any(site_name in file_name for site_name in site_names) and temp_type in file_name:
+                        return template.get('template_code')
+                if len(template_name) <= 2:
+                    site_name:str = template_name[0]
+                    # ERP, 합포장 구분
+                    temp_type:str = template_name[1]
+                    if site_name in file_name and temp_type in file_name:
+                        return template.get('template_code')
+            except Exception as e:
+                logger.error(f"Error template_name: {e}")
+                continue
+        return None

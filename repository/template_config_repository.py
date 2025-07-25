@@ -64,7 +64,6 @@ class TemplateConfigRepository:
         merged = {**default_meta, **input_meta}
         return merged
 
-
     async def get_template_config_by_template_code(self, template_code: str) -> Optional[dict]:
         # Get input template meta and columns
         input_meta = await self._get_template_meta(template_code)
@@ -81,3 +80,8 @@ class TemplateConfigRepository:
         query = select(MacroInfo.macro_name).where(MacroInfo.form_name == template_code)
         result = await self.session.execute(query)
         return result.scalars().first()
+
+    async def get_all_template_code_name(self) -> list[str]:
+        query = select(MacroInfo.form_name)
+        result = await self.session.execute(query)
+        return result.scalars().all()

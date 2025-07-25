@@ -16,20 +16,18 @@ class ERPGmaAucMacro:
         self.file_path = file_path
         self.ws: Worksheet = self.ex.ws
         self.wb: Workbook = self.ex.wb
-        self.basket_set = set()
+        self.basket_dict = {}
         self.headers: list[str] = None
 
     def gauc_erp_macro_run(self):
         col_h = ExcelColumnHandler()
         self.basket_set = set()
 
-        # 장바구니 중복 제거 & 금액 컬럼 계산 먼저 실행
+        # 장바구니 중복 값 0으로 초기화
         for row in range(2, self.ws.max_row + 1):
-            self._basket_duplicate_column(
+            self._add_basket_dict(
                 self.ws[f"Q{row}"], self.ws[f"V{row}"])
-            col_h.d_column(
-                self.ws[f"D{row}"], self.ws[f"O{row}"], self.ws[f"P{row}"], self.ws[f"V{row}"])
-
+            
         # 시트 설정
         sheets_name = ["OK,CL,BB", "IY"]
         site_to_sheet = {
@@ -40,9 +38,14 @@ class ERPGmaAucMacro:
         }
 
         # 정렬 기준: 2번째 컬럼(B) → 3번째 컬럼(C) 순으로 정렬
-        sort_columns = [2, 3, 5, 6, 4]
+        sort_columns = [2, 3, -5]
         logger.info("시트별 정렬, 시트 분리 시작...")
         headers, data = self.ex.preprocess_and_update_ws(self.ws, sort_columns)
+
+        # 배송비 적용
+        for row in range(self.ws.max_row, 1, -1):
+            self._shipping_costs_column(self.ws[f"Q{row}"], self.ws[f"V{row}"])
+
         self.ex.split_and_write_ws_by_site(
             wb=self.wb,
             headers=headers,
@@ -79,9 +82,9 @@ class ERPGmaAucMacro:
         logger.info(f"✓ G,옥 ERP 자동화 완료! 최종 파일: {output_path}")
         return output_path
 
-    def _basket_duplicate_column(self, basket_cell: Cell, shipping_cell: Cell):
+    def _add_basket_dict(self, basket_cell: Cell, shipping_cell: Cell):
         """
-        장바구니 중복 제거 & 금액 컬럼 계산
+        장바구니 중복 값 추가
         args:
             basket_cell: 장바구니 번호 셀
             shipping_cell: 배송비 셀
@@ -91,9 +94,22 @@ class ERPGmaAucMacro:
         if not basket_no:
             return
 
-        if basket_no in self.basket_set:
-            # 이미 등장한 바구니 번호면 배송비 0으로
-            shipping_cell.value = 0
+        if basket_no not in self.basket_dict:
+            if shipping_cell.value != 0 and shipping_cell.value != "":
+                self.basket_dict[basket_no] = shipping_cell.value
+                shipping_cell.value = 0
         else:
-            # 첫 등장 - 세트에 추가
-            self.basket_set.add(basket_no)
+            shipping_cell.value = 0
+
+    def _shipping_costs_column(self, basket_cell: Cell, shipping_cell: Cell):
+        """
+        정렬된 데이터에서 장바구니 중복 값 중 첫 번째 값에 배송비 적용
+        args:
+            basket_cell: 장바구니 번호 셀
+            shipping_cell: 배송비 셀
+        """
+        basket_no = str(basket_cell.value).strip() if basket_cell.value else ""
+
+        if basket_no in self.basket_dict:
+            shipping_cell.value = self.basket_dict[basket_no]
+            del self.basket_dict[basket_no]
