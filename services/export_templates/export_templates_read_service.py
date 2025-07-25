@@ -3,14 +3,13 @@ from models.config.export_templates import ExportTemplates
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-class ExportTemplatesService:
+class ExportTemplatesReadService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.export_template_repository = ExportTemplateRepository(session)
 
     async def get_export_templates(self) -> list[ExportTemplates]:
         return await self.export_template_repository.get_export_templates()
-    
 
     async def get_export_templates_code_and_name(self) -> list[dict[str, str]]:
         export_templates = await self.export_template_repository.get_export_templates()

@@ -1,9 +1,7 @@
-from __future__ import annotations
-from decimal import Decimal
 from typing import Optional
-from sqlalchemy import BigInteger, String, Text, Numeric, TIMESTAMP
-from sqlalchemy.orm import Mapped, mapped_column
 from models.base_model import Base
+from sqlalchemy import BigInteger, String
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class ProductMycategoryData(Base):

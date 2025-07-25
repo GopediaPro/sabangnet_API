@@ -1,5 +1,4 @@
-from __future__ import annotations
-
+from typing import Any
 from decimal import Decimal
 from datetime import datetime
 
@@ -136,3 +135,24 @@ class ReceiveOrders(Base):
     order_etc_12: Mapped[str | None] = mapped_column(Text)
     order_etc_13: Mapped[str | None] = mapped_column(Text)
     order_etc_14: Mapped[str | None] = mapped_column(Text)
+
+    def to_dict(self, exclude_fields: set[str] = None) -> dict[str, Any]:
+        exclude_fields = exclude_fields or set()
+        dict_model: dict[str, Any] = {}
+        
+        for column in self.__table__.columns:
+            if column.name in exclude_fields:
+                continue
+                
+            # server_default가 있고 값이 None이면 제외
+            value = getattr(self, column.name, None)
+            if value is None and column.server_default is not None:
+                continue
+                
+            # datetime과 Decimal 타입 처리
+            if isinstance(value, Decimal):
+                dict_model[column.name] = float(value) if value else None
+            else:
+                dict_model[column.name] = value
+                
+        return dict_model

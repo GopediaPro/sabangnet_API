@@ -8,11 +8,11 @@ class DownFormOrderDeleteService:
         self.session = session
         self.down_form_order_repository = DownFormOrderRepository(session)
 
-    async def bulk_delete_down_form_orders(self, ids: list[int]):
+    async def bulk_delete_down_form_orders(self, ids: list[int]) -> dict[int, str]:
         return await self.down_form_order_repository.bulk_delete(ids)
     
-    async def delete_all_down_form_orders(self):
+    async def delete_all_down_form_orders(self) -> int:
         return await self.down_form_order_repository.delete_all()
     
-    async def delete_duplicate_down_form_orders(self):
+    async def delete_duplicate_down_form_orders(self) -> int:
         return await self.down_form_order_repository.delete_duplicate()

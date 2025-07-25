@@ -42,6 +42,7 @@ class Settings(BaseSettings):
 
     # Test Mode
     CONPANY_GOODS_CD_TEST_MODE: Optional[bool] = True
+    TEST_DB_NAME: Optional[str] = None
 
     DEPLOY_ENV: Optional[str] = "development"
 

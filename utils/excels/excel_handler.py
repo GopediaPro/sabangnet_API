@@ -1,10 +1,12 @@
-from typing import List
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border
 import re
-import pandas as pd
-from openpyxl.utils import get_column_letter
+import openpyxl
 import traceback
+import pandas as pd
+from typing import List
+from openpyxl.utils import get_column_letter
+from openpyxl.workbook.workbook import Workbook
+from openpyxl.worksheet.worksheet import Worksheet
+from openpyxl.styles import Font, PatternFill, Alignment, Border
 from utils.logs.sabangnet_logger import get_logger
 
 """
@@ -18,10 +20,10 @@ from utils.logs.sabangnet_logger import get_logger
 
 
 class ExcelHandler:
-    def __init__(self, ws, wb=None):
-        self.ws = ws
-        self.wb = wb
-        self.last_row = ws.max_row
+    def __init__(self, ws: Worksheet, wb: Workbook = None):
+        self.ws: Worksheet = ws
+        self.wb: Workbook = wb
+        self.last_row: int = ws.max_row
 
     @classmethod
     def from_file(cls, file_path, sheet_index=0):
