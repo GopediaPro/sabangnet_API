@@ -16,3 +16,4 @@ from models.config.export_templates import ExportTemplates
 from models.config.mall_form_macro import MallFormMacro
 from models.config.mall_info import MallInfo
 from models.config.template_column_mappings import TemplateColumnMappings 
+from models.down_form_orders.test_down_form_orders import TestDownFormOrder
