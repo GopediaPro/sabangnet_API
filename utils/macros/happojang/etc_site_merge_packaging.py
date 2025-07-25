@@ -38,14 +38,16 @@ class ETCSiteConfig:
     # 배송비 무료 사이트
     FREE_DELIVERY_SITES: Set[str] = {"오늘의집"}
     
-    # 주문번호 길이 제한
+    # 주문번호 길이 제한 
     ORDER_NUMBER_LENGTHS: Dict[str, int] = {
         "YES24": 11,
         "CJ온스타일": 26,
         "GSSHOP": 21,
         "스마트스토어": 16,
         "에이블리": 13,
-        "올웨이즈": 14,
+        "올웨이즈": 36,  
+        "카카오선물하기": 10,  
+        "카카오톡스토어": 10,  
         "위메프": 13,
         "인터파크": 12,
         "쿠팡": 13,
@@ -260,7 +262,6 @@ class ETCSheetManager:
         self.last_row = ws.max_row
         self.last_col = ws.max_column
         
-        # 열 너비 저장 (VBA 매크로와 동일)
         self.col_widths = [
             ws.column_dimensions[get_column_letter(c)].width
             for c in range(1, self.last_col + 1)
