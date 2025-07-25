@@ -4,6 +4,8 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border
 import re
 import pandas as pd
 from openpyxl.utils import get_column_letter
+import traceback
+from utils.logs.sabangnet_logger import get_logger
 
 """
 주문관리 Excel 파일 매크로 공통 처리 메소드
@@ -790,24 +792,47 @@ class ExcelHandler:
         return:
             sorted_data: 정렬된 데이터
         """
+        logger = get_logger(__name__)
+        
         def dynamic_key(item):
             key_tuple_elements = []
-            for col_idx in sort_columns:
-                value = item[abs(col_idx)-1] # 현재 열의 값
-                if col_idx > 0:
-                    key_tuple_elements.append(value)
-                elif col_idx < 0:
-                    # 값의 타입에 따라 내림차순 처리
-                    if isinstance(value, (int, float)):
-                        key_tuple_elements.append(-value) # 숫자는 음수화하여 내림차순
-                    elif isinstance(value, str):
-                        key_tuple_elements.append(ReverseComparableString(value)) 
-                        # 문자열은 커스텀 클래스 사용
-                    else:
-                        # 다른 타입일 경우 기본적으로는 오름차순으로 처리
-                        key_tuple_elements.append(value) 
+            try:
+                for col_idx in sort_columns:
+                    value = item[abs(col_idx)-1]
+                    # None 처리: 숫자면 inf/-inf, 문자열이면 "", 기타는 ""
+                    if value is None:
+                        # 오름차순: None은 맨 뒤, 내림차순: None은 맨 앞
+                        if col_idx > 0:
+                            value = float('inf') if isinstance(item[abs(col_idx)-1], (int, float)) else ""
+                        else:
+                            value = float('-inf') if isinstance(item[abs(col_idx)-1], (int, float)) else ""
+                    if col_idx > 0:
+                        key_tuple_elements.append(value)
+                    elif col_idx < 0:
+                        if isinstance(value, (int, float)):
+                            key_tuple_elements.append(-value)
+                        elif isinstance(value, str):
+                            key_tuple_elements.append(ReverseComparableString(value))
+                        else:
+                            key_tuple_elements.append(value)
+            except Exception as exc:
+                logger.error(
+                    f"_sort_data dynamic_key() 에러: "
+                    f"item={item}, sort_columns={sort_columns}, "
+                    f"key_tuple_elements={key_tuple_elements}"
+                )
+                raise
             return tuple(key_tuple_elements)
-        return sorted(data, key=dynamic_key)
+        
+        try:
+            return sorted(data, key=dynamic_key)
+        except Exception as exc:
+            logger.error(
+                f"_sort_data sorted() 에러: "
+                f"data_length={len(data)}, sort_columns={sort_columns}, "
+                f"data_sample={data[:3] if data else 'empty'}\n{traceback.format_exc()}"
+            )
+            raise
 
     def _update_worksheet_data(self, ws, data: list[list]):
         """
