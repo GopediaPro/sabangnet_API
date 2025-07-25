@@ -29,6 +29,7 @@ pipeline {
         SABANGNET_ENV_FILE_DEV = 'sabangnet-env-file-dev'
         DOCKER_COMPOSE_FILE_ID = 'sabangnet-docker-compose-file'
         DOCKER_COMPOSE_ENV_FILE_ID = 'sabangnet-docker-compose-env-file'
+        DOCKER_COMPOSE_ENV_FILE_DEV_ID = 'sabangnet-docker-compose-env-file-dev'
         
         // 배포 서버 설정 (브랜치별로 동적 설정)
         DEPLOY_SERVER_PORT = '5022'
@@ -151,9 +152,14 @@ pipeline {
                         script {
                             // 타임스탬프 변수를 Groovy에서 정의
                             def timeStamp = "${env.BUILD_NUMBER}_${new Date().format('MMdd_HHmmss')}"
-
+                            // 브랜치별 환경 파일 선택
+                            def envFileCredentialId = SABANGNET_ENV_FILE_DEV
+                            if (env.BRANCH_NAME == 'main') {
+                                envFileCredentialId = SABANGNET_ENV_FILE
+                                echo "🔍 프로덕션 환경 파일 선택 완료"
+                            }
                             // 환경 변수 파일 import
-                            withCredentials([file(credentialsId: SABANGNET_ENV_FILE, variable: 'ENV_FILE')]) {
+                            withCredentials([file(credentialsId: envFileCredentialId, variable: 'ENV_FILE')]) {
                                 sh "cp ${ENV_FILE} .env"
                             }
                             
@@ -279,9 +285,10 @@ pipeline {
                     echo "Docker 이미지를 빌드합니다: ${DOCKER_REGISTRY}/${IMAGE_NAME}:${DOCKER_SAFE_BRANCH_NAME}-latest"
                     
                     // 브랜치별 환경 파일 선택
-                    def envFileCredentialId = SABANGNET_ENV_FILE
-                    if (env.BRANCH_NAME == 'dev') {
-                        envFileCredentialId = SABANGNET_ENV_FILE_DEV  // 개발용 환경 파일
+                    def envFileCredentialId = SABANGNET_ENV_FILE_DEV
+                    if (env.BRANCH_NAME == 'main') {
+                        envFileCredentialId = SABANGNET_ENV_FILE
+                        echo "🔍 프로덕션 환경 파일 선택 완료"
                     }
                     
                     withCredentials([file(credentialsId: envFileCredentialId, variable: 'ENV_FILE')]) {
@@ -368,20 +375,23 @@ pipeline {
                 sshagent(credentials: [ACTUAL_SSH_CREDENTIAL_ID]) {
                     script {
                         // 브랜치별 환경 파일 선택
-                        def envFileCredentialId = SABANGNET_ENV_FILE
-                        if (env.BRANCH_NAME == 'dev') {
-                            envFileCredentialId = SABANGNET_ENV_FILE_DEV  // 개발용 환경 파일
+                        def envFileCredentialId = SABANGNET_ENV_FILE_DEV
+                        def dockerComposeEnvFileId = DOCKER_COMPOSE_ENV_FILE_DEV_ID
+                        if (env.BRANCH_NAME == 'main') {
+                            envFileCredentialId = SABANGNET_ENV_FILE
+                            dockerComposeEnvFileId = DOCKER_COMPOSE_ENV_FILE_ID  // 프로덕션용 환경 파일
+                            echo "🔍 프로덕션 환경 파일 선택 완료"
                         }
                         
-                        withCredentials([
-                            file(credentialsId: envFileCredentialId, variable: 'ENV_FILE'),
-                            file(credentialsId: DOCKER_COMPOSE_FILE_ID, variable: 'DOCKER_COMPOSE_FILE'),
-                            file(credentialsId: DOCKER_COMPOSE_ENV_FILE_ID, variable: 'DOCKER_COMPOSE_ENV_FILE'),
-                            usernamePassword(
-                                credentialsId: REGISTRY_CREDENTIAL_ID,
-                                usernameVariable: 'REGISTRY_USER',
-                                passwordVariable: 'REGISTRY_PASS'
-                            )
+                            withCredentials([
+                                file(credentialsId: envFileCredentialId, variable: 'ENV_FILE'),
+                                file(credentialsId: DOCKER_COMPOSE_FILE_ID, variable: 'DOCKER_COMPOSE_FILE'),
+                                file(credentialsId: dockerComposeEnvFileId, variable: 'DOCKER_COMPOSE_ENV_FILE'),
+                                usernamePassword(
+                                    credentialsId: REGISTRY_CREDENTIAL_ID,
+                                    usernameVariable: 'REGISTRY_USER',
+                                    passwordVariable: 'REGISTRY_PASS'
+                                )
                         ]) {
                             // 환경 파일 내용을 변수에 저장
                             def envFileContent = sh(

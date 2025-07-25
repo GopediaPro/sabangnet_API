@@ -21,8 +21,6 @@ class ERPEtcSiteMacro:
             self._order_num_by_site_column(self.ws[f"B{row}"])
             self._kakao_jeju_process_column(
                 self.ws[f"B{row}"], self.ws[f"J{row}"], self.ws[f"F{row}"])
-            col_h.d_column(self.ws[f"D{row}"],
-                           self.ws[f"U{row}"], self.ws[f"V{row}"])
             col_h.h_i_column(self.ws[f"H{row}"])
             col_h.h_i_column(self.ws[f"I{row}"])
 
@@ -57,6 +55,7 @@ class ERPEtcSiteMacro:
                 continue
             for row in range(2, ws.max_row + 1):
                 col_h.a_value_column(ws[f"A{row}"])
+                col_h.d_column(ws[f"D{row}"],ws[f"U{row}"], ws[f"V{row}"])
                 col_h.e_column(ws[f"E{row}"])
                 col_h.f_column(ws[f"F{row}"])
                 col_h.l_column(ws[f"L{row}"])
@@ -77,7 +76,7 @@ class ERPEtcSiteMacro:
         """
         b_cell_text = str(b_cell.value)
         if "오늘의집" in b_cell_text:
-            b_cell.value = 0
+            self.ws[f"V{row}"].value = 0
         elif "톡스토어" in b_cell_text:
             order_key = str(self.ws[f"B{row}"].value).strip()
             if order_key:
@@ -115,7 +114,7 @@ class ERPEtcSiteMacro:
         """
         토스 주문 30000원 이하 처리
         """
-        for order_key, (total, first_row) in self.toss_order_info.items():
+        for _, (total, first_row) in self.toss_order_info.items():
             if total <= 30000:
                 self.ws[f"V{first_row}"].value = 3000
 

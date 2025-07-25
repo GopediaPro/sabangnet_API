@@ -82,3 +82,9 @@ class TemplateConfigRepository:
         query = query.where(MacroInfo.form_name == template_code)
         result = await self.session.execute(query)
         return result.scalars().first()
+
+
+    async def all_template_code_name(self) -> list[str]:
+        query = select(MacroInfo.form_name)
+        result = await self.session.execute(query)
+        return result.scalars().all()
