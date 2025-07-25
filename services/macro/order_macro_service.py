@@ -13,8 +13,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from utils.logs.sabangnet_logger import get_logger
 from minio_handler import temp_file_to_object_name, delete_temp_file
 from repository.down_form_order_repository import DownFormOrderRepository
+from services.export_templates.export_templates_service import ExportTemplatesService
 
 import re
+import unicodedata
 
 logger = get_logger(__name__)
 
@@ -184,12 +186,29 @@ def process_orders_for_db(orders_list, template_code):
     return processed_orders
 
 
-async def find_template_by_filename(session: AsyncSession, file_name: str):
-    template_config_repository = TemplateConfigRepository(session)
-    template_name_list = await template_config_repository.all_template_code_name()
-    for template_name in template_name_list:
-        if template_name in file_name:
-            return template_name
+async def find_template_code_by_filename(session: AsyncSession, file_name: str):
+    export_templates_service = ExportTemplatesService(session)
+    template_list:list[dict] = await export_templates_service.get_export_templates_code_and_name()
+    # 입력한 파일 데이터 정규화 -> 조합형(NFC) 형식으로 변환
+    file_name = unicodedata.normalize('NFC', file_name)
+    for template in template_list:
+        template_name = template.get('template_name', '').split(' ')
+        try:
+            # basic_erp 알리, 브랜디, 기타사이트 구분용
+            if len(template_name) > 2:
+                site_names:str = ' '.join(template_name[:-1])
+                temp_type:str = template_name[-1]
+                if any(site_name in file_name for site_name in site_names) and temp_type in file_name:
+                    return template.get('template_code')
+            if len(template_name) <= 2:
+                site_name:str = template_name[0]
+                # ERP, 합포장 구분
+                temp_type:str = template_name[1]
+                if site_name in file_name and temp_type in file_name:
+                    return template.get('template_code')
+        except Exception as e:
+            logger.error(f"Error template_name: {e}")
+            continue
     return None
 
 
