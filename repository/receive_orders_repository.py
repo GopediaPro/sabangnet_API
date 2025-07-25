@@ -168,14 +168,11 @@ class ReceiveOrdersRepository:
             저장된 ReceiveOrders 모델 리스트
         """
         try:
-            normalized_orders = []
-            for order in orders:
+            order_model_list = [ReceiveOrders(**order) for order in orders]
+            order_dict_list = []
+            for order_model in order_model_list:
                 # 누락된 필드를 None으로 채워 넣기
-                normalized_order = {}
-                for column in ReceiveOrders.__table__.columns:
-                    if column.name != 'id':  # auto increment 필드 제외
-                        normalized_order[column.name] = order.get(column.name)
-                normalized_orders.append(normalized_order)
+                order_dict_list.append(order_model.to_dict(exclude_fields={"id"}))
             
             # 배치 크기 제한 (PostgreSQL 파라미터 한계 고려)
             # receive_orders 테이블은 컬럼이 많아서 배치 크기를 작게 설정
@@ -183,11 +180,11 @@ class ReceiveOrdersRepository:
             batch_size = 50  # 한 번에 50개씩 처리 (더 안전하게)
             all_success_models = []
             
-            total_attempted = len(normalized_orders)
+            total_attempted = len(order_dict_list)
             total_batches = (total_attempted + batch_size - 1) // batch_size
             
-            for i in range(0, len(normalized_orders), batch_size):
-                batch = normalized_orders[i:i + batch_size]
+            for i in range(0, len(order_dict_list), batch_size):
+                batch = order_dict_list[i:i + batch_size]
                 batch_num = i // batch_size + 1
                 logger.info(f"배치 처리 중: {batch_num}/{total_batches} ({len(batch)}개 시도)")
                 

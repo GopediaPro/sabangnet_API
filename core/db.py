@@ -45,6 +45,28 @@ async def get_async_session():
     finally:
         await session.close()
 
+TEST_DATABASE_URL = f"postgresql+asyncpg://{SETTINGS.DB_USER}:{SETTINGS.DB_PASSWORD}@{SETTINGS.DB_HOST}:{SETTINGS.DB_PORT}/{SETTINGS.TEST_DB_NAME}"
+
+test_async_engine = create_async_engine(
+    TEST_DATABASE_URL,
+    echo=False,  
+    future=True,
+    pool_pre_ping=True, 
+)
+
+TestAsyncSessionLocal = async_sessionmaker(
+    bind=test_async_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+async def get_test_async_session():
+    session = TestAsyncSessionLocal()
+    try:
+        yield session
+    finally:
+        await session.close()
+
 async def test_db_write(value: str) -> bool:
     pool = await get_db_pool()
     table = SETTINGS.DB_TEST_TABLE

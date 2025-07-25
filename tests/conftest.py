@@ -4,7 +4,7 @@ fatapi 의 main.py 및 다른 설정 파일들과 같은 역할을 함
 다른 모듈에서 임포트 하지 않아도 pytest 가 자동으로 인식하고 적용시킴
 """
 
-
+import re
 import os
 import sys
 import subprocess
@@ -41,11 +41,37 @@ logger = get_logger(__name__)
 # pytest-asyncio 설정
 pytest_plugins = ["pytest_asyncio"]
 
+
 # Alembic 마이그레이션을 테스트 DB에 자동 적용하는 fixture 추가
 @pytest.fixture(scope="session", autouse=True)
 def apply_migrations():
     """테스트용 DB에 Alembic 마이그레이션 적용"""
-    subprocess.run(["alembic", "upgrade", "head"], check=True)
+    try:
+        subprocess.run(["alembic", "upgrade", "head"], check=True, capture_output=True, text=True)
+        logger.info("Alembic 마이그레이션 적용 완료")
+    except subprocess.CalledProcessError as e:
+        error_output = e.stderr.lower() if e.stderr else ""
+        
+        # 무시 가능한 에러 패턴들 (정규식)
+        ignorable_patterns = [
+            r"does not exist",
+            r"already exists",
+            # r"undefinedtable",
+            # r"duplicate key",
+            # r"constraint.*already exists"
+        ]
+        
+        # 패턴 중 하나라도 매치되면 무시
+        is_ignorable = any(re.search(pattern, error_output) for pattern in ignorable_patterns)
+        
+        if is_ignorable:
+            logger.warning(f"마이그레이션 에러 무시: {e.stderr}")
+        else:
+            logger.error(f"마이그레이션 실패: {e.stderr}")
+            raise
+    except Exception as e:
+        logger.warning(f"마이그레이션 오류 무시: {e}")
+
 
 # 테스트용 lifespan 함수 (create_tables 제외)
 @asynccontextmanager

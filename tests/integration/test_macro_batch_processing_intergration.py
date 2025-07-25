@@ -19,7 +19,7 @@ class TestMacroBatchProcessingIntegration:
         mock_process_excel_to_down_form_orders,
     ):
         """
-        매크로 처리 전체 흐름 테스트
+        excel to db 매크로 테스트
         1. 테스트용 엑셀 파일 업로드
         2. 매크로 실행하고 DB에 저장
         3. 저장된 결과와 예상 결과 비교
@@ -35,10 +35,35 @@ class TestMacroBatchProcessingIntegration:
         # 3. 저장된 데이터와 예상 데이터 비교
         assert compare_sample_data_with_expected(
             mock_process_excel_to_down_form_orders.return_value["sample_dict"],
-            mock_process_excel_to_down_form_orders.return_value["expect_dict_okclbb"],
-            mock_process_excel_to_down_form_orders.return_value["expect_dict_iy"]
-        )
+            mock_process_excel_to_down_form_orders.return_value["expect_dict"]
+        ) == True
 
+    # @pytest.mark.asyncio
+    # async def test_erp_macro_processing_full_flow(
+    #     self,
+    #     client: TestClient,
+    #     sample_request_data: dict[str, Any],
+    #     mock_process_excel_to_down_form_orders,
+    # ):
+    #     """
+    #     db to db 매크로 테스트
+    #     1. 테스트용 엑셀 파일 업로드
+    #     2. 매크로 실행하고 DB에 저장
+    #     3. 저장된 결과와 예상 결과 비교
+    #     """
+
+    #     # 1. 테스트용 엑셀 파일 업로드
+    #     response = client.post("/api/v1/macro/excel-macro-to-db", json=sample_request_data)
+
+    #     # 2. 저장된 데이터 수 확인
+    #     assert response.status_code == 200
+    #     assert mock_process_excel_to_down_form_orders.return_value["saved_count"] == 13
+
+    #     # 3. 저장된 데이터와 예상 데이터 비교
+    #     assert compare_sample_data_with_expected(
+    #         mock_process_excel_to_down_form_orders.return_value["sample_dict"],
+    #         mock_process_excel_to_down_form_orders.return_value["expect_dict_okclbb"],
+    #         mock
     
     @pytest.mark.asyncio
     async def test_macro_processing_with_invalid_template(

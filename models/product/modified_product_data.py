@@ -169,11 +169,11 @@ class ModifiedProductData(Base):
     descrition: Mapped[str | None] = mapped_column(
         Text)  # 오타 그대로 유지 (description -> descrition)
     
-    product_nm: Mapped[str] = mapped_column(String(60))
-    no_product: Mapped[int] = mapped_column(Integer)
-    detail_img_url: Mapped[str] = mapped_column(Text)
-    no_word: Mapped[int] = mapped_column(Integer)
-    no_keyword: Mapped[int] = mapped_column(Integer)
+    product_nm: Mapped[str | None] = mapped_column(String(60))
+    no_product: Mapped[int | None] = mapped_column(Integer)
+    detail_img_url: Mapped[str | None] = mapped_column(Text)
+    no_word: Mapped[int | None] = mapped_column(Integer)
+    no_keyword: Mapped[int | None] = mapped_column(Integer)
 
     # 수정버전
     test_product_raw_data_id: Mapped[int] = mapped_column(
@@ -181,7 +181,7 @@ class ModifiedProductData(Base):
                    name="test_product_raw_data", ondelete="CASCADE"),
         nullable=False
     )
-    product_id: Mapped[int] = mapped_column(Integer)
+    product_id: Mapped[int | None] = mapped_column(Integer)
     rev: Mapped[int | None] = mapped_column(SmallInteger)
 
     raw = relationship("ProductRawData",

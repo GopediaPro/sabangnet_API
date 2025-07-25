@@ -272,7 +272,11 @@ async def bulk_create_down_form_orders_by_filter(
         template_code: str = request.template_code
         filters: dict[str, Any] = request.filters.model_dump(
         ) if request.filters else {}
-        down_form_order_bulk_dto: DownFormOrdersBulkDto = await data_processing_usecase.save_down_form_orders_from_receive_orders_by_filter(filters, template_code)
+        down_form_order_bulk_dto: DownFormOrdersBulkDto = (
+            await data_processing_usecase.save_down_form_orders_from_receive_orders_by_filter(
+                filters,
+                template_code
+            ))
         return DownFormOrderBulkCreateResponse.from_dto(down_form_order_bulk_dto)
     except Exception as e:
         return DownFormOrderBulkCreateResponse.from_dto(DownFormOrdersBulkDto(
@@ -339,8 +343,14 @@ async def db_to_excel_url(
     """
     db에서 데이터를 work_status에 따라 가져와 엑셀 파일로 변환 후 MinIO에 업로드하고 URL을 반환합니다.
     """
-    file_path, file_name = await data_processing_usecase.get_down_form_orders_by_work_status(work_status=work_status, template_code=template_code)
+    file_path, file_name = await data_processing_usecase.export_down_form_orders_to_excel_by_work_status(
+        work_status=work_status,
+        template_code=template_code
+    )
     file_url, minio_object_name = upload_and_get_url(
-        file_path, template_code, file_name)
+        file_path,
+        template_code,
+        file_name
+    )
 
     return {"file_url": file_url, "minio_object_name": minio_object_name}

@@ -7,7 +7,7 @@ from utils.logs.sabangnet_logger import get_logger
 from services.usecase.data_processing_usecase import DataProcessingUsecase
 
 from utils.macros.data_processing_utils import DataProcessingUtils
-from tests.fixtures.macro_batch_processing.g_auc.expect_dataframe import create_expect_dataframes
+from tests.fixtures.macro_batch_processing.g_auc.expect_dataframe import create_expect_dataframe
 from tests.fixtures.macro_batch_processing.g_auc.sample_excel_file import (
     create_multipart_upload_file,
     create_test_excel_in_memory,
@@ -41,12 +41,10 @@ def mock_process_excel_to_down_form_orders(test_app):
         logger.info(f"Loaded template config: {config}")
 
         # 2. 엑셀 데이터 변환
-        expect_dataframe_okclbb = create_expect_dataframes()["OK,CL,BB_m"]
-        expect_dataframes_iy = create_expect_dataframes()["IY_m"]
+        expect_dataframe = create_expect_dataframe()
 
         sample_dict = df.to_dict()
-        expect_dict_okclbb = expect_dataframe_okclbb.to_dict()
-        expect_dict_iy = expect_dataframes_iy.to_dict()
+        expect_dict = expect_dataframe.to_dict()
 
         sample_raw_data: list[dict[str, Any]] = await DataProcessingUtils.process_excel_data(df, config, work_status) 
 
@@ -57,8 +55,7 @@ def mock_process_excel_to_down_form_orders(test_app):
         return {
             "saved_count": len(objects),
             "sample_dict": sample_dict,
-            "expect_dict_okclbb": expect_dict_okclbb,
-            "expect_dict_iy": expect_dict_iy
+            "expect_dict": expect_dict
         }
     
     mock.side_effect = _mock_process_excel_to_down_form_orders

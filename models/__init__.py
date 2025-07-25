@@ -1,8 +1,11 @@
 from models.base_model import Base
 from models.certification_detail.certification_detail import CertificationDetail
 from models.count_executing_data.count_executing_data import CountExecuting
-from models.down_form_orders.down_form_order import BaseDownFormOrder
-from models.macro.macro_info import MacroInfo
+from models.config.export_templates import ExportTemplates
+from models.config.mall_form_macro import MallFormMacro
+from models.config.mall_info import MallInfo
+from models.config.template_column_mappings import TemplateColumnMappings 
+from models.down_form_orders.down_form_order import BaseDownFormOrder, TestDownFormOrder
 from models.mall_certification_handling.mall_certification_handling import MallCertificationHandling
 from models.mall_price.mall_price import MallPrice
 from models.one_one_price.one_one_price import OneOnePrice
@@ -11,8 +14,5 @@ from models.product.product_mycategory_data import ProductMycategoryData
 from models.product.product_raw_data import ProductRawData
 from models.product.product_registration_data import ProductRegistrationRawData
 from models.receive_orders.receive_orders import ReceiveOrders
-from models.batch_process import BatchProcess 
-from models.config.export_templates import ExportTemplates
-from models.config.mall_form_macro import MallFormMacro
-from models.config.mall_info import MallInfo
-from models.config.template_column_mappings import TemplateColumnMappings 
+from models.macro_batch_processing.macro_info import MacroInfo
+from models.macro_batch_processing.batch_process import BatchProcess 

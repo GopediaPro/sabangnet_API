@@ -149,3 +149,19 @@ class BaseDownFormOrder(BaseFormOrder):
         """order 데이터 기반으로 각 케이스별 ERP 데이터 생성"""
         order_data = receive_orders_dto.model_dump()
         return cls(**order_data)
+    
+
+class TestDownFormOrder(BaseFormOrder):
+    __tablename__ = "test_down_form_orders"
+
+    @classmethod
+    def build_happo(cls, receive_orders_dto_list: list[ReceiveOrdersDto]) -> "BaseDownFormOrder":
+        """order 데이터 기반으로 각 케이스별 ERP 데이터 생성"""
+        
+        ...
+        
+    @classmethod
+    def build_erp(cls, receive_orders_dto: ReceiveOrdersDto) -> "BaseDownFormOrder":
+        """order 데이터 기반으로 각 케이스별 ERP 데이터 생성"""
+        order_data = receive_orders_dto.model_dump()
+        return cls(**order_data)

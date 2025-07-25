@@ -6,7 +6,6 @@ from models.macro_batch_processing.macro_info import MacroInfo
 
 
 class TemplateConfigRepository:
-    # 테이블 model 만들다가 말았습니다. (models/export_templates, models/template_column_mappings)
     DEFAULT_TEMPLATE_META_QUERY = """
         SELECT id, template_code, template_name, is_aggregated, group_by_fields
         FROM export_templates
