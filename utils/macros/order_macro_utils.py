@@ -9,6 +9,8 @@ from utils.macros.ERP.g_a_erp_macro import ERPGmaAucMacro
 from utils.macros.ERP.etc_site_macro import ERPEtcSiteMacro
 from utils.macros.ERP.zigzag_erp_macro import ERPZigzagMacro
 from utils.macros.ERP.brandi_erp_macro import ERPBrandiMacro
+# dto
+from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto
 # bundle
 from utils.macros.happojang.gok_merge_packaging import gok_merge_packaging
 from utils.macros.happojang.ali_merge_packaging import ali_merge_packaging
@@ -55,11 +57,13 @@ class OrderMacroUtils:
     def run_zigzag_macro(self, file_path: str) -> int:
         return ERPZigzagMacro(file_path).zigzag_erp_macro_run()
 
-    def process_orders_for_db(self, orders_list: list[dict]) -> list[dict]:
+    def process_orders_for_db(self, dto_list: list[DownFormOrderDto]) -> list[dict]:
         """DB 저장을 위한 주문 리스트 전체 처리"""
+
+        order_list = [order.model_dump() for order in dto_list]
         
         # 1. 개별 주문 전처리
-        processed_orders = [self.preprocess_order_data(order) for order in orders_list]
+        processed_orders = [self.preprocess_order_data(order) for order in order_list]
         
         # 2. 정렬
         processed_orders = self.sort_orders_by_receiver_and_site(processed_orders)

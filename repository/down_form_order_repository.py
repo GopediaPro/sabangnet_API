@@ -47,7 +47,12 @@ class DownFormOrderRepository:
         finally:
             await self.session.close()
 
-    async def get_down_form_orders_by_template_code(self, skip: int = None, limit: int = None, template_code: str = None) -> list[BaseDownFormOrder]:
+    async def get_down_form_orders_by_template_code(
+            self,
+            skip: int = None,
+            limit: int = None,
+            template_code: str = None
+    ) -> list[BaseDownFormOrder]:
         try:
             query = select(BaseDownFormOrder).order_by(BaseDownFormOrder.id)
             if template_code == 'all':
@@ -71,7 +76,12 @@ class DownFormOrderRepository:
         finally:
             await self.session.close()
 
-    async def get_down_form_orders_pagination(self, page: int = 1, page_size: int = 20, template_code: str = None) -> list[BaseDownFormOrder]:
+    async def get_down_form_orders_pagination(
+            self,
+            page: int = 1,
+            page_size: int = 20,
+            template_code: str = None
+    ) -> list[BaseDownFormOrder]:
         skip = (page - 1) * page_size
         limit = page_size
         return await self.get_down_form_orders_by_template_code(skip, limit, template_code)
@@ -135,14 +145,18 @@ class DownFormOrderRepository:
         finally:
             await self.session.close()
 
-    async def bulk_delete(self, ids: list[int]) -> int:
+    async def bulk_delete(self, ids: list[int]) -> dict[int, str]:
+        result = {}
         try:
             for id in ids:
                 db_obj = await self.session.get(BaseDownFormOrder, id)
                 if db_obj:
+                    result[id] = "success"
                     await self.session.delete(db_obj)
+                else:
+                    result[id] = "not_found"
             await self.session.commit()
-            return len(ids)
+            return result
         except Exception as e:
             await self.session.rollback()
             raise e

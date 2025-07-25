@@ -320,12 +320,15 @@ class DataProcessingUsecase:
         """
         logger.info(f"run_macro called with template_code={template_code}")
 
-        # 1. 템플릿 설정 조회
+        # 1. 템플릿 설정 조회 -> 실제로 안쓰고 있는?
         config: dict = await self.template_config_read_service.get_template_config_by_template_code(template_code)
         logger.info(f"Loaded template config: {config}")
 
         # 2. db 데이터를 템플릿에 따라 df 데이터 run_macro 실행 (preprocess_order_data)
-        down_order_data = await self.down_form_order_read_service.get_down_form_orders(template_code, limit=1000000)
+        down_order_data: list[DownFormOrderDto] = (
+            await self.down_form_order_read_service.
+            get_down_form_orders_by_template_code(template_code)
+        )
         processed_orders: list[dict[str, Any]] = self.order_macro_utils.process_orders_for_db(down_order_data)
 
         # 3. processed_orders 데이터를 "down_form_order" 테이블에 저장 후 성공한 레코드 수 반환
@@ -373,7 +376,10 @@ class DataProcessingUsecase:
         )
         return temp_file_path, file_name
 
-    async def bulk_save_down_form_orders_from_macro_run_excel(self, files: list[UploadFile]) -> dict[str, Any]:
+    async def bulk_save_down_form_orders_from_macro_run_excel(
+        self,
+        files: list[UploadFile]
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], int]:
         """
         bulk save down form orders from macro run excel
         args:
@@ -386,12 +392,12 @@ class DataProcessingUsecase:
         logger.info(f"[START] bulk_save_down_form_orders_from_macro_run_excel | file_count={len(files)}")
         # 1. 세마포어 설정
         semaphore = asyncio.Semaphore(5) # 최대 5개 작업 동시 실행
-        successful_results = []
-        failed_results = []
-        total_saved_count = 0
+        successful_results: list[dict[str, Any]] = []
+        failed_results: list[dict[str, Any]] = []
+        total_saved_count: int = 0
         # 2. 파일 처리
         for file in files:
-            result = await self._process_file(file, semaphore)
+            result: dict[str, Any] = await self._process_file(file, semaphore)
             saved_count = result.get('saved_count')
             if saved_count:
                 successful_results.append(result)
@@ -409,8 +415,6 @@ class DataProcessingUsecase:
 
     async def _process_file(self, file: UploadFile, semaphore: asyncio.Semaphore) -> dict[str, Any]:
         """
-        세마포어 5개 따서 그걸로 병렬 처리하는 함수
-
         네임스페이스 분리를 위해 비동기 함수로 만들어짐
         args:
             file: file

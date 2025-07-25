@@ -1,6 +1,5 @@
 from typing import Optional
 from models.base_model import Base
-from __future__ import annotations
 from sqlalchemy import BigInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
 

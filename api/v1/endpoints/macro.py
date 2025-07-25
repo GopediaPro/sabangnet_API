@@ -84,8 +84,7 @@ async def excel_run_macro(
 @router.post("/db-run-macro")
 async def db_run_macro(
     template_code: str = Form(...),
-    data_processing_usecase: DataProcessingUsecase = Depends(get_data_processing_usecase),
-    batch_info_create_service: BatchInfoCreateService = Depends(get_batch_info_create_service)
+    data_processing_usecase: DataProcessingUsecase = Depends(get_data_processing_usecase)
 ):
     """
     프론트에서 template_code를 받아 macro 실행 후 성공한 레코드 수 반환.
@@ -152,7 +151,15 @@ async def upload_excel_file_to_macro_get_url(
     """
     프론트에서 여러 개의 엑셀 파일을 받아 파일 이름에서 template_code를 조회하여 매크로 실행 후 down_form_orders 테이블에 저장.
     """
-    successful_results, failed_results, total_saved_count = await data_processing_usecase.bulk_save_down_form_orders_from_macro_run_excel(files)
+    successful_results, failed_results, total_saved_count = (
+        await data_processing_usecase.bulk_save_down_form_orders_from_macro_run_excel(files)
+    )
+    successful_results = [
+        {
+            "file_name": file.filename,
+            "saved_count": saved_count
+        } for file, saved_count in successful_results
+    ]
     return {
         "total_saved_count": total_saved_count,
         "successful_results": successful_results,
