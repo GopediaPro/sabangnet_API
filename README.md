@@ -116,10 +116,8 @@ logger.critical(내용)
 └── files                # 작업용 files
 └─────── excel
 └─────── json
-└─────── excel
-└─────── sample
+└─────── logs
 └─────── xml
-└── logs                 # 작업용 log 파일 관리
 ```
 
 ## 주의사항

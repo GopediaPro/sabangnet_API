@@ -22,12 +22,12 @@ class BatchProcessDto(BaseDTO):
     file_size: Optional[int] = Field(None, description="파일 크기")
     date_from: Optional[datetime] = Field(None, description="주문 일자 시작")
     date_to: Optional[datetime] = Field(None, description="주문 일자 종료")
-    order_status: Optional[str] = Field(None, description="주문 상태")
     error_message: Optional[str] = Field(None, description="에러 메시지")
     created_by: Optional[str] = Field(None, description="생성자")
     created_at: Optional[datetime] = Field(None, description="생성 일시")
     updated_at: Optional[datetime] = Field(None, description="수정 일시")
     work_status: Optional[str] = Field(None, description="작업 상태")
+    # order_status: Optional[str] = Field(None, description="주문 상태")
 
     model_config = ConfigDict(
         from_attributes=True,

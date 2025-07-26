@@ -29,7 +29,10 @@ class DownFormOrderReadService:
 
     async def get_down_form_orders_by_template_code(self, template_code: str) -> list[DownFormOrderDto]:
         down_form_order_dtos: list[DownFormOrderDto] = []
-        down_form_order_models: list[BaseDownFormOrder] = await self.down_form_order_repository.get_down_form_orders_by_template_code(template_code=template_code)
+        down_form_order_models: list[BaseDownFormOrder] = (
+            await self.down_form_order_repository.
+            get_down_form_orders_by_template_code(template_code=template_code)
+        )
         for down_form_order_model in down_form_order_models:
             down_form_order_dtos.append(
                 DownFormOrderDto.model_validate(down_form_order_model))

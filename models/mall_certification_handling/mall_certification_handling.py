@@ -8,12 +8,25 @@ class MallCertificationHandling(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     shop_code: Mapped[str] = mapped_column(String(50))
-    certification_detail_id: Mapped[int] = mapped_column(Integer, ForeignKey("certification_detail.id", name="certification_detail", ondelete="CASCADE"), nullable=False)
+    certification_detail_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(
+            "certification_detail.id",
+            name="certification_detail",
+            ondelete="CASCADE"
+        ),
+        nullable=False)
     before_certification_field: Mapped[str] = mapped_column(String(50))
     final_certification_field: Mapped[str] = mapped_column(String(50))
     
     @classmethod
-    def builder(cls, shop_code: str, certification_detail_id: int, before_certification_field: str, final_certification_field: str):
+    def builder(
+        cls,
+        shop_code: str,
+        certification_detail_id: int,
+        before_certification_field: str,
+        final_certification_field: str
+    ) -> "MallCertificationHandling":
         return cls(
             shop_code=shop_code,
             certification_detail_id=certification_detail_id,

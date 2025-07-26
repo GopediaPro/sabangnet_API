@@ -60,7 +60,8 @@ DOWN_FORM_ORDERS: list[dict[str, Any]] = [
         "delivery_confirm_date": "20240101140000",
         "cancel_dt": None,
         "hope_delv_date": "20240103",
-        "inv_send_dm": "20240101150000"
+        "inv_send_dm": "20240101150000",
+        "work_status": "macro_run"
     },
     {
         "id": 2,
@@ -118,7 +119,8 @@ DOWN_FORM_ORDERS: list[dict[str, Any]] = [
         "delivery_confirm_date": None,
         "cancel_dt": None,
         "hope_delv_date": "20240104",
-        "inv_send_dm": "20240102150000"
+        "inv_send_dm": "20240102150000",
+        "work_status": "macro_run"
     },
     {
         "id": 3,
@@ -176,7 +178,8 @@ DOWN_FORM_ORDERS: list[dict[str, Any]] = [
         "delivery_confirm_date": "20240103140000",
         "cancel_dt": None,
         "hope_delv_date": "20240105",
-        "inv_send_dm": "20240103150000"
+        "inv_send_dm": "20240103150000",
+        "work_status": "macro_run"
     },
     {
         "id": 4,
@@ -234,7 +237,8 @@ DOWN_FORM_ORDERS: list[dict[str, Any]] = [
         "delivery_confirm_date": None,
         "cancel_dt": None,
         "hope_delv_date": "20240106",
-        "inv_send_dm": "20240104150000"
+        "inv_send_dm": "20240104150000",
+        "work_status": "macro_run"
     },
     {
         "id": 5,
@@ -292,7 +296,8 @@ DOWN_FORM_ORDERS: list[dict[str, Any]] = [
         "delivery_confirm_date": "20240105140000",
         "cancel_dt": None,
         "hope_delv_date": "20240107",
-        "inv_send_dm": "20240105150000"
+        "inv_send_dm": "20240105150000",
+        "work_status": "macro_run"
     },
     {
         "id": 6,
@@ -350,7 +355,8 @@ DOWN_FORM_ORDERS: list[dict[str, Any]] = [
         "delivery_confirm_date": None,
         "cancel_dt": None,
         "hope_delv_date": "20240108",
-        "inv_send_dm": "20240106150000"
+        "inv_send_dm": "20240106150000",
+        "work_status": "macro_run"
     },
     {
         "id": 7,
@@ -408,7 +414,8 @@ DOWN_FORM_ORDERS: list[dict[str, Any]] = [
         "delivery_confirm_date": "20240107140000",
         "cancel_dt": None,
         "hope_delv_date": "20240109",
-        "inv_send_dm": "20240107150000"
+        "inv_send_dm": "20240107150000",
+        "work_status": "macro_run"
     },
     {
         "id": 8,
@@ -466,7 +473,8 @@ DOWN_FORM_ORDERS: list[dict[str, Any]] = [
         "delivery_confirm_date": None,
         "cancel_dt": None,
         "hope_delv_date": "20240110",
-        "inv_send_dm": "20240108150000"
+        "inv_send_dm": "20240108150000",
+        "work_status": "macro_run"
     },
     {
         "id": 9,
@@ -524,7 +532,8 @@ DOWN_FORM_ORDERS: list[dict[str, Any]] = [
         "delivery_confirm_date": "20240109140000",
         "cancel_dt": None,
         "hope_delv_date": "20240111",
-        "inv_send_dm": "20240109150000"
+        "inv_send_dm": "20240109150000",
+        "work_status": "macro_run"
     },
     {
         "id": 10,
@@ -582,7 +591,8 @@ DOWN_FORM_ORDERS: list[dict[str, Any]] = [
         "delivery_confirm_date": None,
         "cancel_dt": None,
         "hope_delv_date": "20240112",
-        "inv_send_dm": "20240110150000"
+        "inv_send_dm": "20240110150000",
+        "work_status": "macro_run"
     },
     {
         "id": 11,
@@ -640,7 +650,8 @@ DOWN_FORM_ORDERS: list[dict[str, Any]] = [
         "delivery_confirm_date": "20240111140000",
         "cancel_dt": None,
         "hope_delv_date": "20240113",
-        "inv_send_dm": "20240111150000"
+        "inv_send_dm": "20240111150000",
+        "work_status": "macro_run"
     },
     {
         "id": 12,
@@ -698,7 +709,8 @@ DOWN_FORM_ORDERS: list[dict[str, Any]] = [
         "delivery_confirm_date": None,
         "cancel_dt": None,
         "hope_delv_date": "20240114",
-        "inv_send_dm": "20240112150000"
+        "inv_send_dm": "20240112150000",
+        "work_status": "macro_run"
     },
     {
         "id": 13,
@@ -756,7 +768,8 @@ DOWN_FORM_ORDERS: list[dict[str, Any]] = [
         "delivery_confirm_date": "20240113140000",
         "cancel_dt": None,
         "hope_delv_date": "20240115",
-        "inv_send_dm": "20240113150000"
+        "inv_send_dm": "20240113150000",
+        "work_status": "macro_run"
     },
     {
         "id": 14,
@@ -814,6 +827,7 @@ DOWN_FORM_ORDERS: list[dict[str, Any]] = [
         "delivery_confirm_date": None,
         "cancel_dt": None,
         "hope_delv_date": "20240116",
-        "inv_send_dm": "20240114150000"
+        "inv_send_dm": "20240114150000",
+        "work_status": "macro_run"
     },
 ]

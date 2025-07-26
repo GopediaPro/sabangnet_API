@@ -5,7 +5,9 @@ import pandas as pd
 from typing import Any
 from utils.logs.sabangnet_logger import get_logger
 
+
 logger = get_logger(__name__)
+
 
 # 개인정보 마스킹 규칙 (ReceiveOrderCreateService._MASKING_RULES와 동일)
 MASKING_RULES = {
@@ -110,7 +112,7 @@ def eval_formula(transform_config: dict, row: dict) -> Any:
     except Exception:
         return None
 
-def map_excel_to_down_form(df: pd.DataFrame, config: dict) -> dict[str, Any]:
+def map_excel_to_down_form(df: pd.DataFrame, config: dict) -> list[dict[str, Any]]:
     """
     excel 데이터를 down_form_orders 스키마에 맞게 변환
     """

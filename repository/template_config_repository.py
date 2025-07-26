@@ -2,7 +2,7 @@ import json
 from typing import Optional
 from sqlalchemy import text, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.macro.macro_info import MacroInfo
+from models.macro_batch_processing.macro_info import MacroInfo
 
 
 class TemplateConfigRepository:
@@ -64,7 +64,6 @@ class TemplateConfigRepository:
         merged = {**default_meta, **input_meta}
         return merged
 
-
     async def get_template_config_by_template_code(self, template_code: str) -> Optional[dict]:
         # Get input template meta and columns
         input_meta = await self._get_template_meta(template_code)
@@ -77,14 +76,12 @@ class TemplateConfigRepository:
             "column_mappings": input_columns
         }
     
-    async def get_macro_name_by_template_code(self, template_code: str) -> Optional[list[str]]:
-        query = select(MacroInfo.macro_name)
-        query = query.where(MacroInfo.form_name == template_code)
+    async def get_macro_name_by_template_code(self, template_code: str) -> Optional[str]:
+        query = select(MacroInfo.macro_name).where(MacroInfo.form_name == template_code)
         result = await self.session.execute(query)
         return result.scalars().first()
 
-
-    async def all_template_code_name(self) -> list[str]:
+    async def get_all_template_code_name(self) -> list[str]:
         query = select(MacroInfo.form_name)
         result = await self.session.execute(query)
         return result.scalars().all()

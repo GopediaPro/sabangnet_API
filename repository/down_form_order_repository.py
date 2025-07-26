@@ -1,7 +1,12 @@
+from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
+from utils.logs.sabangnet_logger import get_logger
 from sqlalchemy import select, delete, func, update, text
 from models.down_form_orders.down_form_order import BaseDownFormOrder
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto
+
+
+logger = get_logger(__name__)
 
 
 class DownFormOrderRepository:
@@ -42,7 +47,12 @@ class DownFormOrderRepository:
         finally:
             await self.session.close()
 
-    async def get_down_form_orders_by_template_code(self, skip: int = None, limit: int = None, template_code: str = None) -> list[BaseDownFormOrder]:
+    async def get_down_form_orders_by_template_code(
+            self,
+            skip: int = None,
+            limit: int = None,
+            template_code: str = None
+    ) -> list[BaseDownFormOrder]:
         try:
             query = select(BaseDownFormOrder).order_by(BaseDownFormOrder.id)
             if template_code == 'all':
@@ -66,7 +76,12 @@ class DownFormOrderRepository:
         finally:
             await self.session.close()
 
-    async def get_down_form_orders_pagination(self, page: int = 1, page_size: int = 20, template_code: str = None) -> list[BaseDownFormOrder]:
+    async def get_down_form_orders_pagination(
+            self,
+            page: int = 1,
+            page_size: int = 20,
+            template_code: str = None
+    ) -> list[BaseDownFormOrder]:
         skip = (page - 1) * page_size
         limit = page_size
         return await self.get_down_form_orders_by_template_code(skip, limit, template_code)
@@ -103,6 +118,7 @@ class DownFormOrderRepository:
             return len(objects)
         except Exception as e:
             await self.session.rollback()
+            logger.error(f"Exception during bulk_insert: {e}")
             raise e
         finally:
             await self.session.close()
@@ -129,14 +145,18 @@ class DownFormOrderRepository:
         finally:
             await self.session.close()
 
-    async def bulk_delete(self, ids: list[int]) -> int:
+    async def bulk_delete(self, ids: list[int]) -> dict[int, str]:
+        result = {}
         try:
             for id in ids:
                 db_obj = await self.session.get(BaseDownFormOrder, id)
                 if db_obj:
+                    result[id] = "success"
                     await self.session.delete(db_obj)
+                else:
+                    result[id] = "not_found"
             await self.session.commit()
-            return len(ids)
+            return result
         except Exception as e:
             await self.session.rollback()
             raise e
@@ -172,12 +192,12 @@ class DownFormOrderRepository:
             deleted_count = result.rowcount
             await self.session.commit()
 
-            print(f"중복 제거 완료: {deleted_count}개 행 삭제됨")
+            logger.info(f"중복 제거 완료: {deleted_count}개 행 삭제됨")
             return deleted_count
 
         except Exception as e:
             await self.session.rollback()
-            print(f"중복 제거 실패: {e}")
+            logger.error(f"중복 제거 실패: {e}")
             raise e
 
     async def count_all(self, template_code: str = None) -> int:
@@ -198,3 +218,22 @@ class DownFormOrderRepository:
             raise e
         finally:
             await self.session.close()
+
+    
+    async def save_to_down_form_orders(self, processed_data: list[dict[str, Any]], template_code: str) -> int:
+        logger.info(
+            f"[START] save_to_down_form_orders | processed_data_count={len(processed_data)} | template_code={template_code}")
+        if not processed_data:
+            logger.warning("No processed data to save.")
+            return 0
+        try:
+            objects = [BaseDownFormOrder(**row) for row in processed_data]
+            self.session.add_all(objects)
+            await self.session.commit()
+            logger.info(
+                f"[END] save_to_down_form_orders | saved_count={len(objects)}")
+            return len(objects)
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Exception during save_to_down_form_orders: {e}")
+            raise

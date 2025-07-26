@@ -1,7 +1,6 @@
 import math
 import pytest
 from decimal import Decimal
-from datetime import datetime
 from tests.mocks import MOCK_TABLES
 from unittest.mock import AsyncMock
 from schemas.one_one_price.one_one_price_dto import OneOnePriceDto

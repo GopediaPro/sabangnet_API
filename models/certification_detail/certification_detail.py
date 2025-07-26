@@ -11,5 +11,5 @@ class CertificationDetail(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     certification_field: Mapped[str] = mapped_column(String(50))
-    certification_agency: Mapped[str] = mapped_column(String(50))
+    certification_agency: Mapped[str | None] = mapped_column(String(50), nullable=True)
     certification_code: Mapped[str] = mapped_column(String(50))

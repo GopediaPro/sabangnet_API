@@ -1,7 +1,6 @@
 import pytest
 from tests.mocks import MOCK_TABLES
 from unittest.mock import AsyncMock, MagicMock, patch
-from services.product.product_create_service import ProductCreateService
 from services.product.product_read_service import ProductReadService
 from services.product.product_update_service import ProductUpdateService
 from services.usecase.product_db_xml_usecase import ProductDbXmlUsecase

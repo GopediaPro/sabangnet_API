@@ -48,8 +48,8 @@ class ExcelColumnHandler:
         args:
             cell: 대상 셀
         """
-        if cell.value and str(cell.value).replace('.', '').replace('-', '').isdigit():
-            num_str = str(cell.value).replace('.', '').replace('-', '')
+        if cell.value and str(cell.value).replace('.', '').isdigit():
+            num_str = str(cell.value).replace('.', '')
             cell.value = str(num_str)
             cell.number_format = '@'  # 텍스트 형식
         cell.alignment = Alignment(horizontal='right')
