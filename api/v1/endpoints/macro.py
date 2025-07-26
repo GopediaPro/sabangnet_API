@@ -12,7 +12,7 @@ from schemas.macro_batch_processing.batch_process_dto import BatchProcessDto
 from schemas.macro_batch_processing.request.batch_process_request import BatchProcessRequest
 from schemas.macro_batch_processing.response.excel_macro_response import ExcelRunMacroResponse
 from schemas.macro_batch_processing.response.excel_list_response import ExcelListResponse, ExcelItem
-
+import json
 
 logger = get_logger(__name__)
 
@@ -41,50 +41,42 @@ def get_data_processing_usecase(session: AsyncSession = Depends(get_async_sessio
 
 @router.post("/excel-run-macro")
 async def excel_run_macro(
-    request: BatchProcessRequest = Body(...),
+    request: str = Form(
+        ...,
+        description=json.dumps(
+            BatchProcessRequest.Config.json_schema_extra['example'], indent=2)
+    ),
     file: UploadFile = File(...),
-    data_processing_usecase: DataProcessingUsecase = Depends(get_data_processing_usecase),
-    batch_info_create_service: BatchInfoCreateService = Depends(get_batch_info_create_service)
-    ):
-    original_filename = file.filename
-    try:
-        template_code = request.template_code
-        logger.info(f"original_filename: {original_filename}")
-        file_name, file_path = await data_processing_usecase.process_macro_with_tempfile(template_code, file)
-        file_url, minio_object_name, file_size = upload_and_get_url_and_size(file_path, template_code, file_name)
-        file_url = url_arrange(file_url)
-        batch_id = await batch_info_create_service.build_and_save_batch(
-            BatchProcessDto.build_success,
-            original_filename,
-            file_url,
-            file_size,
-            request
-        )
+    data_processing_usecase: DataProcessingUsecase = Depends(
+        get_data_processing_usecase)
+):
+    """
+    엑셀 파일을 업로드하여 매크로를 실행하고 MinIO URL을 반환합니다.
+    """
+    request_obj = BatchProcessRequest(**json.loads(request))
+
+    result = await data_processing_usecase.get_excel_run_macro_minio_url(file, request_obj)
+
+    if result.get("success"):
         return ExcelRunMacroResponse.build_success(
-            template_code=template_code,
-            batch_id=batch_id,
-            file_url=file_url,
-            object_name=minio_object_name
+            template_code=result.get("template_code"),
+            batch_id=result.get("batch_id"),
+            file_url=result.get("file_url"),
+            object_name=result.get("minio_object_name")
         )
-    except Exception as e:
-        logger.error(f"excel_run_macro error: {e}")
-        batch_id = await batch_info_create_service.build_and_save_batch(
-            BatchProcessDto.build_error,
-            original_filename,
-            request,
-            str(e)
-        )
+    else:
         return ExcelRunMacroResponse.build_error(
-            template_code=template_code,
-            batch_id=batch_id,
-            message=str(e)
+            template_code=result.get("template_code"),
+            batch_id=result.get("batch_id"),
+            message=result.get("error_message")  # 에러 메시지
         )
 
 
 @router.post("/db-run-macro")
 async def db_run_macro(
     template_code: str = Form(...),
-    data_processing_usecase: DataProcessingUsecase = Depends(get_data_processing_usecase)
+    data_processing_usecase: DataProcessingUsecase = Depends(
+        get_data_processing_usecase)
 ):
     """
     프론트에서 template_code를 받아 macro 실행 후 성공한 레코드 수 반환.
@@ -101,7 +93,8 @@ async def db_run_macro(
 async def get_batch_info_all(
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1),
-    batch_info_read_service: BatchInfoReadService = Depends(get_batch_info_read_service),
+    batch_info_read_service: BatchInfoReadService = Depends(
+        get_batch_info_read_service),
 ):
     items, total = await batch_info_read_service.get_batch_info_paginated(page, page_size)
     dto_items = [BatchProcessDto.model_validate(item) for item in items]
@@ -117,7 +110,8 @@ async def get_batch_info_all(
 async def get_batch_info_latest(
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=1000),
-    batch_info_read_service: BatchInfoReadService = Depends(get_batch_info_read_service),
+    batch_info_read_service: BatchInfoReadService = Depends(
+        get_batch_info_read_service),
 ):
     items, total = await batch_info_read_service.get_batch_info_latest(page, page_size)
     dto_items = [BatchProcessDto.model_validate(item) for item in items]
