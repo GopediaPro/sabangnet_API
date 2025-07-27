@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     ECOUNT_USER_ID: Optional[str] = None
     ECOUNT_COM_CODE: Optional[str] = None
 
+    # Hanjin
+    HANJIN_API: Optional[str] = None
+    HANJIN_CLIENT_ID: Optional[str] = None
+    HANJIN_CSR_NUM: Optional[str] = None
+
     class Config:
         env_file = ".env"
 
