@@ -706,7 +706,6 @@ class ExcelHandler:
         Returns:
             pd.DataFrame
         """
-        import os
         from minio_handler import delete_temp_file
         try:
             ex = ExcelHandler.from_file(file_path, sheet_index=sheet_index)
@@ -714,6 +713,16 @@ class ExcelHandler:
         finally:
             delete_temp_file(file_path)
         return df
+    
+    @staticmethod
+    def create_template_code_in_excel(file_path:str, template_code: str):
+        ex = ExcelHandler.from_file(file_path)
+        max_column = ex.ws.max_column +1
+        ex.ws.cell(row=1, column=max_column, value="template_code")
+        for row in range(2, ex.ws.max_row + 1):
+            ex.ws.cell(row=row, column=max_column, value=template_code)
+        new_file_path = ex.save_file(file_path)
+        return new_file_path
 
     def preprocess_and_update_ws(self, ws, sort_columns: list[int]):
         """
