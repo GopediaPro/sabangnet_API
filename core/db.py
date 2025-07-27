@@ -101,6 +101,9 @@ async def create_tables():
         # mall
         from models.certification_detail.certification_detail import CertificationDetail
         from models.mall_certification_handling.mall_certification_handling import MallCertificationHandling
+        # hanjin
+        from models.hanjin.hanjin_printwbls import HanjinPrintwbls
+        from models.hanjin.hanjin_orders import HanjinOrder
 
         async with async_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
