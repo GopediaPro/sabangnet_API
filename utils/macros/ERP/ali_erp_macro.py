@@ -17,9 +17,6 @@ class ERPAliMacro:
             self._z_to_f_column(row)
             self._f_column_process(self.ws[f'F{row}'])
             self._i_to_h_column(self.ws[f'I{row}'], self.ws[f'H{row}'])
-            col_h.d_column(
-                # =U2+V2
-                self.ws[f'D{row}'], self.ws[f'U{row}'], self.ws[f'V{row}'])
         # sheet1 vlookup 딕셔너리 생성 후 삭제
         vlookup_dict = self.ex.create_vlookup_dict(self.wb)
 
@@ -54,11 +51,15 @@ class ERPAliMacro:
                     col_h.a_value_column(ws[f"A{row}"])
                 else:
                     col_h.a_formula_column(ws[f"A{row}"])
+                col_h.d_column(
+                    # =U2+V2
+                    self.ws[f'D{row}'], self.ws[f'U{row}'], self.ws[f'V{row}'])
                 self._jeju_address_column(ws, row, ws[f"J{row}"])
                 col_h.convert_int_column(ws[f"P{row}"])
                 col_h.convert_int_column(ws[f"Q{row}"])
                 # VLOOKUP 적용
-                self._vlookup_column(ws[f"F{row}"], ws[f"S{row}"], vlookup_dict)
+                self._vlookup_column(
+                    ws[f"F{row}"], ws[f"S{row}"], vlookup_dict)
             print(f"[{ws.title}] 서식 및 디자인 적용 완료")
 
         output_path = self.ex.save_file(self.file_path)
