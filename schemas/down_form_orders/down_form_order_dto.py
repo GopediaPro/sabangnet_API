@@ -78,7 +78,7 @@ class DownFormOrderDto(BaseDTO):
     receive_zipcode: Optional[str] = Field(None, max_length=15, description="수취인우편번호(1)")
 
     # 배송 정보
-    delivery_payment_type: Optional[str] = Field(None, max_length=10, description="배송결제(신용,착불)")
+    delivery_payment_type: Optional[str] = Field(None, max_length=50, description="배송결제(신용,착불)")
     delv_msg: Optional[str] = Field(None, description="배송메세지")
     delivery_id: Optional[str] = Field(None, description="택배사코드")
     delivery_class: Optional[str] = Field(None, description="운임비타입")
