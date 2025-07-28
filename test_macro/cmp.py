@@ -1,4 +1,6 @@
+import os
 import sys
+from datetime import datetime
 import openpyxl
 from openpyxl.styles import PatternFill, Font, Border, Side # Font, Border, Side는 사용되지 않지만 import는 유지
 from openpyxl.styles.colors import COLOR_INDEX
@@ -70,7 +72,7 @@ def compare_excel_sheets(workbook, sheet1_name, sheet2_name, red_fill):
     # 3. 시트1과 시트2의 모든 값 비교 (수식 여부 포함)
     max_row = max(sheet1.max_row, sheet2.max_row)
     max_col = max(sheet1.max_column, sheet2.max_column)
-    found_diff = False # 초기값은 False여야 합니다.
+    found_diff = 0 # 초기값은 0여야 합니다.
 
     for row_idx in range(1, max_row + 1):
         sheet1.row_dimensions[row_idx].height = 16.5
@@ -97,7 +99,7 @@ def compare_excel_sheets(workbook, sheet1_name, sheet2_name, red_fill):
             # 1. 셀의 내용(값 또는 수식 문자열)이 다를 경우
             # 2. 수식 여부가 다를 경우 (하나는 수식이고 다른 하나는 아님)
             if str(content1) != str(content2) or is_formula1 != is_formula2 or color1 != color2:
-                found_diff = True
+                found_diff = found_diff + 1
                 
                 # 출력 메시지 개선: 수식인 경우 '수식:' 접두사 추가
                 display_content1 = f"수식: '{content1}'" if is_formula1 else f"값: '{content1}'"
@@ -110,8 +112,11 @@ def compare_excel_sheets(workbook, sheet1_name, sheet2_name, red_fill):
                       f"시트2 [{row_idx}행, {col_idx}열] {display_content2}")
                 cell1.fill = red_fill # 시트1 해당 셀의 배경색을 붉은색으로 변경
 
-    if not found_diff:
+    if found_diff == 0:
         print(f"'{sheet1_name}' 와 '{sheet2_name}' 시트 간 불일치 없음.")
+    else:
+        print(f"'{sheet1_name}' 와 '{sheet2_name}' 시트 간 {found_diff}건 불일치.")
+
     print(f"--- '{sheet1_name}' 와 '{sheet2_name}' 비교 완료 ---")
     return found_diff
 
@@ -173,7 +178,8 @@ def compare_selected_sheet_pairs(excel_filename):
         print("\n")
 
     # 변경된 내용을 새 파일로 저장 (원본 파일 손상 방지를 위해)
-    output_filename = f"checked_{excel_filename}"
+    path, file_name = os.path.split(excel_filename)
+    output_filename = os.path.join(path, f"checked_{file_name}")
 
     try:
         workbook.save(output_filename)
@@ -189,5 +195,11 @@ if __name__ == "__main__":
         excel_file = sys.argv[1]
     else:
         excel_file = "G옥_합포장_자동화_g_happo_data_20250714_sorted.xlsx"
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    today = datetime.now()
+    date_yyyymmdd = today.strftime("%Y%m%d")
+    current_dir = f"{current_dir}/{date_yyyymmdd}"
+    excel_file = os.path.join(current_dir, excel_file)
 
     compare_selected_sheet_pairs(excel_file)
