@@ -12,6 +12,7 @@ from schemas.macro_batch_processing.batch_process_dto import BatchProcessDto
 from schemas.macro_batch_processing.request.batch_process_request import BatchProcessRequest
 from schemas.macro_batch_processing.response.excel_macro_response import ExcelRunMacroResponse
 from schemas.macro_batch_processing.response.excel_list_response import ExcelListResponse, ExcelItem
+from schemas.macros.response.run_macro_response import BulkRunMacroResponse
 import json
 
 logger = get_logger(__name__)
@@ -70,6 +71,29 @@ async def excel_run_macro(
             batch_id=result.get("batch_id"),
             message=result.get("error_message")  # 에러 메시지
         )
+
+
+@router.post("/excel-run-macro-bulk")
+async def excel_run_macro_bulk(
+    request: str = Form(
+        ...,
+        description=json.dumps(
+            BatchProcessRequest.Config.json_schema_extra['example'], indent=2)
+    ),
+    files: list[UploadFile] = File(...),
+    data_processing_usecase: DataProcessingUsecase = Depends(
+        get_data_processing_usecase)
+):
+    request_obj = BatchProcessRequest(**json.loads(request))
+
+    successful_results, failed_results, total_saved_count = (
+        await data_processing_usecase.bulk_get_excel_run_macro_minio_url_and_save_db(files, request_obj))
+
+    return BulkRunMacroResponse.build_total(
+        total_saved_count=total_saved_count,
+        successful_results=successful_results,
+        failed_results=failed_results
+    )
 
 
 @router.post("/db-run-macro")
@@ -148,14 +172,8 @@ async def upload_excel_file_to_macro_get_url(
     successful_results, failed_results, total_saved_count = (
         await data_processing_usecase.bulk_save_down_form_orders_from_macro_run_excel(files)
     )
-    successful_results = [
-        {
-            "file_name": file.filename,
-            "saved_count": saved_count
-        } for file, saved_count in successful_results
-    ]
-    return {
-        "total_saved_count": total_saved_count,
-        "successful_results": successful_results,
-        "failed_results": failed_results
-    }
+    return BulkRunMacroResponse.build_total(
+        total_saved_count=total_saved_count,
+        successful_results=successful_results,
+        failed_results=failed_results
+    )

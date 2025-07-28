@@ -4,7 +4,7 @@ import unicodedata
 import pandas as pd
 from datetime import datetime
 from fastapi import UploadFile
-from typing import Any, Optional
+from typing import Any, Optional, Callable, Awaitable
 # util
 from utils.excels.convert_xlsx import ConvertXlsx
 from utils.logs.sabangnet_logger import get_logger
@@ -396,6 +396,95 @@ class DataProcessingUsecase:
                     )
         return temp_file_path, file_name
 
+    async def _process_file_basic(self, file: UploadFile) -> dict[str, Any]:
+        """
+        기본 파일 처리 로직 (DB 저장만)
+        args:
+            file: file
+        returns:
+            dict: {"filename": str, "saved_count": int}
+        """
+        try:
+            saved_count = await self.save_down_form_orders_from_macro_run_excel(
+                file, work_status="macro_run"
+            )
+            return {"filename": file.filename, "saved_count": saved_count}
+        except Exception as e:
+            return {"filename": file.filename, "error": str(e)}
+
+    async def _process_file_with_batch(
+        self,
+        file: UploadFile,
+        request_obj: BatchProcessRequest
+    ) -> dict[str, Any]:
+        """
+        배치 정보와 함께 파일 처리 로직 (DB 저장 + MinIO 업로드)
+        args:
+            file: file
+            request_obj: request object
+        returns:
+            dict: {"filename": str, "saved_count": int, "template_code": str, "batch_id": str, "file_url": str}
+        """
+        original_filename = file.filename
+        logger.info(f"original_filename={original_filename}")
+        try:
+            # 1. 파일 이름에서 템플릿 코드 조회
+            template_code = await self.find_template_code_by_filename(original_filename)
+            logger.info(f"template_code: {template_code}")
+            if not template_code:
+                raise ValueError(
+                    f"Template code not found for filename: {original_filename}")
+
+            # 2. 임시 파일 생성
+            file_name, file_path = await self.process_macro_with_tempfile(template_code, file)
+            logger.info(
+                f"temporary file path: {file_path} | file name: {file_name}")
+
+            # 3. 파일에 template_code 추가 및 업로드
+            new_file_path = ExcelHandler.create_template_code_in_excel(
+                file_path, template_code)
+            logger.info(f"new_file_path: {new_file_path}")
+
+            # 4. 데이터 저장
+            ex = ExcelHandler.from_file(new_file_path, sheet_index=0)
+            dataframe = ex.to_dataframe()
+            saved_count = await self.process_excel_to_down_form_orders(dataframe, template_code, work_status="macro_run")
+            logger.info(f"saved_count: {saved_count}")
+
+            # 5. 파일 업로드 및 batch 저장
+            file_url, minio_object_name, file_size = upload_and_get_url_and_size(
+                new_file_path, template_code, file_name)
+            file_url = url_arrange(file_url)
+
+            batch_id = await self.batch_info_create_service.build_and_save_batch(
+                BatchProcessDto.build_success,
+                original_filename,
+                file_url,
+                file_size,
+                request_obj
+            )
+            return {
+                "filename": original_filename,
+                "saved_count": saved_count,
+                "template_code": template_code,
+                "batch_id": batch_id,
+                "file_url": file_url,
+                "minio_object_name": minio_object_name
+            }
+        except Exception as e:
+            batch_id = await self.batch_info_create_service.build_and_save_batch(
+                BatchProcessDto.build_error,
+                file.filename,
+                request_obj,
+                str(e)
+            )
+            return {
+                "filename": original_filename,
+                "template_code": template_code,
+                "batch_id": batch_id,
+                "error_message": str(e)
+            }
+
     async def bulk_save_down_form_orders_from_macro_run_excel(
         self,
         files: list[UploadFile]
@@ -409,16 +498,14 @@ class DataProcessingUsecase:
             failed_results: list of failed results
             total_saved_count: total saved count
         """
-        logger.info(
-            f"[START] bulk_save_down_form_orders_from_macro_run_excel | file_count={len(files)}")
-        # 1. 세마포어 설정
-        semaphore = asyncio.Semaphore(5)  # 최대 5개 작업 동시 실행
+        logger.info(f"[START] bulk_save_down_form_orders_from_macro_run_excel | file_count={len(files)}")
+
         successful_results: list[dict[str, Any]] = []
         failed_results: list[dict[str, Any]] = []
         total_saved_count: int = 0
-        # 2. 파일 처리
+
         for file in files:
-            result: dict[str, Any] = await self._process_file(file, semaphore)
+            result: dict[str, Any] = await self._process_file_basic(file)
             saved_count = result.get('saved_count')
             if saved_count:
                 successful_results.append(result)
@@ -426,32 +513,45 @@ class DataProcessingUsecase:
             else:
                 failed_results.append(result)
             logger.info(f"result: {result}")
-        logger.info(f"\
-            [END] bulk_save_down_form_orders_from_macro_run_excel | \
-            successful_results={successful_results} | \
-            failed_results={failed_results} | \
-            total_saved_count={total_saved_count}"
-                    )
+
+        logger.info(
+            f"[END] bulk_save_down_form_orders_from_macro_run_excel | successful_results={successful_results} | failed_results={failed_results} | total_saved_count={total_saved_count}")
         return successful_results, failed_results, total_saved_count
 
-    async def _process_file(self, file: UploadFile, semaphore: asyncio.Semaphore) -> dict[str, Any]:
+    async def bulk_get_excel_run_macro_minio_url_and_save_db(
+        self,
+        files: list[UploadFile],
+        request_obj: BatchProcessRequest
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], int]:
         """
-        네임스페이스 분리를 위해 비동기 함수로 만들어짐
+        bulk get excel run macro minio url and save db
         args:
-            file: file
-            semaphore: semaphore for concurrency control
+            files: list of files
+            request_obj: batch process request object
         returns:
-            dict: {"filename": str, "saved_count": int} or {
-                "filename": str, "error": str}
+            successful_results: list of successful results
+            failed_results: list of failed results
+            total_saved_count: total saved count
         """
-        async with semaphore:
-            try:
-                saved_count = await self.save_down_form_orders_from_macro_run_excel(
-                    file, work_status="macro_run"
-                )
-                return {"filename": file.filename, "saved_count": saved_count}
-            except Exception as e:
-                return {"filename": file.filename, "error": str(e)}
+        logger.info(f"[START] bulk_get_excel_run_macro_minio_url_and_save_db | file_count={len(files)}")
+
+        successful_results: list[dict[str, Any]] = []
+        failed_results: list[dict[str, Any]] = []
+        total_saved_count: int = 0
+
+        for file in files:
+            result: dict[str, Any] = await self._process_file_with_batch(file, request_obj)
+            saved_count = result.get('saved_count')
+            if saved_count:
+                successful_results.append(result)
+                total_saved_count += saved_count
+            else:
+                failed_results.append(result)
+            logger.info(f"result: {result}")
+
+        logger.info(
+            f"[END] bulk_get_excel_run_macro_minio_url_and_save_db | successful_results={successful_results} | failed_results={failed_results} | total_saved_count={total_saved_count}")
+        return successful_results, failed_results, total_saved_count
 
     async def find_template_code_by_filename(self, file_name: str) -> str:
         template_list: list[dict[str, str]] = await self.export_templates_read_service.get_export_templates_code_and_name()
@@ -477,7 +577,7 @@ class DataProcessingUsecase:
                 continue
         return None
 
-    async def get_excel_run_macro_minio_url(self, file:UploadFile, request_obj:BatchProcessRequest) -> dict[str, Any]:
+    async def get_excel_run_macro_minio_url(self, file: UploadFile, request_obj: BatchProcessRequest) -> dict[str, Any]:
         """
         get excel run macro minio url
         args:
@@ -490,7 +590,7 @@ class DataProcessingUsecase:
         logger.info(
             f"[START] get_excel_run_macro_minio_url | file_name={original_filename}")
         # 1. 파일 이름에서 템플릿 코드 조회
-        template_code = await self.find_template_code_by_filename(file.filename)
+        template_code: str = await self.find_template_code_by_filename(file.filename)
 
         if not template_code:
             raise ValueError(
@@ -516,7 +616,7 @@ class DataProcessingUsecase:
                 batch_id: {batch_id} | \
                 file_url: {file_url} | \
                 minio_object_name: {minio_object_name}"
-                )
+            )
             return {
                 "success": True,
                 "template_code": template_code,
@@ -536,7 +636,7 @@ class DataProcessingUsecase:
                 template_code: {template_code} | \
                 batch_id: {batch_id} | \
                 error_message: {str(e)}"
-                )
+            )
             return {
                 "success": False,
                 "template_code": template_code,
