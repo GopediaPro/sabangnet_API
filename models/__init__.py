@@ -17,3 +17,5 @@ from models.receive_orders.receive_orders import ReceiveOrders
 from models.macro_batch_processing.macro_info import MacroInfo
 from models.macro_batch_processing.batch_process import BatchProcess 
 from models.down_form_orders.test_down_form_orders import TestDownFormOrder
+from models.hanjin.hanjin_printwbls import HanjinPrintwbls
+from models.hanjin.hanjin_orders import HanjinOrder

@@ -219,6 +219,32 @@ class DownFormOrderRepository:
         finally:
             await self.session.close()
 
+    async def get_orders_without_invoice_no(self, limit: int = 100) -> list[BaseDownFormOrder]:
+        """
+        invoice_no가 없는 주문 데이터를 조회합니다.
+        
+        Args:
+            limit: 조회할 최대 건수 (기본값: 100)
+            
+        Returns:
+            invoice_no가 없는 주문 데이터 리스트
+        """
+        try:
+            query = select(BaseDownFormOrder).where(
+                (BaseDownFormOrder.invoice_no == None) | 
+                (BaseDownFormOrder.invoice_no == '') |
+                (BaseDownFormOrder.invoice_no == 'null')
+            ).order_by(BaseDownFormOrder.id.desc()).limit(limit)
+            
+            result = await self.session.execute(query)
+            return result.scalars().all()
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"invoice_no가 없는 주문 조회 실패: {str(e)}")
+            raise e
+        finally:
+            await self.session.close()
+
     
     async def save_to_down_form_orders(self, processed_data: list[dict[str, Any]], template_code: str) -> int:
         logger.info(
