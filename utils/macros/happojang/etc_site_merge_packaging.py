@@ -400,11 +400,11 @@ class ETCSheetManager:
         # 2. C→B 정렬
         ex.sort_by_columns([2, 3])
         
-        # 3. D열 수식 설정 (사용자 요구사항에 맞는 P, V 처리)
-        self._calculate_d_column_custom(ws)
-        
-        # 4. 사이트별 배송비 처리
+        # 3. 사이트별 배송비 처리
         ETCDeliveryFeeHandler(ws).process_delivery_fee()
+
+        # 4. D열 수식 설정 (사용자 요구사항에 맞는 P, V 처리)
+        self._calculate_d_column_custom(ws)
         
         # 5. 주문번호 처리
         process_order_numbers(ws)
@@ -443,6 +443,9 @@ class ETCSheetManager:
         D열 계산: U + V(슬래시 합산) + 제주도 추가비용
         """
         for row in range(2, ws.max_row + 1):
+            # C열 이름 확인 (김비비 디버깅용)
+            name = str(ws[f'C{row}'].value or "")
+            
             u_val = ws[f'U{row}'].value or 0
             v_val = ws[f'V{row}'].value or 0
             addr = str(ws[f'J{row}'].value or "")  # J열 주소 확인
