@@ -61,10 +61,25 @@ class TestFilenameParsingIntegration:
                 mock_template = MagicMock()
                 mock_template.template_code = template["template_code"]
                 mock_template.template_name = template["template_name"]
+                mock_template.site_type = template["site_type"]
+                mock_template.usage_type = template["usage_type"]
+                mock_template.is_star = template["is_star"]
+                mock_template.is_active = template["is_active"]
                 mock_templates.append(mock_template)
             return mock_templates
         
+        # Mock find_template_code_by_site_usage_star method
+        async def mock_find_template_code_by_site_usage_star(site_type: str, usage_type: str, is_star: bool):
+            for template in EXPORT_TEMPLATES:
+                if (template["site_type"] == site_type and 
+                    template["usage_type"] == usage_type and 
+                    template["is_star"] == is_star and
+                    template["is_active"]):
+                    return template["template_code"]
+            return None
+        
         repository.get_export_templates = mock_get_export_templates
+        repository.find_template_code_by_site_usage_star = mock_find_template_code_by_site_usage_star
         return repository
     
     @pytest.fixture
@@ -427,7 +442,7 @@ class TestFilenameParsingIntegration:
         
         result = data_processing_usecase.parse_filename(filename)
         
-        assert result["site_name"] is None
+        assert result["site_type"] is None
         assert result["usage_type"] is None
         assert result["sub_site"] is None
         assert result["is_star"] is False
