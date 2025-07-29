@@ -37,7 +37,7 @@ class ExcelHandler:
         wb = openpyxl.load_workbook(file_path)
         ws = wb.worksheets[sheet_index]
         return cls(ws, wb)
-    
+
     def save_file(self, file_path):
         """
         엑셀 파일 저장
@@ -54,37 +54,37 @@ class ExcelHandler:
     def happojang_save_file(self, output_dir="files/excel/happojang", base_name=None, suffix="_매크로_완료"):
         """
         엑셀 파일 저장 (happojang 규칙 적용)
-        
+
         Args:
             output_dir: 저장할 디렉토리 (프로젝트 루트 기준)
             base_name: 기본 파일명 (확장자 제외). None이면 현재 시트명 사용
             suffix: 파일명 접미사
-            
+
         Returns:
             str: 저장된 파일의 전체 경로
-            
+
         예시:
             ex.save_file()  # 기본값으로 저장
             ex.save_file(base_name="브랜디_주문데이터")  # 특정 파일명으로 저장
         """
         from pathlib import Path
-        
+
         # 기본 파일명 결정
         if base_name is None:
             base_name = self.ws.title or "output"
-            
+
         # 출력 디렉토리 생성
         project_root = Path(__file__).parent.parent
         output_path_dir = project_root / output_dir
         output_path_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # 최종 파일 경로
         output_path = str(output_path_dir / f"{base_name}{suffix}.xlsx")
-        
+
         # 파일 저장
         self.wb.save(output_path)
         return output_path
-    
+
     def set_auto_filter(self, ws=None):
         """
         A1 행 자동 필터 설정
@@ -210,30 +210,30 @@ class ExcelHandler:
         """
         if not val:
             return ""
-        
+
         val = str(val).replace('-', '').replace(' ', '').strip()
         if not val.isdigit():
             return val
-        
+
         # 12자리: 050, 070 등
         if len(val) == 12 and val[:3] in ['050', '070']:
             return f"{val[:4]}-{val[4:8]}-{val[8:]}"
-        
+
         # 11자리: 010, 011, 016, 017, 018, 019
         elif len(val) == 11 and val[:3] in ['010', '011', '016', '017', '018', '019']:
             return f"{val[:3]}-{val[3:7]}-{val[7:]}"
-        
+
         # 10자리: 02(서울), 031~064(지역번호)
         elif len(val) == 10:
             if val.startswith('02'):
                 return f"{val[:2]}-{val[2:6]}-{val[6:]}"
             elif val[:3] in [f'0{i}' for i in range(31, 65)]:
                 return f"{val[:3]}-{val[3:6]}-{val[6:]}"
-        
+
         # 9자리: 02 + 7자리 (서울 구번호)
         elif len(val) == 9 and val.startswith('02'):
             return f"{val[:2]}-{val[2:5]}-{val[5:]}"
-        
+
         return val
 
     def clean_model_name(self, val):
@@ -254,11 +254,11 @@ class ExcelHandler:
         for r in range(2, last_row + 1):
             p_cell = self.ws[f"P{r}"]
             p_raw = p_cell.value
-            
+
             # 이미 숫자인 경우 그대로 유지
             if isinstance(p_raw, (int, float)):
                 continue
-                
+
             p_str = str(p_raw or "").strip()
             if "/" in p_str:
                 nums = []
@@ -359,7 +359,6 @@ class ExcelHandler:
                 elif col_letter in align_map['right']:
                     cell.alignment = right
 
-
     def sort_dataframe_by_c_b(self, df, c_col='C', b_col='B'):
         """
         DataFrame을 C열 → B열 순서로 오름차순 정렬
@@ -370,26 +369,26 @@ class ExcelHandler:
             print(c_col, b_col)
             return df.sort_values(by=[c_col, b_col]).reset_index(drop=True)
         return df
-    
+
     def sort_by_columns(self, key_columns: List[int], start_row: int = 2) -> None:
         """
         지정된 열들을 기준으로 워크시트 데이터 정렬
-        
+
         :param key_columns: 정렬 기준 열 번호 리스트 (1-based indexing)
                         예: [2, 3]은 B열, C열 순서로 정렬
         :param start_row: 정렬 시작 행 번호 (기본값: 2, 첫 행은 헤더)
-        
+
         예시:
             # B열, C열 순서로 2단계 정렬
             ex = ExcelHandler.from_file("example.xlsx")
             ex.sort_by_columns([2, 3])
-            
+
             # D열 기준 단일 정렬, 3행부터
             ex.sort_by_columns([4], start_row=3)
-            
+
             # 여러 열 조합 정렬 (A → C → B)
             ex.sort_by_columns([1, 3, 2])
-        
+
         주의:
         - 열 번호는 1부터 시작 (A열=1, B열=2, ...)
         - 정렬은 문자열 비교 기준 ('123' > '1000')
@@ -397,26 +396,26 @@ class ExcelHandler:
         필요시 set_row_number() 별도 호출
         """
         rows = [
-            [self.ws.cell(row=r, column=c).value 
-            for c in range(1, self.ws.max_column + 1)]
+            [self.ws.cell(row=r, column=c).value
+             for c in range(1, self.ws.max_column + 1)]
             for r in range(start_row, self.last_row + 1)
         ]
-        
+
         # 정렬 키 함수: 각 열을 문자열로 변환하여 비교
         rows.sort(key=lambda x: tuple(str(x[i-1]) for i in key_columns))
-        
+
         # 기존 데이터 삭제 후 정렬된 데이터 재기록
         self.ws.delete_rows(start_row, self.last_row - start_row + 1)
         for ridx, row in enumerate(rows, start=start_row):
             for cidx, val in enumerate(row, start=1):
                 self.ws.cell(row=ridx, column=cidx, value=val)
-        
+
         # last_row 업데이트
         self.last_row = self.ws.max_row
 
     # 특수 처리 Method
 
-    def process_jeju_address(self, row,ws=None, f_col='F', j_col='J'):
+    def process_jeju_address(self, row, ws=None, f_col='F', j_col='J'):
         """
         제주도 주소: '[3000원 연락해야함]' 추가, 연한 파란색 배경 및 빨간 글씨 적용
         예시:
@@ -584,7 +583,7 @@ class ExcelHandler:
     def split_sheets_by_site(self, df, ws_map, site_mapping):
         """
         공통 시트 분리 메서드
-        
+
         Args:
             rules (dict): 간단한 규칙 딕셔너리
                         예: {"OK": ["오케이마트"], "IY": ["아이예스"], "OK,CL,BB": ["오케이마트", "클로버프", "베이지베이글"]}
@@ -592,29 +591,31 @@ class ExcelHandler:
         # 각 시트별 행 인덱스 초기화
         site_rows = {sheet: 2 for sheet in site_mapping.keys()}
         font = Font(name='맑은 고딕', size=9)
-        
+
         for row_data in df.itertuples(index=False):
             # 계정명 추출
-            site_value = str(getattr(row_data, '사이트')) if pd.notna(getattr(row_data, '사이트')) else ""
+            site_value = str(getattr(row_data, '사이트')) if pd.notna(
+                getattr(row_data, '사이트')) else ""
             account_name = ""
-            
+
             if "]" in site_value and site_value.startswith("["):
                 try:
                     account_name = site_value[1:site_value.index("]")]
                 except:
                     account_name = ""
-            
+
             # 매칭되는 시트 찾기
             for sheet, filters in site_mapping.items():
                 if account_name in filters and sheet in ws_map:
                     target_sheet = ws_map[sheet]
                     current_row = site_rows[sheet]
-                    
+
                     # 데이터 복사
                     for col_idx, value in enumerate(row_data, 1):
-                        cell = target_sheet.cell(row=current_row, column=col_idx, value=value)
+                        cell = target_sheet.cell(
+                            row=current_row, column=col_idx, value=value)
                         cell.font = font
-                    
+
                     target_sheet.row_dimensions[current_row].height = 15
                     site_rows[sheet] += 1
                     break
@@ -649,17 +650,17 @@ class ExcelHandler:
         D열에 지정된 열들의 실제 계산된 값을 입력 (수식이 아닌 값)
         - 2개 열: first_col + second_col
         - 3개 열: first_col + second_col + third_col
-        
+
         예시:
             # 3개 열 합산 (O+P+V)
             calculate_d_column_values(ws, first_col='O', second_col='P', third_col='V')
-            
+
             # 2개 열 합산 (M+N)
             calculate_d_column_values(ws, first_col='M', second_col='N')
-            
+
             # 다른 열 조합 (U+W+X)
             calculate_d_column_values(ws, first_col='U', second_col='W', third_col='X')
-            
+
             # 행 범위 지정
             calculate_d_column_values(ws, start_row=3, end_row=100, first_col='A', second_col='B')
         """
@@ -667,22 +668,23 @@ class ExcelHandler:
             ws = self.ws
         if not end_row:
             end_row = self.last_row
-            
+
         # 최소 2개 열은 필요
         if first_col is None or second_col is None:
             raise ValueError("first_col과 second_col은 필수 파라미터입니다.")
-        
+
         for row in range(start_row, end_row + 1):
             # 각 열의 원본 값 확인
             first_raw = ws[f'{first_col}{row}'].value
             second_raw = ws[f'{second_col}{row}'].value
             third_raw = ws[f'{third_col}{row}'].value if third_col else None
-            
+
             # 각 열의 값을 가져와서 숫자로 처리
             first_val = first_raw if isinstance(first_raw, (int, float)) else 0
-            second_val = second_raw if isinstance(second_raw, (int, float)) else 0
+            second_val = second_raw if isinstance(
+                second_raw, (int, float)) else 0
             third_val = third_raw if isinstance(third_raw, (int, float)) else 0
-            
+
             # 2개 열 또는 3개 열 합산
             if third_col is None:
                 # 2개 열 합산
@@ -690,7 +692,7 @@ class ExcelHandler:
             else:
                 # 3개 열 합산
                 total = first_val + second_val + third_val
-            
+
             # 합계를 D열에 입력
             ws[f'D{row}'].value = total
             ws[f'D{row}'].number_format = 'General'
@@ -713,16 +715,14 @@ class ExcelHandler:
         finally:
             delete_temp_file(file_path)
         return df
-    
-    @staticmethod
-    def create_template_code_in_excel(file_path:str, template_code: str):
-        ex = ExcelHandler.from_file(file_path)
-        max_column = ex.ws.max_column +1
-        ex.ws.cell(row=1, column=max_column, value="template_code")
-        for row in range(2, ex.ws.max_row + 1):
-            ex.ws.cell(row=row, column=max_column, value=template_code)
-        new_file_path = ex.save_file(file_path)
-        return new_file_path
+
+    def create_template_code_in_excel(self, template_code: str, ws=None):
+        if ws is None:
+            ws = self.ws
+        max_column = ws.max_column + 1
+        ws.cell(row=1, column=max_column, value="template_code")
+        for row in range(2, ws.max_row + 1):
+            ws.cell(row=row, column=max_column, value=template_code)
 
     def preprocess_and_update_ws(self, ws, sort_columns: list[int]):
         """
@@ -791,9 +791,8 @@ class ExcelHandler:
                 1, ws.max_column + 1)]
             for r in range(2, ws.max_row + 1)
         ]
-
         return headers, data
-    
+
     def _sort_data(self, data: list[list], sort_columns: list[int]) -> list[list]:
         """
         데이터 정렬 (컬럼 인덱스) 2025-07-17 srot_columns에 음수 값이 입력되면 역순 정렬되도록 수정
@@ -804,7 +803,7 @@ class ExcelHandler:
             sorted_data: 정렬된 데이터
         """
         logger = get_logger(__name__)
-        
+
         def dynamic_key(item):
             key_tuple_elements = []
             try:
@@ -814,16 +813,19 @@ class ExcelHandler:
                     if value is None:
                         # 오름차순: None은 맨 뒤, 내림차순: None은 맨 앞
                         if col_idx > 0:
-                            value = float('inf') if isinstance(item[abs(col_idx)-1], (int, float)) else ""
+                            value = float('inf') if isinstance(
+                                item[abs(col_idx)-1], (int, float)) else ""
                         else:
-                            value = float('-inf') if isinstance(item[abs(col_idx)-1], (int, float)) else ""
+                            value = float(
+                                '-inf') if isinstance(item[abs(col_idx)-1], (int, float)) else ""
                     if col_idx > 0:
                         key_tuple_elements.append(value)
                     elif col_idx < 0:
                         if isinstance(value, (int, float)):
                             key_tuple_elements.append(-value)
                         elif isinstance(value, str):
-                            key_tuple_elements.append(ReverseComparableString(value))
+                            key_tuple_elements.append(
+                                ReverseComparableString(value))
                         else:
                             key_tuple_elements.append(value)
             except Exception as exc:
@@ -834,7 +836,7 @@ class ExcelHandler:
                 )
                 raise
             return tuple(key_tuple_elements)
-        
+
         try:
             return sorted(data, key=dynamic_key)
         except Exception as exc:
@@ -955,9 +957,70 @@ class ExcelHandler:
         for sheet in wb:
             if sheet.title == "Sheet1":
                 for row in range(2, sheet.max_row + 1):
-                   vlookup_dict[str(sheet.cell(row=row, column=1).value)] = str(sheet.cell(row=row, column=2).value)
+                    vlookup_dict[str(sheet.cell(row=row, column=1).value)] = str(
+                        sheet.cell(row=row, column=2).value)
                 del wb[sheet.title]
         return vlookup_dict
+
+    def add_island_delivery(self, wb=None):
+        """
+        work book으로 받아서 각각의 셀비교
+        """
+        red_font = Font(color="FF0000", bold=True)
+        black_font = Font(color="000000", bold=False, size=9)
+        island_dict: list[dict] = [{"site_name": "GSSHOP", "fid_dsp": "GSSHOP", "cost": 3000, "add_dsp": False},
+                                   {'site_name': "텐바이텐", "fid_dsp": "텐바이텐",
+                                       "cost": 3000, "add_dsp": True},
+                                   {'site_name': "쿠팡", "fid_dsp": "쿠팡",
+                                       "cost": 3000, "add_dsp": False},
+                                   {'site_name': "무신사", "fid_dsp": "무신사",
+                                       "cost": 3000, "add_dsp": False},
+                                   {'site_name': "NS홈쇼핑", "fid_dsp": "NS홈쇼핑",
+                                    "cost": 3000, "add_dsp": False},
+                                   {'site_name': "CJ온스타일", "fid_dsp": "CJ온스타일",
+                                    "cost": 3000, "add_dsp": False},
+                                   {'site_name': "브랜디", "fid_dsp": "브랜디",
+                                       "cost": 3000, "add_dsp": True},
+                                   {'site_name': "에이블리", "fid_dsp": "에이블리",
+                                    "cost": 3000, "add_dsp": False},
+                                   {'site_name': "보리보리", "fid_dsp": "보리보리",
+                                       "cost": 3000, "add_dsp": True},
+                                   {'site_name': "지그재그", "fid_dsp": "지그재그",
+                                    "cost": 3000, "add_dsp": False},
+                                   {'site_name': "카카오톡선물하기", "fid_dsp": "카카오선물하기",
+                                    "cost": 3000, "add_dsp": True},
+                                   {'site_name': "11번가", "fid_dsp": "11번가",
+                                    "cost": 5000, "add_dsp": False},
+                                   {'site_name': "홈&쇼핑", "fid_dsp": "홈&쇼핑",
+                                       "cost": 3000, "add_dsp": True},
+                                   ]
+        if wb is None:
+            wb = self.wb
+        for ws in wb:
+            for row in range(2, ws.max_row + 1):
+                # 주소에 제주가 포함된 경우
+                if "제주" in ws[f"J{row}"].value:
+                    for island in island_dict:
+                        site_name = ws[f"B{row}"].value
+                        # 사이트명이 포함된 경우
+                        if island["fid_dsp"] in site_name:
+                            # 처리 여부 확인
+                            if island["add_dsp"]:
+                                ws[f"F{row}"].value += f"{island["cost"]}원 연락해야함"
+                                ws[f"F{row}"].font = red_font
+                                print("*"*50)
+                                print(ws[f"F{row}"].value)
+                                if "텐바이텐" in site_name:
+                                    ws[f"D{row}"].value = str(
+                                        int(ws[f"D{row}"].value) + island["cost"])
+                                    ws[f"V{row}"].value += island["cost"]
+                                    ws[f"V{row}"].font = black_font
+                            else:
+                                ws[f"D{row}"].value = str(
+                                    int(ws[f"D{row}"].value) + island["cost"])
+                                ws[f"V{row}"].value += island["cost"]
+                                ws[f"V{row}"].font = black_font
+
 
 class ReverseComparableString:
     def __init__(self, s):
