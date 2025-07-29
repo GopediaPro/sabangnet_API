@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models.down_form_orders.down_form_order import BaseDownFormOrder
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto
 from repository.down_form_order_repository import DownFormOrderRepository
+from utils.exceptions.down_form_orders_exceptions import DownFormOrderReadServiceException
 
 
 class DownFormOrderReadService:
@@ -44,3 +45,10 @@ class DownFormOrderReadService:
             return await self.down_form_order_repository.get_down_form_orders()
         down_form_order_models: list[BaseDownFormOrder] = await self.down_form_order_repository.get_down_form_orders_by_work_status(work_status=work_status)
         return down_form_order_models
+    
+    # invoice_no가 없는 주문 데이터 조회
+    async def get_orders_without_invoice_no(self, limit: int = 100) -> list[DownFormOrderDto]:
+        orders_without_invoice = await self.down_form_order_repository.get_orders_without_invoice_no(limit)
+        if not orders_without_invoice:
+            raise DownFormOrderReadServiceException("invoice_no가 없는 주문 데이터가 없습니다.")
+        return [DownFormOrderDto.model_validate(order) for order in orders_without_invoice]

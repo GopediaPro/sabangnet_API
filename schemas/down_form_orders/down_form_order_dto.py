@@ -1,6 +1,6 @@
-from typing import Optional
 from decimal import Decimal
 from datetime import datetime
+from typing import Optional, Any
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -97,6 +97,8 @@ class DownFormOrderDto(BaseDTO):
     created_at: Optional[datetime] = Field(None, description="생성 일시")
     updated_at: Optional[datetime] = Field(None, description="수정 일시")
 
+    error_logs: Optional[dict[str, Any]] = Field(None, description="에러 로그")
+
     model_config = ConfigDict(
         from_attributes=True
     )
@@ -107,4 +109,10 @@ class DownFormOrdersBulkDto(BaseDTO):
     template_code: Optional[str] = Field(None, description="템플릿 코드")
     processed_count: Optional[int] = Field(None, description="처리된 데이터 수")
     saved_count: Optional[int] = Field(None, description="저장된 데이터 수")
+    message: Optional[str] = Field(None, description="메시지")
+
+
+class DownFormOrdersInvoiceNoUpdateDto(BaseDTO):
+    idx: Optional[str] = Field(None, description="주문번호")
+    invoice_no: Optional[str] = Field(None, description="송장번호")
     message: Optional[str] = Field(None, description="메시지")

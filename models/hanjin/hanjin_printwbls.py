@@ -8,7 +8,7 @@ class HanjinPrintwbls(Base):
     __tablename__ = "hanjin_printwbls"
 
     id = Column(Integer, primary_key=True, autoincrement=True, comment="기본키")
-    idx = Column(String(50), nullable=True, comment="주문번호")
+    idx = Column(String(100), nullable=True, comment="주문번호")
     
     # AddressResult 스키마 기반 필드들
     msg_key = Column(String(100), nullable=True, comment="메세지KEY - 자료 매칭을 위한 고객사 고유키")

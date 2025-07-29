@@ -9,8 +9,8 @@ class AddressItem(BaseModel):
     """주소 목록 아이템"""
     csr_num: Optional[str] = Field(None, max_length=7, description="계약번호")
     address: Optional[str] = Field(None, max_length=4000, description="배송지 주소")
-    snd_zip: Optional[str] = Field(None, max_length=6, description="출발지 우편번호")
-    rcv_zip: Optional[str] = Field(None, max_length=6, description="배송지 우편번호")
+    snd_zip: Optional[str] = Field(None, max_length=10, description="출발지 우편번호")
+    rcv_zip: Optional[str] = Field(None, max_length=10, description="배송지 우편번호")
     msg_key: Optional[str] = Field(None, max_length=100, description="메세지KEY")
 
 class PrintWblsRequest(BaseModel):
@@ -56,7 +56,7 @@ class CreatedRecord(BaseModel):
     idx: Optional[str] = Field(None, description="주문번호")
     prt_add: Optional[str] = Field(None, description="배송지 주소")
     zip_cod: Optional[str] = Field(None, description="배송지 우편번호")
-    snd_zip: Optional[str] = Field(None, max_length=6, description="출발지 우편번호")
+    snd_zip: Optional[str] = Field(None, max_length=10, description="출발지 우편번호")
 
 class CreatePrintwblsFromDownFormOrdersResponse(BaseModel):
     """down_form_orders에서 hanjin_printwbls 생성 응답"""
