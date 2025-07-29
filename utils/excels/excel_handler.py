@@ -1008,8 +1008,6 @@ class ExcelHandler:
                             if island["add_dsp"]:
                                 ws[f"F{row}"].value += f"{island["cost"]}원 연락해야함"
                                 ws[f"F{row}"].font = red_font
-                                print("*"*50)
-                                print(ws[f"F{row}"].value)
                                 if "텐바이텐" in site_name:
                                     ws[f"D{row}"].value = str(
                                         int(ws[f"D{row}"].value) + island["cost"])
