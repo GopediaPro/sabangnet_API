@@ -483,19 +483,21 @@ class DataProcessingUsecase:
             sub_site = parsed.get('sub_site')
             logger.info(f"sub_site: {sub_site}")
 
-            # 3. 임시 파일 생성
+            # 3. 임시 파일 생성 및 매크로 실행
             file_name, file_path = await self.process_macro_with_tempfile(template_code, file, sub_site)
             logger.info(
                 f"temporary file path: {file_path} | file name: {file_name}")
+            
+            # 4. 도서지역 배송비 추가
+            ex = ExcelHandler.from_file(file_path, sheet_index=0)
+            ex.add_island_delivery(ex.wb)
 
-            # 4. 파일에 template_code 추가 및 업로드
-            new_file_path = ExcelHandler.create_template_code_in_excel(
-                file_path, template_code)
-            logger.info(f"new_file_path: {new_file_path}")
-
-            # 5. 데이터 저장
-            ex = ExcelHandler.from_file(new_file_path, sheet_index=0)
+            # 5. 템플릿 코드 추가
+            ex.create_template_code_in_excel(template_code)
+            new_file_path = ex.save_file(file_path)
             dataframe = ex.to_dataframe()
+
+            # 6. down_form_order 테이블에 저장
             saved_count = await self.process_excel_to_down_form_orders(dataframe, template_code, work_status="macro_run")
             logger.info(f"saved_count: {saved_count}")
 
@@ -696,6 +698,12 @@ class DataProcessingUsecase:
         try:
             file_name, file_path = await self.process_macro_with_tempfile(template_code, file, sub_site)
             logger.info(f"file_name: {file_name} | file_path: {file_path}")
+
+             # 4. 도서지역 배송비 추가
+            ex = ExcelHandler.from_file(file_path, sheet_index=0)
+            ex.add_island_delivery(ex.wb)
+            file_path = ex.save_file(file_path)
+
             file_url, minio_object_name, file_size = upload_and_get_url_and_size(
                 file_path, template_code, file_name)
             file_url = url_arrange(file_url)

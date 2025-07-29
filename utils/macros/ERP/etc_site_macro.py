@@ -144,7 +144,9 @@ class ERPEtcSiteMacro:
         if "카카오" in b_text and "제주" in j_text:
             f_text = str(f_cell.value)
             if "[3000원 연락해야함]" not in f_text:
-                f_cell.value = f_text + " [3000원 연락해야함]"
+                f_cell.value = f_text + "[3000원 연락해야함]"
+                f_cell.font = Font(color="FF0000", bold=True)
+                
 
     def _v_column_red_font(self, v_cell):
         """
