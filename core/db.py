@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 
 logger = get_logger(__name__)
 
-DB_DSN = f"postgresql://{SETTINGS.DB_USER}:{SETTINGS.DB_PASSWORD}@{SETTINGS.DB_HOST}:{SETTINGS.DB_PORT}/{SETTINGS.DB_NAME}?sslmode={SETTINGS.DB_SSLMODE}"
+DB_DSN = f"postgresql://{SETTINGS.DB_USER}:{SETTINGS.DB_PASSWORD}@{SETTINGS.DB_HOST}:{SETTINGS.DB_PORT}/{SETTINGS.DB_NAME}?sslmode={SETTINGS.DB_SSLMODE}&client_encoding=utf8"
 
 _pool: Optional[asyncpg.Pool] = None
 
@@ -29,7 +29,12 @@ async_engine = create_async_engine(
     DATABASE_URL,
     echo=False,  
     future=True,
-    pool_pre_ping=True, 
+    pool_pre_ping=True,
+    connect_args={
+        "server_settings": {
+            "timezone": "Asia/Seoul"
+        }
+    }
 )
 
 AsyncSessionLocal = async_sessionmaker(
@@ -45,13 +50,18 @@ async def get_async_session():
     finally:
         await session.close()
 
-TEST_DATABASE_URL = f"postgresql+asyncpg://{SETTINGS.DB_USER}:{SETTINGS.DB_PASSWORD}@{SETTINGS.DB_HOST}:{SETTINGS.DB_PORT}/{SETTINGS.TEST_DB_NAME}"
+TEST_DATABASE_URL = f"postgresql+asyncpg://{SETTINGS.DB_USER}:{SETTINGS.DB_PASSWORD}@{SETTINGS.DB_HOST}:{SETTINGS.DB_PORT}/{SETTINGS.TEST_DB_NAME}?client_encoding=utf8"
 
 test_async_engine = create_async_engine(
     TEST_DATABASE_URL,
     echo=False,  
     future=True,
-    pool_pre_ping=True, 
+    pool_pre_ping=True,
+    connect_args={
+        "server_settings": {
+            "timezone": "Asia/Seoul"
+        }
+    }
 )
 
 TestAsyncSessionLocal = async_sessionmaker(

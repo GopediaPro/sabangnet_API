@@ -61,7 +61,7 @@ class BaseFormOrder(Base):
     receive_zipcode: Mapped[str | None] = mapped_column(String(15))
     
     # 배송 정보
-    delivery_payment_type: Mapped[str | None] = mapped_column(String(10))
+    delivery_payment_type: Mapped[str | None] = mapped_column(String(50))
     delv_msg: Mapped[str | None] = mapped_column(Text)
     delivery_id: Mapped[str | None] = mapped_column(Text)
     delivery_class: Mapped[str | None] = mapped_column(Text)
