@@ -3,6 +3,7 @@ from typing import Optional
 from sqlalchemy import text, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.macro_batch_processing.macro_info import MacroInfo
+from utils.unicode_utils import find_matching_item
 
 
 class TemplateConfigRepository:
@@ -80,6 +81,34 @@ class TemplateConfigRepository:
         query = select(MacroInfo.macro_name).where(MacroInfo.form_name == template_code)
         result = await self.session.execute(query)
         return result.scalars().first()
+
+    async def get_macro_name_by_template_code_with_sub_site(self, template_code: str, sub_site: str) -> Optional[str]:
+        """
+        get macro name by template code and sub_site
+        args:
+            template_code: template code
+            sub_site: sub site (알리, 지그재그, 기타사이트)
+        returns:
+            macro_name: macro name
+        """
+        # 모든 매크로 정보를 조회한 후 Python에서 비교
+        all_macros_query = select(MacroInfo)
+        try:
+            all_result = await self.session.execute(all_macros_query)
+            all_macros = all_result.scalars().all()
+            
+            # 유틸리티 함수를 사용하여 매칭되는 매크로 찾기
+            matching_macro = find_matching_item(
+                all_macros,
+                form_name=template_code,
+                sub_site=sub_site
+            )
+            
+            return matching_macro.macro_name if matching_macro else None
+            
+        except Exception as e:
+            await self.session.rollback()
+            raise e
 
     async def get_all_template_code_name(self) -> list[str]:
         query = select(MacroInfo.form_name)

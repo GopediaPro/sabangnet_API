@@ -1,6 +1,7 @@
 # std
 import asyncio
 import unicodedata
+import re
 import pandas as pd
 from datetime import datetime
 from fastapi import UploadFile
@@ -47,6 +48,37 @@ class DataProcessingUsecase:
         self.export_templates_read_service = ExportTemplatesReadService(
             session)
         self.batch_info_create_service = BatchInfoCreateService(session)
+
+    def parse_filename(self, filename: str) -> dict[str, Any]:
+        """
+        파일명에서 사이트타입, 용도타입, 세부사이트 추출
+        args:
+            filename: 파일명
+        returns:
+            dict: {
+                'site_type': str,      # "G마켓,옥션", "기본양식", "브랜디"
+                'usage_type': str,      # "ERP용", "합포장용"  
+                'sub_site': str,        # "기타사이트", "지그재그", None
+                'is_star': bool         # 스타배송 여부
+            }
+        """
+        # [사이트타입]-용도타입-세부사이트 추출
+        match = re.search(r'\[([^\]]+)\]-([^-]+?)(?:-([^.]+?))?(?:\.xlsx)?$', filename)
+        
+        if not match:
+            return {
+                'site_type': None,
+                'usage_type': None,
+                'sub_site': None,
+                'is_star': '스타배송' in filename
+            }
+        
+        return {
+            'site_type': match.group(1),      # "G마켓,옥션", "기본양식", "브랜디"
+            'usage_type': match.group(2),     # "ERP용", "합포장용"  
+            'sub_site': match.group(3),       # "기타사이트", "지그재그", None
+            'is_star': '스타배송' in filename  # 스타배송 여부
+        }
 
     async def down_form_order_to_excel(self, template_code: str, file_path: str, file_name: str):
         """
@@ -268,20 +300,26 @@ class DataProcessingUsecase:
         if not template_code:
             raise ValueError(
                 f"Template code not found for filename: {file.filename}")
-        # 2. 임시 파일 생성
-        file_name, file_path = await self.process_macro_with_tempfile(template_code, file)
+        
+        # 2. 파일명 파싱하여 sub_site 정보 추출
+        parsed = self.parse_filename(file.filename)
+        sub_site = parsed.get('sub_site')
+        logger.info(f"sub_site: {sub_site}")
+        
+        # 3. 임시 파일 생성
+        file_name, file_path = await self.process_macro_with_tempfile(template_code, file, sub_site)
         logger.info(
             f"temporary file path: {file_path} | file name: {file_name}")
-        # 3. 엑셀파일 데이터 파일 변환 후 임시파일 삭제
+        # 4. 엑셀파일 데이터 파일 변환 후 임시파일 삭제
         dataframe = ExcelHandler.file_path_to_dataframe(file_path)
         logger.info(f"dataframe: {len(dataframe)}")
-        # 4. 데이터 저장
+        # 5. 데이터 저장
         saved_count = await self.process_excel_to_down_form_orders(dataframe, template_code, work_status=work_status)
         logger.info(
             f"[END] save_down_form_orders_from_macro_run_excel | saved_count={saved_count}")
         return saved_count
 
-    async def process_macro_with_tempfile(self, template_code: str, file: UploadFile) -> tuple[str, str]:
+    async def process_macro_with_tempfile(self, template_code: str, file: UploadFile, sub_site: str = None) -> tuple[str, str]:
         """
         1. 업로드 파일을 임시 파일로 저장
         2. 매크로 실행 (run_macro_with_file)
@@ -293,23 +331,28 @@ class DataProcessingUsecase:
         file_name = file.filename
         temp_upload_file_path = temp_file_to_object_name(file)
         try:
-            file_path = await self.run_macro_with_file(template_code, temp_upload_file_path)
+            file_path = await self.run_macro_with_file(template_code, temp_upload_file_path, sub_site)
         finally:
             delete_temp_file(temp_upload_file_path)
         return file_name, file_path
 
-    async def run_macro_with_file(self, template_code: str, file_path: str) -> str:
+    async def run_macro_with_file(self, template_code: str, file_path: str, sub_site: str = None) -> str:
         """
         1. 템플릿 설정 조회
         2. 템플릿 코드에 해당하는 데이터를 조회하여 매크로 실행
         3. 데이터를 저장하고 저장된 경로를 반환
         """
         logger.info(
-            f"run_macro called with template_code={template_code}, file_path={file_path}")
+            f"run_macro called with template_code={template_code}, file_path={file_path}, sub_site={sub_site}")
 
-        macro_name: Optional[str] = await self.template_config_read_service.get_macro_name_by_template_code(template_code)
-        logger.info(f"macro_name from DB: {macro_name}")
-
+        # sub_site가 있으면 해당하는 매크로명 조회, 없으면 기본 매크로명 조회
+        if sub_site:
+            macro_name: Optional[str] = await self.template_config_read_service.get_macro_name_by_template_code_with_sub_site(template_code, sub_site)
+            logger.info(f"macro_name from DB with sub_site: {macro_name}")
+        else:
+            macro_name: Optional[str] = await self.template_config_read_service.get_macro_name_by_template_code(template_code)
+            logger.info(f"macro_name from DB: {macro_name}")
+        logger.info(f"run_macro called with template_code={template_code}, macro_name: {macro_name}")
         if macro_name:
             macro_func = self.order_macro_utils.MACRO_MAP.get(macro_name)
             if macro_func is None:
@@ -435,23 +478,28 @@ class DataProcessingUsecase:
                 raise ValueError(
                     f"Template code not found for filename: {original_filename}")
 
-            # 2. 임시 파일 생성
-            file_name, file_path = await self.process_macro_with_tempfile(template_code, file)
+            # 2. 파일명 파싱하여 sub_site 정보 추출
+            parsed = self.parse_filename(original_filename)
+            sub_site = parsed.get('sub_site')
+            logger.info(f"sub_site: {sub_site}")
+
+            # 3. 임시 파일 생성
+            file_name, file_path = await self.process_macro_with_tempfile(template_code, file, sub_site)
             logger.info(
                 f"temporary file path: {file_path} | file name: {file_name}")
 
-            # 3. 파일에 template_code 추가 및 업로드
+            # 4. 파일에 template_code 추가 및 업로드
             new_file_path = ExcelHandler.create_template_code_in_excel(
                 file_path, template_code)
             logger.info(f"new_file_path: {new_file_path}")
 
-            # 4. 데이터 저장
+            # 5. 데이터 저장
             ex = ExcelHandler.from_file(new_file_path, sheet_index=0)
             dataframe = ex.to_dataframe()
             saved_count = await self.process_excel_to_down_form_orders(dataframe, template_code, work_status="macro_run")
             logger.info(f"saved_count: {saved_count}")
 
-            # 5. 파일 업로드 및 batch 저장
+            # 6. 파일 업로드 및 batch 저장
             file_url, minio_object_name, file_size = upload_and_get_url_and_size(
                 new_file_path, template_code, file_name)
             file_url = url_arrange(file_url)
@@ -554,28 +602,70 @@ class DataProcessingUsecase:
         return successful_results, failed_results, total_saved_count
 
     async def find_template_code_by_filename(self, file_name: str) -> str:
-        template_list: list[dict[str, str]] = await self.export_templates_read_service.get_export_templates_code_and_name()
-        # 입력한 파일 데이터 정규화 -> 조합형(NFC) 형식으로 변환
-        file_name = unicodedata.normalize('NFC', file_name)
-        for template in template_list:
-            template_name = template.get('template_name', '').split(' ')
-            try:
-                # basic_erp 알리, 브랜디, 기타사이트 구분용
-                if len(template_name) > 2:
-                    site_names: str = ' '.join(template_name[:-1])
-                    temp_type: str = template_name[-1]
-                    if any(site_name in file_name for site_name in site_names) and temp_type in file_name:
-                        return template.get('template_code')
-                if len(template_name) <= 2:
-                    site_name: str = template_name[0]
-                    # ERP, 합포장 구분
-                    temp_type: str = template_name[1]
-                    if site_name in file_name and temp_type in file_name:
-                        return template.get('template_code')
-            except Exception as e:
-                logger.error(f"Error template_name: {e}")
-                continue
+        """
+        파일명을 파싱하여 템플릿 코드를 찾는 개선된 메서드
+        args:
+            file_name: 파일명
+        returns:
+            template_code: 템플릿 코드
+        """
+        # 파일명 파싱
+        parsed = self.parse_filename(file_name)
+        logger.info(f"Parsed filename: {parsed}")
+        
+        # site_type, usage_type, is_star를 기반으로 DB에서 직접 조회
+        site_type = parsed.get('site_type')
+        usage_type = parsed.get('usage_type')
+        is_star = parsed.get('is_star')
+        
+        if site_type and usage_type:
+            template_code = await self.export_templates_read_service.find_template_code_by_site_usage_star(
+                site_type, usage_type, is_star
+            )
+            
+            if template_code:
+                logger.info(f"Found template_code: {template_code} for filename: {file_name}")
+                return template_code
+        
+        logger.warning(f"No template found for filename: {file_name}")
         return None
+
+    def _match_template_by_parsed_info(self, template_name: str, parsed: dict[str, Any]) -> bool:
+        """
+        파싱된 파일명 정보와 템플릿명을 매칭
+        args:
+            template_name: 템플릿명
+            parsed: 파싱된 파일명 정보
+        returns:
+            bool: 매칭 여부
+        """
+        # 스타배송 여부 확인
+        if parsed.get('is_star') and '스타배송' not in template_name:
+            return False
+        if not parsed.get('is_star') and '스타배송' in template_name:
+            return False
+        
+        # 용도타입 매칭
+        usage_type = parsed.get('usage_type', '')
+        if 'ERP용' in usage_type and 'ERP용' not in template_name:
+            return False
+        if '합포장용' in usage_type and '합포장용' not in template_name:
+            return False
+        
+        # 사이트타입 매칭
+        site_type = parsed.get('site_type', '')
+        if site_type:
+            # 쉼표로 구분된 사이트타입들을 개별적으로 확인
+            site_types = [s.strip() for s in site_type.split(',')]
+            for site in site_types:
+                if site in template_name:
+                    return True
+            
+            # basic_erp 특별 처리: 기본양식이면서 ERP용인 경우
+            if site_type == "기본양식" and "ERP용" in usage_type and "알리 지그재그 기타사이트 ERP용" in template_name:
+                return True
+        
+        return False
 
     async def get_excel_run_macro_minio_url(self, file: UploadFile, request_obj: BatchProcessRequest) -> dict[str, Any]:
         """
@@ -596,9 +686,15 @@ class DataProcessingUsecase:
             raise ValueError(
                 f"Template code not found for filename: {file.filename}")
         logger.info(f"template_code: {template_code}")
-        # 2. 파일 처리
+        
+        # 2. 파일명 파싱하여 sub_site 정보 추출
+        parsed = self.parse_filename(file.filename)
+        sub_site = parsed.get('sub_site')
+        logger.info(f"sub_site: {sub_site}")
+        
+        # 3. 파일 처리
         try:
-            file_name, file_path = await self.process_macro_with_tempfile(template_code, file)
+            file_name, file_path = await self.process_macro_with_tempfile(template_code, file, sub_site)
             logger.info(f"file_name: {file_name} | file_path: {file_path}")
             file_url, minio_object_name, file_size = upload_and_get_url_and_size(
                 file_path, template_code, file_name)

@@ -13,3 +13,4 @@ class MacroInfo(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     form_name: Mapped[str] = mapped_column(String(50))
     macro_name: Mapped[str] = mapped_column(String(50))
+    sub_site: Mapped[str] = mapped_column(String(20), nullable=True, comment="macro 구분 -- 알리, 지그재그, 기타사이트")

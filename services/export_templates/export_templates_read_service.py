@@ -22,3 +22,15 @@ class ExportTemplatesReadService:
                 }
             )
         return export_templates_code_and_name
+
+    async def find_template_code_by_site_usage_star(self, site_type: str, usage_type: str, is_star: bool) -> str:
+        """
+        site_type, usage_type, is_star를 기반으로 template_code를 찾는 메서드
+        args:
+            site_type: 사이트타입 (G마켓,옥션, 기본양식, 브랜디 등)
+            usage_type: 용도타입 (ERP용, 합포장용)
+            is_star: 스타배송 여부
+        returns:
+            template_code: 템플릿 코드
+        """
+        return await self.export_template_repository.find_template_code_by_site_usage_star(site_type, usage_type, is_star)
