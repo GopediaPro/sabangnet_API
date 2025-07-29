@@ -698,6 +698,12 @@ class DataProcessingUsecase:
         try:
             file_name, file_path = await self.process_macro_with_tempfile(template_code, file, sub_site)
             logger.info(f"file_name: {file_name} | file_path: {file_path}")
+
+             # 4. 도서지역 배송비 추가
+            ex = ExcelHandler.from_file(file_path, sheet_index=0)
+            ex.add_island_delivery(ex.wb)
+            file_path = ex.save_file(file_path)
+
             file_url, minio_object_name, file_size = upload_and_get_url_and_size(
                 file_path, template_code, file_name)
             file_url = url_arrange(file_url)
