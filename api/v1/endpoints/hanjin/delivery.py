@@ -1,15 +1,31 @@
-from fastapi import APIRouter, Depends, Body, Query
-from typing import List, Dict, Any, Optional
+# std
+from typing import Optional
+# fastapi
+from fastapi import APIRouter, Depends, Query
+# sql
+from core.db import get_async_session
 from sqlalchemy.ext.asyncio import AsyncSession
-from utils.logs.sabangnet_logger import get_logger
-from utils.decorators import hanjin_api_handler, validate_hanjin_env_vars
-from schemas.hanjin.hanjin_auth_schemas import HmacResponse
-from schemas.hanjin.hanjin_printWbls_dto import PrintWblsResponse, PrintWblsRequest, CreatePrintwblsFromDownFormOrdersResponse, ProcessPrintwblsWithApiResponse
+# service
 from services.hanjin.hanjin_auth_service import HanjinAuthService
 from services.hanjin.hanjin_print_service import HanjinPrintService
-from core.db import get_async_session
+from services.usecase.hanjin_down_form_orders_usecase import HanjinDownFormOrdersUsecase
+# utils
+from utils.logs.sabangnet_logger import get_logger
+from utils.decorators import hanjin_api_handler, validate_hanjin_env_vars
+# schema
+from schemas.hanjin.hanjin_auth_schemas import HmacResponse
+from schemas.hanjin.hanjin_printWbls_dto import (
+    PrintWblsRequest,
+    PrintWblsResponse,
+    ProcessPrintwblsWithApiResponse,
+    CreatePrintwblsFromDownFormOrdersResponse,
+)
+from schemas.down_form_orders.down_form_order_dto import DownFormOrdersInvoiceNoUpdateDto
+from schemas.down_form_orders.response.down_form_orders_response import DownFormOrderInvoiceNoBulkUpdateResponse
+
 
 logger = get_logger(__name__)
+
 
 router = APIRouter(
     prefix="/hanjin",
@@ -17,14 +33,16 @@ router = APIRouter(
 )
 
 
-
-# 서비스 의존성
 def get_hanjin_auth_service() -> HanjinAuthService:
     return HanjinAuthService()
 
 
 def get_hanjin_print_service(session: AsyncSession = Depends(get_async_session)) -> HanjinPrintService:
     return HanjinPrintService(session=session)
+
+
+def get_hanjin_down_form_orders_usecase(session: AsyncSession = Depends(get_async_session)) -> HanjinDownFormOrdersUsecase:
+    return HanjinDownFormOrdersUsecase(session=session)
 
 
 @router.post("/hmac-generate-test", response_model=HmacResponse)
@@ -64,6 +82,7 @@ async def print_wbls(
     response = await print_service.generate_print_wbls_with_env_vars_from_api_and_save(print_request, idx)
     logger.info("한진 API로부터 운송장 분류정보 생성 및 데이터베이스 저장 성공")
     return response
+
 
 @router.post("/create-printwbls-from-down-form-orders", response_model=CreatePrintwblsFromDownFormOrdersResponse)
 @hanjin_api_handler(error_code="CREATE_PRINTWBLS_ERROR", error_message="down_form_orders에서 hanjin_printwbls 생성 중 오류가 발생했습니다.")
@@ -119,4 +138,27 @@ async def process_printwbls_from_db(
     return response
 
 
-
+@router.post("/invoice-no/to-down-form-orders/button", response_model=DownFormOrderInvoiceNoBulkUpdateResponse)
+async def insert_invoice_no_to_down_form_orders(
+    limit: Optional[int] = Query(100, description="처리할 최대 건수 (기본값: 100)"),
+    _: bool = Depends(validate_hanjin_env_vars),
+    hanjin_down_form_orders_usecase: HanjinDownFormOrdersUsecase = Depends(get_hanjin_down_form_orders_usecase)
+):
+    """
+    down_form_orders에서 invoice_no가 없는 행에 invoice_no를 입력하기 위한 엔드포인트.
+    
+    1. down_form_orders 테이블에서 invoice_no가 없는 행을 조회합니다.
+    2. 해당 정보를 바탕으로 hanjin_printwbls 테이블에 기초 정보를 입력.
+    3. hanjin_printwbls 테이블의 데이터를 기반으로 한진 API를 호출.
+    4. 한진 API 응답을 DB에 기록하여 hanjin_printwbls 테이블을 업데이트합니다.
+    5. 업데이트된 운송장 정보를 idx를 기반으로 down_form_orders 테이블에 입력합니다.
+    
+    Args:
+        limit: 처리할 최대 건수 (기본값: 100)
+        
+    Returns:
+        처리 결과 정보
+    """
+    results: list[DownFormOrdersInvoiceNoUpdateDto] = await hanjin_down_form_orders_usecase.insert_invoice_no_to_down_form_orders(limit)
+    response = DownFormOrderInvoiceNoBulkUpdateResponse(items=results)
+    return response

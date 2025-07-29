@@ -158,7 +158,7 @@ class HanjinPrintwblsRepository:
         finally:
             await self.session.close() 
 
-    async def create_from_down_form_orders(self, down_form_orders: List[BaseDownFormOrder]) -> List[HanjinPrintwbls]:
+    async def create_printwbls_from_down_form_orders(self, down_form_orders: List[BaseDownFormOrder]) -> List[HanjinPrintwbls]:
         """
         down_form_orders 데이터를 기반으로 hanjin_printwbls 레코드를 생성합니다.
         
@@ -178,7 +178,7 @@ class HanjinPrintwblsRepository:
                     prt_add=order.receive_addr,
                     zip_cod=order.receive_zipcode,
                     # TODO: 임시 send_zip 값 추가. 추후 수정 필요. 
-                    snd_zip="123456"
+                    snd_zip="08609"
                 )
                 printwbls_records.append(printwbls_record)
             
@@ -265,9 +265,9 @@ class HanjinPrintwblsRepository:
         finally:
             await self.session.close()
         
-    async def get_records_for_api_request(self, limit: int = 100) -> List[HanjinPrintwbls]:
+    async def get_hanjin_printwbls_for_api_request(self, limit: int = 100) -> List[HanjinPrintwbls]:
         """
-        API 요청을 위해 필요한 데이터가 있는 레코드들을 조회합니다.
+        API 요청을 위해 필요한 데이터가 있는 hanjin_printwbls 레코드들을 조회합니다.
         
         Args:
             limit: 조회할 최대 건수

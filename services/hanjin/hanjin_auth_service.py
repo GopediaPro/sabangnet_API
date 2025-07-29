@@ -1,62 +1,22 @@
 """
 한진 API 인증 서비스
 """
-from typing import Optional
 import aiohttp
 from utils.logs.sabangnet_logger import get_logger
 from schemas.hanjin.hanjin_auth_schemas import HmacResponse
-from core.settings import SETTINGS
+from services.hanjin.adapter.hanjin_auth_adapter import HanjinAuthAdapter
 
 
 logger = get_logger(__name__)
 
 
-class HanjinAuthService:
+class HanjinAuthService(HanjinAuthAdapter):
     """한진 API 인증 서비스"""
     
     def __init__(self):
-        self.api_base_url = "https://api-stg.hanjin.com"
-        self.hmac_endpoint = "/v1/util/hmacgen"
-        # 환경변수에서 한진 API 설정 가져오기
-        self.x_api_key = SETTINGS.HANJIN_API
-        self.default_client_id = SETTINGS.HANJIN_CLIENT_ID
-
-
-    def get_x_api_key(self) -> Optional[str]:
-        """
-        환경변수에서 x-api-key를 가져옵니다.
-        """
-        return self.x_api_key
+        super().__init__()
     
-    def get_default_client_id(self) -> Optional[str]:
-        """
-        환경변수에서 기본 client_id를 가져옵니다.
-        
-        Returns:
-            client_id 값 또는 None
-        """
-        return self.default_client_id
-    
-    def validate_env_vars(self) -> bool:
-        """
-        환경변수가 올바르게 설정되었는지 검증합니다.
-        
-        Returns:
-            유효성 여부
-        """
-        if not self.x_api_key:
-            logger.error("환경변수 HANJIN_API가 설정되지 않았습니다.")
-            return False
-        
-        if not self.default_client_id:
-            logger.error("환경변수 HANJIN_CLIENT_ID가 설정되지 않았습니다.")
-            return False
-    
-        
-        logger.info("환경변수 검증 성공")
-        return True
-    
-    async def request_hmac_from_hanjin_api(self, client_id: str, x_api_key: str) -> HmacResponse:
+    async def request_hmac_from_hanjin_api(self, request_client_id: str, request_x_api_key: str) -> HmacResponse:
         """
         한진 API의 /v1/util/hmacgen 엔드포인트에 직접 요청하여 Authorization을 받아옵니다.
         
@@ -70,12 +30,12 @@ class HanjinAuthService:
         try:
             url = f"{self.api_base_url}{self.hmac_endpoint}"
             headers = {
-                "x-api-key": x_api_key,
+                "x-api-key": request_x_api_key,
                 "Content-Type": "application/json",
-                "client_id": client_id
+                "client_id": request_client_id
             }
 
-            logger.info(f"한진 API 요청: {url}, client_id={client_id}")
+            logger.info(f"한진 API 요청: {url}, client_id={request_client_id}")
             
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, headers=headers) as response:

@@ -1,9 +1,10 @@
 from typing import Any
+from sqlalchemy import bindparam
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.logs.sabangnet_logger import get_logger
 from sqlalchemy import select, delete, func, update, text
 from models.down_form_orders.down_form_order import BaseDownFormOrder
-from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto
+from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto, DownFormOrdersInvoiceNoUpdateDto
 
 
 logger = get_logger(__name__)
@@ -40,7 +41,7 @@ class DownFormOrderRepository:
             query = select(BaseDownFormOrder).where(
                 BaseDownFormOrder.idx == idx)
             result = await self.session.execute(query)
-            return result.scalar_one_or_none()
+            return result.scalars().first()
         except Exception as e:
             await self.session.rollback()
             raise e
@@ -245,7 +246,6 @@ class DownFormOrderRepository:
         finally:
             await self.session.close()
 
-    
     async def save_to_down_form_orders(self, processed_data: list[dict[str, Any]], template_code: str) -> int:
         logger.info(
             f"[START] save_to_down_form_orders | processed_data_count={len(processed_data)} | template_code={template_code}")
@@ -263,3 +263,65 @@ class DownFormOrderRepository:
             await self.session.rollback()
             logger.error(f"Exception during save_to_down_form_orders: {e}")
             raise
+
+    async def bulk_update_invoice_no_by_idx(self, idx_invoice_no_dict_list: list[dict[str, str]]) -> list[DownFormOrdersInvoiceNoUpdateDto]:
+        try:
+
+            invoice_no_updated_down_form_orders: list[DownFormOrdersInvoiceNoUpdateDto] = []
+
+            for item in idx_invoice_no_dict_list:
+                idx_list: list[str] = []
+                invoice_no: str = item['invoice_no']
+
+                # idx 가 중첩되어있는 경우 (2083194955/2083194989/2083195004/2083195011 같은 경우)
+                if '/' in item['idx']:
+                    idx_list = item['idx'].split('/')
+                else:
+                    idx_list.append(item['idx'])
+
+                # invoice no 가 없는 경우
+                if not invoice_no:
+                    invoice_no_updated_down_form_orders.append(DownFormOrdersInvoiceNoUpdateDto(
+                        idx=", ".join(idx_list),
+                        invoice_no=invoice_no,
+                        message=f"invoice no is empty"
+                    ))
+                    continue
+
+                for idx in idx_list:
+                    # down form orders 에서 idx 로 검색
+                    if not await self.get_down_form_order_by_idx(idx):
+                        invoice_no_updated_down_form_orders.append(DownFormOrdersInvoiceNoUpdateDto(
+                            idx=idx,
+                            invoice_no=invoice_no,
+                            message=f"idx not found"
+                        ))
+                        continue
+
+                    # invoice_no 업데이트
+                    try:
+                        stmt = (
+                            update(BaseDownFormOrder)
+                            .where(BaseDownFormOrder.idx == idx)
+                            .values(invoice_no=invoice_no)
+                        )
+                        await self.session.execute(stmt)
+                        invoice_no_updated_down_form_orders.append(DownFormOrdersInvoiceNoUpdateDto(
+                            idx=idx,
+                            invoice_no=invoice_no,
+                            message=f"success"
+                        ))
+                    except Exception as e:
+                        invoice_no_updated_down_form_orders.append(DownFormOrdersInvoiceNoUpdateDto(
+                            idx=idx,
+                            invoice_no=invoice_no,
+                            message=f"error: {e}"
+                        ))
+                        continue
+            await self.session.commit()
+            return invoice_no_updated_down_form_orders
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+        finally:
+            await self.session.close()
