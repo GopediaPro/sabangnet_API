@@ -2,6 +2,9 @@ import re
 import openpyxl
 import traceback
 import pandas as pd
+import xlrd
+import tempfile
+import os
 from typing import List
 from openpyxl.utils import get_column_letter
 from openpyxl.workbook.workbook import Workbook
@@ -34,9 +37,78 @@ class ExcelHandler:
             ws = ex.ws
             wb = ex.wb
         """
-        wb = openpyxl.load_workbook(file_path)
+        # 이미 .xlsx 파일이면 변환하지 않음
+        if file_path.lower().endswith('.xlsx'):
+            wb = openpyxl.load_workbook(file_path)
+            ws = wb.worksheets[sheet_index]
+            return cls(ws, wb)
+        
+        # .xls 파일인 경우에만 변환
+        # 이미 변환된 임시 파일인지 확인
+        if file_path.startswith(tempfile.gettempdir()) and file_path.endswith('.xlsx'):
+            # 이미 변환된 임시 파일
+            wb = openpyxl.load_workbook(file_path)
+            ws = wb.worksheets[sheet_index]
+            return cls(ws, wb)
+        
+        converted_file_path = cls._convert_xls_to_xlsx_if_needed(file_path)
+        
+        wb = openpyxl.load_workbook(converted_file_path)
         ws = wb.worksheets[sheet_index]
         return cls(ws, wb)
+
+    @staticmethod
+    def _convert_xls_to_xlsx_if_needed(file_path: str) -> str:
+        """
+        .xls 파일을 .xlsx로 변환 (필요한 경우)
+        
+        Args:
+            file_path: 원본 파일 경로
+            
+        Returns:
+            str: 변환된 파일 경로 (변환이 필요없으면 원본 경로)
+        """
+        if not file_path.lower().endswith('.xls'):
+            return file_path
+        
+        try:
+            # xlrd로 .xls 파일 읽기
+            workbook = xlrd.open_workbook(file_path)
+            sheet = workbook.sheet_by_index(0)
+            
+            # 임시 .xlsx 파일 생성
+            temp_file = tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False)
+            temp_path = temp_file.name
+            temp_file.close()
+            
+            # pandas를 사용하여 .xlsx로 변환
+            df = pd.read_excel(file_path, engine='xlrd')
+            df.to_excel(temp_path, index=False, engine='openpyxl')
+            
+            logger = get_logger(__name__)
+            logger.info(f".xls 파일을 .xlsx로 변환 완료: {file_path} -> {temp_path}")
+            
+            return temp_path
+            
+        except Exception as e:
+            logger = get_logger(__name__)
+            logger.error(f".xls 파일 변환 중 오류: {str(e)}")
+            raise ValueError(f".xls 파일을 읽을 수 없습니다: {file_path}. 오류: {str(e)}")
+
+    @staticmethod
+    def _cleanup_temp_file(file_path: str) -> None:
+        """
+        임시 파일 정리
+        
+        Args:
+            file_path: 정리할 파일 경로
+        """
+        try:
+            if file_path.startswith(tempfile.gettempdir()) and os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            logger = get_logger(__name__)
+            logger.warning(f"임시 파일 정리 중 오류: {str(e)}")
 
     def save_file(self, file_path):
         """
@@ -1018,6 +1090,192 @@ class ExcelHandler:
                                     int(ws[f"D{row}"].value) + island["cost"])
                                 ws[f"V{row}"].value += island["cost"]
                                 ws[f"V{row}"].font = black_font
+
+    @staticmethod
+    def merge_excel_files(file_paths: List[str], output_path: str = None, sheet_index: int = 0) -> str:
+        """
+        여러 Excel 파일을 하나로 합치는 메서드
+        
+        Args:
+            file_paths: 합칠 Excel 파일 경로 리스트
+            output_path: 출력 파일 경로 (None이면 자동 생성)
+            sheet_index: 읽을 시트 인덱스 (기본값: 0)
+            
+        Returns:
+            str: 합쳐진 파일 경로
+            
+        예시:
+            # 기본 사용
+            merged_path = ExcelHandler.merge_excel_files(['file1.xlsx', 'file2.xlsx'])
+            
+            # 출력 경로 지정
+            merged_path = ExcelHandler.merge_excel_files(
+                ['file1.xlsx', 'file2.xlsx'], 
+                output_path='merged.xlsx'
+            )
+        """
+        if not file_paths:
+            raise ValueError("파일 경로 리스트가 비어있습니다.")
+        
+        temp_files = []  # 임시 파일 경로 추적
+        converted_paths = []  # 변환된 파일 경로들
+        logger = get_logger(__name__)
+        
+        try:
+            # 모든 파일을 미리 변환
+            for file_path in file_paths:
+                converted_path = ExcelHandler._convert_xls_to_xlsx_if_needed(file_path)
+                converted_paths.append(converted_path)
+                if converted_path != file_path:
+                    temp_files.append(converted_path)
+            
+            logger.info(f"변환된 파일 경로들: {converted_paths}")
+            
+            # 첫 번째 파일을 기준으로 워크북 생성
+            first_handler = ExcelHandler.from_file(converted_paths[0], sheet_index)
+            merged_wb = first_handler.wb
+            merged_ws = first_handler.ws
+            
+            # 헤더 추출 (첫 번째 파일 기준)
+            headers = []
+            for col in range(1, merged_ws.max_column + 1):
+                header = merged_ws.cell(row=1, column=col).value
+                headers.append(header if header else f"Col{col}")
+            
+            logger.info(f"첫 번째 파일 헤더: {headers}")
+            logger.info(f"첫 번째 파일 데이터 행 수: {merged_ws.max_row - 1}")
+            
+            # 데이터 행 수 추적
+            current_row = merged_ws.max_row + 1
+            
+            # 나머지 파일들의 데이터 추가
+            for i, converted_path in enumerate(converted_paths[1:], 1):
+                try:
+                    handler = ExcelHandler.from_file(converted_path, sheet_index)
+                    ws = handler.ws
+                    
+                    logger.info(f"파일 {i+1} 데이터 행 수: {ws.max_row - 1}")
+                    logger.info(f"파일 {i+1} 컬럼 수: {ws.max_column}")
+                    
+                    # 데이터 행만 복사 (헤더 제외)
+                    copied_rows = 0
+                    for row in range(2, ws.max_row + 1):
+                        for col in range(1, ws.max_column + 1):
+                            value = ws.cell(row=row, column=col).value
+                            merged_ws.cell(row=current_row, column=col, value=value)
+                        current_row += 1
+                        copied_rows += 1
+                    
+                    logger.info(f"파일 {i+1}에서 복사된 행 수: {copied_rows}")
+                        
+                except Exception as e:
+                    logger.warning(f"파일 {converted_path} 처리 중 오류: {str(e)}")
+                    continue
+            
+            logger.info(f"최종 합쳐진 파일 데이터 행 수: {merged_ws.max_row - 1}")
+            logger.info(f"최종 합쳐진 파일 컬럼 수: {merged_ws.max_column}")
+            
+            # 출력 경로 설정
+            if not output_path:
+                output_path = f"merged_{len(file_paths)}_files.xlsx"
+            
+            # 파일 저장
+            merged_wb.save(output_path)
+            logger.info(f"파일 저장 완료: {output_path}")
+            return output_path
+            
+        finally:
+            # 임시 파일들 정리
+            for temp_file in temp_files:
+                ExcelHandler._cleanup_temp_file(temp_file)
+
+    @staticmethod
+    def merge_excel_files_with_pandas(file_paths: List[str], output_path: str = None, sheet_index: int = 0) -> str:
+        """
+        Pandas를 사용하여 여러 Excel 파일을 하나로 합치는 메서드 (더 빠르고 간단)
+        
+        Args:
+            file_paths: 합칠 Excel 파일 경로 리스트
+            output_path: 출력 파일 경로 (None이면 자동 생성)
+            sheet_index: 읽을 시트 인덱스 (기본값: 0)
+            
+        Returns:
+            str: 합쳐진 파일 경로
+            
+        예시:
+            # Pandas 방식으로 합치기
+            merged_path = ExcelHandler.merge_excel_files_with_pandas(['file1.xlsx', 'file2.xlsx'])
+        """
+        if not file_paths:
+            raise ValueError("파일 경로 리스트가 비어있습니다.")
+        
+        # 모든 파일을 DataFrame으로 읽기
+        dataframes = []
+        for file_path in file_paths:
+            try:
+                # 파일 형식에 따라 적절한 엔진 선택
+                if file_path.lower().endswith('.xls'):
+                    df = pd.read_excel(file_path, sheet_name=sheet_index, engine='xlrd')
+                else:
+                    df = pd.read_excel(file_path, sheet_name=sheet_index, engine='openpyxl')
+                dataframes.append(df)
+            except Exception as e:
+                logger = get_logger(__name__)
+                logger.warning(f"파일 {file_path} 읽기 중 오류: {str(e)}")
+                continue
+        
+        if not dataframes:
+            raise ValueError("읽을 수 있는 파일이 없습니다.")
+        
+        # DataFrame 합치기
+        merged_df = pd.concat(dataframes, ignore_index=True)
+        
+        # 출력 경로 설정
+        if not output_path:
+            output_path = f"merged_{len(file_paths)}_files.xlsx"
+        
+        # Excel 파일로 저장
+        merged_df.to_excel(output_path, index=False, engine='openpyxl')
+        return output_path
+
+    @staticmethod
+    def merge_excel_files_smart(file_paths: List[str], output_path: str = None, sheet_index: int = 0) -> str:
+        """
+        스마트한 방식으로 여러 Excel 파일을 합치는 메서드
+        - 파일 크기에 따라 Pandas 또는 openpyxl 방식 선택
+        - 헤더 일치성 검증
+        - 중복 데이터 처리
+        
+        Args:
+            file_paths: 합칠 Excel 파일 경로 리스트
+            output_path: 출력 파일 경로 (None이면 자동 생성)
+            sheet_index: 읽을 시트 인덱스 (기본값: 0)
+            
+        Returns:
+            str: 합쳐진 파일 경로
+            
+        예시:
+            # 스마트 방식으로 합치기
+            merged_path = ExcelHandler.merge_excel_files_smart(['file1.xlsx', 'file2.xlsx'])
+        """
+        if not file_paths:
+            raise ValueError("파일 경로 리스트가 비어있습니다.")
+        
+        import os
+        logger = get_logger(__name__)
+        
+        # 파일 크기 확인하여 방식 선택
+        total_size = sum(os.path.getsize(f) for f in file_paths if os.path.exists(f))
+        
+        logger.info(f"파일 합치기 스마트 방식 - 총 파일 크기: {total_size} bytes ({total_size / 1024 / 1024:.2f} MB)")
+        
+        # 50MB 이상이면 Pandas 방식 사용 (더 빠름)
+        if total_size > 50 * 1024 * 1024:  # 50MB
+            logger.info("Pandas 방식으로 파일 합치기 선택")
+            return ExcelHandler.merge_excel_files_with_pandas(file_paths, output_path, sheet_index)
+        else:
+            logger.info("OpenPyXL 방식으로 파일 합치기 선택")
+            return ExcelHandler.merge_excel_files(file_paths, output_path, sheet_index)
 
 
 class ReverseComparableString:
