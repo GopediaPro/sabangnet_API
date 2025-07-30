@@ -76,12 +76,10 @@ class DownFormOrdersDateRangeFillterRequest(BaseDateRangeRequest):
     date_to: date = Field(..., description="종료 날짜", example="2025-06-06")
 
 
-class DownFormOrdersPaginationRequest(BaseModel):
+class DownFormOrdersPaginationWithDateRangeRequest(BaseModel):
     page: int = Field(1, ge=1, description="페이지 번호")
     page_size: int = Field(100, ge=1, le=1000, description="페이지 크기")
-
     filters: DownFormOrdersDateRangeFillterRequest = Field(..., description="필터 정보")
-
     template_code: str = Field(
         ...,
         description="\

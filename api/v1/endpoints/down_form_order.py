@@ -19,14 +19,15 @@ from schemas.down_form_orders.response.down_form_orders_response import (
     DownFormOrderBulkResponse,
     DownFormOrderPaginationResponse,
     DownFormOrderBulkCreateResponse,
+    DownFormOrderPaginationWithDateRangeResponse,
 )
 from schemas.down_form_orders.request.down_form_orders_request import (
     DownFormOrderCreateJsonRequest,
-    DownFormOrdersPaginationRequest,
     DownFormOrderBulkCreateJsonRequest,
     DownFormOrderBulkUpdateJsonRequest,
     DownFormOrderBulkDeleteJsonRequest,
     DownFormOrderBulkCreateFilterRequest,
+    DownFormOrdersPaginationWithDateRangeRequest,
 )
 # utils
 from utils.response_status import RowStatus
@@ -125,9 +126,9 @@ async def down_form_orders_by_pagination(
     )
 
 
-@router.get("/pagination/date-range", response_model=DownFormOrderPaginationResponse)
+@router.post("/pagination/date-range", response_model=DownFormOrderPaginationWithDateRangeResponse)
 async def down_form_orders_by_pagination_with_date_range(
-    request: DownFormOrdersPaginationRequest,
+    request: DownFormOrdersPaginationWithDateRangeRequest = Body(...),
     down_form_order_read_service: DownFormOrderReadService = Depends(
         get_down_form_order_read_service),
 ):
@@ -146,7 +147,7 @@ async def down_form_orders_by_pagination_with_date_range(
     )
     dto_items: list[DownFormOrderDto] = [
         DownFormOrderDto.model_validate(item) for item in items]
-    return DownFormOrderPaginationResponse(
+    return DownFormOrderPaginationWithDateRangeResponse(
         total=total,
         page=request.page,
         page_size=request.page_size,

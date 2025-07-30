@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Optional, TypeVar, Generic
 from pydantic import BaseModel, ConfigDict, Field
 from schemas.down_form_orders.down_form_order_dto import DownFormOrdersBulkDto, DownFormOrderDto, DownFormOrdersInvoiceNoUpdateDto
@@ -63,4 +64,14 @@ class DownFormOrderPaginationResponse(BaseModel):
     total: int
     page: int
     page_size: int
+    items: list[DownFormOrderResponse]
+
+
+class DownFormOrderPaginationWithDateRangeResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    template_code: str
+    date_from: date
+    date_to: date
     items: list[DownFormOrderResponse]
