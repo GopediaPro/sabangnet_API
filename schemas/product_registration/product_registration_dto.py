@@ -99,3 +99,14 @@ class ExcelProcessResultDto(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class ExcelImportResponseDto(BaseModel):
+    """Excel 가져오기 응답 DTO"""
+    
+    message: str = Field(..., description="처리 결과 메시지")
+    excel_processing: ExcelProcessResultDto = Field(..., description="Excel 처리 결과")
+    database_result: ProductRegistrationBulkResponseDto = Field(..., description="데이터베이스 저장 결과")
+    
+    class Config:
+        from_attributes = True
