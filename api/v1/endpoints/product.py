@@ -12,6 +12,7 @@ from services.product.product_read_service import ProductReadService
 from services.product.product_create_service import ProductCreateService
 from services.product.product_update_service import ProductUpdateService
 from services.usecase.product_db_xml_usecase import ProductDbXmlUsecase
+from services.product_registration.product_registration_service import ProductRegistrationService
 # schemas
 from schemas.product.db_xml_dto import DbToXmlResponse
 from schemas.product.request.product_form import ModifyProductNameForm
@@ -57,36 +58,25 @@ def get_product_db_xml_usecase(session: AsyncSession = Depends(get_async_session
     return ProductDbXmlUsecase(session=session)
 
 
+def get_product_registration_service(session: AsyncSession = Depends(get_async_session)) -> ProductRegistrationService:
+    return ProductRegistrationService(session=session)
+
+
 @router.post("/db-to-xml-all/sabangnet-request", response_model=DbToXmlResponse)
 @product_handler
 async def db_to_xml_sabangnet_request_all(
-    product_db_xml_usecase: ProductDbXmlUsecase = Depends(get_product_db_xml_usecase)
+    product_registration_service: ProductRegistrationService = Depends(get_product_registration_service)
 ):
     """
     test_product_raw_data 테이블의 모든 데이터를 XML로 변환하고 사방넷 상품등록 요청
     """
-    # DB to XML 파일 로컬 저장
-    xml_file_path = await product_db_xml_usecase.db_to_xml_file_all()
-    total_count = await product_db_xml_usecase.get_product_raw_data_count()
-
-    # 파일 서버 업로드
-    object_name = upload_file_to_minio(xml_file_path)
-    logger.info(f"MinIO에 업로드된 XML 파일 이름: {object_name}")
-    xml_url = get_minio_file_url(object_name)
-    logger.info(f"MinIO에 업로드된 XML URL: {xml_url}")
-
-    # 해당 파일을 사방넷 상품등록 요청 후 결과 값 중 PRODUCT_ID 값 db 에 저장.
-    response_xml = ProductCreateService.request_product_create_via_url(xml_url)
-    logger.info(f"사방넷 상품등록 결과: {response_xml}")
-    product_registration_xml = ProductRegistrationXml()
-    compayny_goods_cd_and_product_ids: list[tuple[str, int]] = product_registration_xml.input_product_id_to_db(response_xml)
-    await product_db_xml_usecase.update_product_id_by_compayny_goods_cd(compayny_goods_cd_and_product_ids)
-
+    result = await product_registration_service.process_db_to_xml_and_sabangnet_request()
+    
     return DbToXmlResponse(
-        success=True,
-        message="모든 상품 데이터를 XML로 변환하고 사방넷 상품등록 요청했습니다.",
-        xml_file_path=xml_url,
-        processed_count=total_count
+        success=result["success"],
+        message=result["message"],
+        xml_file_path=result["xml_file_path"],
+        processed_count=result["processed_count"]
     )
 
 
