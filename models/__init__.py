@@ -19,3 +19,6 @@ from models.macro_batch_processing.batch_process import BatchProcess
 from models.down_form_orders.test_down_form_orders import TestDownFormOrder
 from models.hanjin.hanjin_printwbls import HanjinPrintwbls
 from models.hanjin.hanjin_orders import HanjinOrder
+from models.smile.smile_erp_data import SmileErpData
+from models.smile.smile_settlement_data import SmileSettlementData
+from models.smile.smile_sku_data import SmileSkuData

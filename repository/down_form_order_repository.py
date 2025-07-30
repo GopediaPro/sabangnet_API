@@ -1,5 +1,5 @@
 from typing import Any
-from sqlalchemy import bindparam
+from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.logs.sabangnet_logger import get_logger
 from sqlalchemy import select, delete, func, update, text
@@ -77,15 +77,54 @@ class DownFormOrderRepository:
         finally:
             await self.session.close()
 
-    async def get_down_form_orders_pagination(
+    async def get_down_form_orders_by_pagination(
             self,
             page: int = 1,
             page_size: int = 20,
-            template_code: str = None
+            template_code: str = "all"
     ) -> list[BaseDownFormOrder]:
         skip = (page - 1) * page_size
         limit = page_size
         return await self.get_down_form_orders_by_template_code(skip, limit, template_code)
+    
+    async def get_down_form_orders_by_pagination_with_date_range(
+            self,
+            date_from: date,
+            date_to: date,
+            page: int = 1,
+            page_size: int = 20,
+            template_code: str = "all"
+    ) -> list[BaseDownFormOrder]:
+        skip = (page - 1) * page_size
+        limit = page_size
+        
+        try:
+            query = select(BaseDownFormOrder).where(
+                BaseDownFormOrder.created_at >= date_from,
+                BaseDownFormOrder.created_at <= date_to
+            )
+            
+            if template_code == 'all':
+                pass
+            elif template_code is None or template_code == '':
+                query = query.where((BaseDownFormOrder.form_name == None) | (
+                    BaseDownFormOrder.form_name == ''))
+            else:
+                query = query.where(BaseDownFormOrder.form_name == template_code)
+            
+            if skip:
+                query = query.offset(skip)
+            if limit:
+                query = query.limit(limit)
+                
+            query = query.order_by(BaseDownFormOrder.id.desc())
+            result = await self.session.execute(query)
+            return result.scalars().all()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+        finally:
+            await self.session.close()
 
     async def get_down_form_orders_by_work_status(self, work_status: str) -> list[BaseDownFormOrder]:
         try:

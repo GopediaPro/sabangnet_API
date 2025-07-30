@@ -2,9 +2,9 @@ from decimal import Decimal
 from datetime import datetime
 from models.base_model import Base
 from sqlalchemy.orm import Mapped, mapped_column
-from schemas.receive_orders.receive_orders_dto import ReceiveOrdersDto
-from sqlalchemy import TIMESTAMP, Integer, String, Text, Numeric, DateTime
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Integer, String, Text, Numeric, DateTime
+from schemas.receive_orders.receive_orders_dto import ReceiveOrdersDto
 
 class BaseFormOrder(Base):
     """
@@ -14,7 +14,7 @@ class BaseFormOrder(Base):
     
     # 기본 정보
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    process_dt: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=False))
+    process_dt: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     form_name: Mapped[str | None] = mapped_column(String(30))
     seq: Mapped[int | None] = mapped_column(Integer)
     idx: Mapped[str] = mapped_column(String(50), nullable=False)  # 사방넷주문번호
@@ -75,7 +75,7 @@ class BaseFormOrder(Base):
     order_etc_6: Mapped[str | None] = mapped_column(Text)
     
     # 날짜 정보
-    order_date: Mapped[datetime | None] = mapped_column(DateTime)
+    order_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reg_date: Mapped[str | None] = mapped_column(String(14))
     ord_confirm_date: Mapped[str | None] = mapped_column(String(14))
     rtn_dt: Mapped[str | None] = mapped_column(String(14))

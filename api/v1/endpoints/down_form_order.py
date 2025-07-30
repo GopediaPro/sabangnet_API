@@ -19,6 +19,7 @@ from schemas.down_form_orders.response.down_form_orders_response import (
     DownFormOrderBulkResponse,
     DownFormOrderPaginationResponse,
     DownFormOrderBulkCreateResponse,
+    DownFormOrderPaginationWithDateRangeResponse,
 )
 from schemas.down_form_orders.request.down_form_orders_request import (
     DownFormOrderCreateJsonRequest,
@@ -26,6 +27,7 @@ from schemas.down_form_orders.request.down_form_orders_request import (
     DownFormOrderBulkUpdateJsonRequest,
     DownFormOrderBulkDeleteJsonRequest,
     DownFormOrderBulkCreateFilterRequest,
+    DownFormOrdersPaginationWithDateRangeRequest,
 )
 # utils
 from utils.response_status import RowStatus
@@ -97,7 +99,7 @@ async def down_form_orders(
 
 
 @router.get("/pagination", response_model=DownFormOrderPaginationResponse)
-async def down_form_orders_pagination(
+async def down_form_orders_by_pagination(
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=1000),
     template_code: Optional[str] = Query(
@@ -107,13 +109,51 @@ async def down_form_orders_pagination(
     down_form_order_read_service: DownFormOrderReadService = Depends(
         get_down_form_order_read_service),
 ):
-    items, total = await down_form_order_read_service.get_down_form_orders_by_pagenation(page, page_size, template_code)
+    items, total = await down_form_order_read_service.get_down_form_orders_by_pagination(page, page_size, template_code)
     dto_items: list[DownFormOrderDto] = [
         DownFormOrderDto.model_validate(item) for item in items]
     return DownFormOrderPaginationResponse(
         total=total,
         page=page,
         page_size=page_size,
+        items=[
+            DownFormOrderResponse(
+                content=dto,
+                status=RowStatus.SUCCESS,
+                message="success"
+            ) for dto in dto_items
+        ]
+    )
+
+
+@router.post("/pagination/date-range", response_model=DownFormOrderPaginationWithDateRangeResponse)
+async def down_form_orders_by_pagination_with_date_range(
+    request: DownFormOrdersPaginationWithDateRangeRequest = Body(...),
+    down_form_order_read_service: DownFormOrderReadService = Depends(
+        get_down_form_order_read_service),
+):
+    date_from = request.filters.date_from
+    date_to = request.filters.date_to
+    template_code = request.template_code
+    page = request.page
+    page_size = request.page_size
+
+    items, total = await down_form_order_read_service.get_down_form_orders_by_pagination_with_date_range(
+        date_from=date_from,
+        date_to=date_to,
+        page=page,
+        page_size=page_size,
+        template_code=template_code
+    )
+    dto_items: list[DownFormOrderDto] = [
+        DownFormOrderDto.model_validate(item) for item in items]
+    return DownFormOrderPaginationWithDateRangeResponse(
+        total=total,
+        page=request.page,
+        page_size=request.page_size,
+        template_code=request.template_code,
+        date_from=date_from,
+        date_to=date_to,
         items=[
             DownFormOrderResponse(
                 content=dto,

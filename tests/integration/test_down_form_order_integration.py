@@ -58,7 +58,7 @@ class TestDownFormOrderIntegration:
     def test_get_down_form_orders_pagination_success(self, client: TestClient, mock_down_form_order_read_service, sample_down_form_order_list):
         """다운폼 주문 페이징 조회 성공 테스트"""
         # Mock DownFormOrderReadService
-        mock_down_form_order_read_service.get_down_form_orders_by_pagenation.return_value = (
+        mock_down_form_order_read_service.get_down_form_orders_by_pagination.return_value = (
             sample_down_form_order_list[10:],
             4
         )
@@ -98,7 +98,7 @@ class TestDownFormOrderIntegration:
             assert item["message"] == "success"
         
         # Mock 메서드가 올바른 파라미터로 호출되었는지 확인
-        mock_down_form_order_read_service.get_down_form_orders_by_pagenation.assert_called_once_with(2, 10, None)
+        mock_down_form_order_read_service.get_down_form_orders_by_pagination.assert_called_once_with(2, 10, None)
 
     def test_get_down_form_orders_pagination_success_with_template_code(
             self,
@@ -115,7 +115,7 @@ class TestDownFormOrderIntegration:
             if sample_down_form_order["form_name"] == template_code:
                 target_list.append(sample_down_form_order)
 
-        mock_down_form_order_read_service.get_down_form_orders_by_pagenation.return_value = (
+        mock_down_form_order_read_service.get_down_form_orders_by_pagination.return_value = (
             target_list,
             len(target_list)
         )
@@ -155,7 +155,7 @@ class TestDownFormOrderIntegration:
             assert item["message"] == "success"
         
         # Mock 메서드가 올바른 파라미터로 호출되었는지 확인
-        mock_down_form_order_read_service.get_down_form_orders_by_pagenation.assert_called_once_with(1, 20, template_code)
+        mock_down_form_order_read_service.get_down_form_orders_by_pagination.assert_called_once_with(1, 20, template_code)
 
     def test_bulk_create_down_form_orders_success(
             self,
