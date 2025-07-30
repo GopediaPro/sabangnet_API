@@ -62,6 +62,12 @@ class DataProcessingUsecase:
                 'is_star': bool         # 스타배송 여부
             }
         """
+        from utils.unicode_utils import normalize_for_comparison
+        
+        # 유니코드 정규화 후 "스타배송" 포함 여부로만 판단
+        normalized_filename = normalize_for_comparison(filename)
+        is_star = '스타배송' in normalized_filename
+        
         # [사이트타입]-용도타입-세부사이트 추출
         match = re.search(r'\[([^\]]+)\]-([^-]+?)(?:-([^.]+?))?(?:\.xlsx)?$', filename)
         
@@ -70,14 +76,14 @@ class DataProcessingUsecase:
                 'site_type': None,
                 'usage_type': None,
                 'sub_site': None,
-                'is_star': '스타배송' in filename
+                'is_star': is_star
             }
         
         return {
             'site_type': match.group(1),      # "G마켓,옥션", "기본양식", "브랜디"
             'usage_type': match.group(2),     # "ERP용", "합포장용"  
             'sub_site': match.group(3),       # "기타사이트", "지그재그", None
-            'is_star': '스타배송' in filename  # 스타배송 여부
+            'is_star': is_star                # 스타배송 여부
         }
 
     async def down_form_order_to_excel(self, template_code: str, file_path: str, file_name: str):
