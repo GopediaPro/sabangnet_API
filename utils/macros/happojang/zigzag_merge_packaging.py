@@ -203,24 +203,25 @@ def zigzag_merge_packaging(input_path: str) -> str:
             m_val = str(ws[f"M{row}"].value)
             ws[f"V{row}"].value = lookup_map.get(m_val, "")
     
-    # 4. D열 수식 설정 (=U+V)
-    ex.autofill_d_column(formula="=U{row}+V{row}")
     
-    # 5. 상품정보 처리 (다중수량 강조)
+    # 4. 상품정보 처리 (다중수량 강조)
     highlight_multiple_items(ws)
     
-    # 6. A열 순번 설정
+    # 5. A열 순번 설정
     ex.set_row_number(ws)
     
-    # 7. 열 정렬
+    # 6. 열 정렬
     ex.set_column_alignment()
     
-    # 8. 배경·테두리 제거
+    # 7. 배경·테두리 제거
     ex.clear_fills_from_second_row()
     ex.clear_borders()
     
-    # 9. C→B 정렬
+    # 8. C→B 정렬
     ex.sort_by_columns([2, 3])
+
+    # 9. D열 금액 계산 설정 (=U+V)
+    ex.calculate_d_column_values(first_col='U', second_col='V')
 
     # ========== 자동화 시트 생성 (맨 앞에 위치) ==========
     # 매크로가 적용된 전체 시트를 "자동화" 이름으로 맨 앞에 복사
