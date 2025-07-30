@@ -6,6 +6,7 @@ from tests.mocks.mock_receive_orders import RECEIVE_ORDERS
 from tests.mocks.mock_count_executing import COUNT_EXECUTING
 from tests.mocks.mock_down_form_orders import DOWN_FORM_ORDERS
 from tests.mocks.mock_test_product_raw_data import TEST_PRODUCT_RAW_DATA
+from tests.mocks.mock_export_templates import EXPORT_TEMPLATES
 
 
 MOCK_TABLES = {
@@ -17,6 +18,7 @@ MOCK_TABLES = {
     "count_executing": COUNT_EXECUTING,
     "down_form_orders": DOWN_FORM_ORDERS,
     "product_raw_data": TEST_PRODUCT_RAW_DATA,
+    "export_templates": EXPORT_TEMPLATES,
 }
 
 

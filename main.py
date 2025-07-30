@@ -23,6 +23,7 @@ from api.v1.endpoints.mall_price import router as mall_price_router
 from api.v1.endpoints.one_one_price import router as one_one_price_router
 from api.v1.endpoints.down_form_order import router as down_form_order_router
 from api.v1.endpoints.product_registration import router as product_registration_router
+from api.v1.endpoints.hanjin.delivery import router as hanjin_router
 
 from utils.logs.sabangnet_logger import get_logger, HTTPLoggingMiddleware
 from api.v1.endpoints.mall_certification_handling.mall_certification_handling import router as mall_certification_handling_router
@@ -65,7 +66,8 @@ master_router.include_router(down_form_order_router)
 master_router.include_router(macro_router)
 master_router.include_router(product_registration_router)
 master_router.include_router(mall_certification_handling_router)
-master_router.include_router(ecount_router)
+master_router.include_router(ecount_router) 
+master_router.include_router(hanjin_router)
 
 app.include_router(master_router)
 

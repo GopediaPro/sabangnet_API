@@ -400,11 +400,11 @@ class ETCSheetManager:
         # 2. C→B 정렬
         ex.sort_by_columns([2, 3])
         
-        # 3. D열 수식 설정 (사용자 요구사항에 맞는 P, V 처리)
-        self._calculate_d_column_custom(ws)
-        
-        # 4. 사이트별 배송비 처리
+        # 3. 사이트별 배송비 처리
         ETCDeliveryFeeHandler(ws).process_delivery_fee()
+
+        # 4. D열 수식 설정 (사용자 요구사항에 맞는 P, V 처리)
+        self._calculate_d_column_custom(ws)
         
         # 5. 주문번호 처리
         process_order_numbers(ws)
@@ -425,7 +425,7 @@ class ETCSheetManager:
             ws[f"F{row}"].value = ETCOrderUtils.clean_order_text(ws[f"F{row}"].value)
 
         # 9. 문자열→숫자 변환 
-        ex.convert_numeric_strings(cols=("F","M", "W", "AA"))
+        ex.convert_numeric_strings(cols=("F","M", "AA"))
 
         # 10. 열 정렬
         ex.set_column_alignment()
@@ -440,11 +440,15 @@ class ETCSheetManager:
 
     def _calculate_d_column_custom(self, ws: Worksheet) -> None:
         """
-        D열 계산: U + V(슬래시 합산)
+        D열 계산: U + V(슬래시 합산) + 제주도 추가비용
         """
         for row in range(2, ws.max_row + 1):
+            # C열 이름 확인 (김비비 디버깅용)
+            name = str(ws[f'C{row}'].value or "")
+            
             u_val = ws[f'U{row}'].value or 0
             v_val = ws[f'V{row}'].value or 0
+            addr = str(ws[f'J{row}'].value or "")  # J열 주소 확인
             
             # V열 처리: "/" 구분자가 있으면 모든 숫자를 합산 (P열과 동일)
             v_num = 0
@@ -461,8 +465,11 @@ class ETCSheetManager:
                 except (ValueError, TypeError):
                     v_num = 0
             
+            # 제주도 추가비용 3000원
+            jeju_fee = 3000 if "제주" in addr else 0
+            
             # D열에 계산 결과 설정
-            calculated_d = u_val + v_num
+            calculated_d = u_val + v_num + jeju_fee
             ws[f'D{row}'].value = calculated_d
 
     def _split_slash_values(self, value, expected_count: int) -> List[str]:

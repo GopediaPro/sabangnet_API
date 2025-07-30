@@ -9,12 +9,11 @@ class ERPEtcSiteMacro:
         self.ex = ExcelHandler.from_file(file_path)
         self.ws = self.ex.ws
         self.wb = self.ex.wb
-        self.order_dict = set()
+        self.order_set = set()
         self.toss_order_info = {}
 
     def etc_site_macro_run(self):
         col_h = ExcelColumnHandler()
-
         for row in range(2, self.ws.max_row + 1):
             self._overlap_by_site_column(self.ws[f"B{row}"], row)
             self._toss_process_column(self.ws[f"B{row}"], row)
@@ -23,7 +22,7 @@ class ERPEtcSiteMacro:
                 self.ws[f"B{row}"], self.ws[f"J{row}"], self.ws[f"F{row}"])
             col_h.h_i_column(self.ws[f"H{row}"])
             col_h.h_i_column(self.ws[f"I{row}"])
-
+        
         self._toss_order_info_process()
 
         # 시트 설정
@@ -78,19 +77,19 @@ class ERPEtcSiteMacro:
         if "오늘의집" in b_cell_text:
             self.ws[f"V{row}"].value = 0
         elif "톡스토어" in b_cell_text:
-            order_key = str(self.ws[f"B{row}"].value).strip()
+            order_key = str(self.ws[f"E{row}"].value).strip()
             if order_key:
-                if order_key in self.order_dict:
+                if order_key in self.order_set:
                     self.ws[f"V{row}"].value = 0
                 else:
-                    self.order_dict.add(order_key)
+                    self.order_set.add(order_key)
         elif any(site in b_cell_text for site in ["롯데온", "보리보리", "스마트스토어"]):
-            order_key = str(self.ws[f"J{row}"].value).strip()
+            order_key = str(self.ws[f"E{row}"].value).strip()
             if order_key:
-                if order_key in self.order_dict:
+                if order_key in self.order_set:
                     self.ws[f"V{row}"].value = 0
                 else:
-                    self.order_dict.add(order_key)
+                    self.order_set.add(order_key)
 
     def _toss_process_column(self, cell, row):
         """
@@ -145,7 +144,9 @@ class ERPEtcSiteMacro:
         if "카카오" in b_text and "제주" in j_text:
             f_text = str(f_cell.value)
             if "[3000원 연락해야함]" not in f_text:
-                f_cell.value = f_text + " [3000원 연락해야함]"
+                f_cell.value = f_text + "[3000원 연락해야함]"
+                f_cell.font = Font(color="FF0000", bold=True)
+                
 
     def _v_column_red_font(self, v_cell):
         """

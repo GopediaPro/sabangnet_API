@@ -40,11 +40,14 @@ class ERPGmaAucMacro:
         # 정렬 기준: 2번째 컬럼(B) → 3번째 컬럼(C) 순으로 정렬
         sort_columns = [2, 3, -5]
         logger.info("시트별 정렬, 시트 분리 시작...")
-        headers, data = self.ex.preprocess_and_update_ws(self.ws, sort_columns)
+        self.ex.preprocess_and_update_ws(self.ws, sort_columns)
 
         # 배송비 적용
         for row in range(self.ws.max_row, 1, -1):
             self._shipping_costs_column(self.ws[f"Q{row}"], self.ws[f"V{row}"])
+            
+        # 배송적용 데이터 업데이트
+        headers, data = self.ex.preprocess_and_update_ws(self.ws, sort_columns)
 
         self.ex.split_and_write_ws_by_site(
             wb=self.wb,

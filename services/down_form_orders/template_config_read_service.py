@@ -22,3 +22,14 @@ class TemplateConfigReadService:
     
     async def get_macro_name_by_template_code(self, template_code: str) -> Optional[str]:
         return await self.template_config_repository.get_macro_name_by_template_code(template_code)
+    
+    async def get_macro_name_by_template_code_with_sub_site(self, template_code: str, sub_site: str) -> Optional[str]:
+        """
+        get macro name by template code and sub_site
+        args:
+            template_code: template code
+            sub_site: sub site (알리, 지그재그, 기타사이트)
+        returns:
+            macro_name: macro name
+        """
+        return await self.template_config_repository.get_macro_name_by_template_code_with_sub_site(template_code, sub_site)
