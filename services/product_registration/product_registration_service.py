@@ -15,6 +15,10 @@ from schemas.product_registration import (
     ProductRegistrationBulkResponseDto,
     ExcelProcessResultDto
 )
+from services.usecase.product_db_xml_usecase import ProductDbXmlUsecase
+from services.product.product_create_service import ProductCreateService
+from utils.make_xml.product_registration_xml import ProductRegistrationXml
+from minio_handler import upload_file_to_minio, get_minio_file_url
 
 
 logger = get_logger(__name__)
@@ -27,6 +31,7 @@ class ProductRegistrationService:
         self.session = session
         self.repository = ProductRegistrationRepository(session)
         self.excel_processor = ProductRegistrationExcelProcessor()
+        self.product_db_xml_usecase = ProductDbXmlUsecase(session)
     
     async def process_excel_file(self, file_path: str, sheet_name: str = "Sheet1") -> ExcelProcessResultDto:
         """
@@ -195,6 +200,51 @@ class ProductRegistrationService:
             
         except Exception as e:
             logger.error(f"Excel 파일 처리 및 DB 저장 오류: {e}")
+            raise
+    
+    async def process_db_to_xml_and_sabangnet_request(self) -> dict:
+        """
+        test_product_raw_data 테이블의 모든 데이터를 XML로 변환하고 사방넷 상품등록 요청을 수행합니다.
+        
+        Returns:
+            dict: 처리 결과 정보
+        """
+        try:
+            logger.info("DB to XML 변환 및 사방넷 상품등록 요청 시작")
+            
+            # 1. DB to XML 파일 로컬 저장
+            xml_file_path = await self.product_db_xml_usecase.db_to_xml_file_all()
+            total_count = await self.product_db_xml_usecase.get_product_raw_data_count()
+            
+            logger.info(f"XML 파일 생성 완료: {xml_file_path}, 총 {total_count}개 상품")
+            
+            # 2. 파일 서버 업로드
+            object_name = upload_file_to_minio(xml_file_path)
+            logger.info(f"MinIO에 업로드된 XML 파일 이름: {object_name}")
+            xml_url = get_minio_file_url(object_name)
+            logger.info(f"MinIO에 업로드된 XML URL: {xml_url}")
+            
+            # 3. 사방넷 상품등록 요청
+            response_xml = ProductCreateService.request_product_create_via_url(xml_url)
+            logger.info(f"사방넷 상품등록 결과: {response_xml}")
+            
+            # 4. 응답 XML에서 PRODUCT_ID 추출 및 DB 업데이트
+            product_registration_xml = ProductRegistrationXml()
+            compayny_goods_cd_and_product_ids: list[tuple[str, int]] = product_registration_xml.input_product_id_to_db(response_xml)
+            await self.product_db_xml_usecase.update_product_id_by_compayny_goods_cd(compayny_goods_cd_and_product_ids)
+            
+            logger.info(f"사방넷 상품등록 완료: {len(compayny_goods_cd_and_product_ids)}개 상품 ID 업데이트")
+            
+            return {
+                "success": True,
+                "message": "모든 상품 데이터를 XML로 변환하고 사방넷 상품등록 요청했습니다.",
+                "xml_file_path": xml_url,
+                "processed_count": total_count,
+                "updated_product_count": len(compayny_goods_cd_and_product_ids)
+            }
+            
+        except Exception as e:
+            logger.error(f"DB to XML 변환 및 사방넷 상품등록 요청 오류: {e}")
             raise
     
     async def get_product_by_id(self, id: int) -> Optional[ProductRegistrationResponseDto]:
