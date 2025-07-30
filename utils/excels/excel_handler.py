@@ -964,35 +964,35 @@ class ExcelHandler:
 
     def add_island_delivery(self, wb=None):
         """
-        work book으로 받아서 각각의 셀비교
+        도서지역 쇼핑몰별 배송비 추가 
         """
         red_font = Font(color="FF0000", bold=True)
         black_font = Font(color="000000", bold=False, size=9)
-        island_dict: list[dict] = [{"site_name": "GSSHOP", "fid_dsp": "GSSHOP", "cost": 3000, "add_dsp": False},
-                                   {'site_name': "텐바이텐", "fid_dsp": "텐바이텐",
-                                       "cost": 3000, "add_dsp": True},
+        island_dict: list[dict] = [{"site_name": "GSSHOP", "fid_dsp": "GSSHOP", "cost": 3000, "add_dsp": None},
+                                   {'site_name': "텐바이텐", "fid_dsp": "텐바이텐", "cost": 3000,
+                                       "add_dsp": "3000원 연락해야함, 어드민 조회필요(외부몰/자체몰)"},
                                    {'site_name': "쿠팡", "fid_dsp": "쿠팡",
-                                       "cost": 3000, "add_dsp": False},
+                                       "cost": 3000, "add_dsp": None},
                                    {'site_name': "무신사", "fid_dsp": "무신사",
-                                       "cost": 3000, "add_dsp": False},
+                                       "cost": 3000, "add_dsp": None},
                                    {'site_name': "NS홈쇼핑", "fid_dsp": "NS홈쇼핑",
-                                    "cost": 3000, "add_dsp": False},
+                                       "cost": 3000, "add_dsp": None},
                                    {'site_name': "CJ온스타일", "fid_dsp": "CJ온스타일",
-                                    "cost": 3000, "add_dsp": False},
+                                       "cost": 3000, "add_dsp": None},
                                    {'site_name': "브랜디", "fid_dsp": "브랜디",
-                                       "cost": 3000, "add_dsp": True},
+                                       "cost": 3000, "add_dsp": "3000원 연락해야함"},
                                    {'site_name': "에이블리", "fid_dsp": "에이블리",
-                                    "cost": 3000, "add_dsp": False},
+                                       "cost": 3000, "add_dsp": None},
                                    {'site_name': "보리보리", "fid_dsp": "보리보리",
-                                       "cost": 3000, "add_dsp": True},
+                                       "cost": 3000, "add_dsp": "3000원 연락해야함"},
                                    {'site_name': "지그재그", "fid_dsp": "지그재그",
-                                    "cost": 3000, "add_dsp": False},
+                                       "cost": 3000, "add_dsp": None},
                                    {'site_name': "카카오톡선물하기", "fid_dsp": "카카오선물하기",
-                                    "cost": 3000, "add_dsp": True},
+                                       "cost": 3000, "add_dsp": "3000원 연락해야함"},
                                    {'site_name': "11번가", "fid_dsp": "11번가",
-                                    "cost": 5000, "add_dsp": False},
+                                       "cost": 5000, "add_dsp": None},
                                    {'site_name': "홈&쇼핑", "fid_dsp": "홈&쇼핑",
-                                       "cost": 3000, "add_dsp": True},
+                                       "cost": 3000, "add_dsp": "3000원 연락해야함"},
                                    ]
         if wb is None:
             wb = self.wb
@@ -1001,12 +1001,12 @@ class ExcelHandler:
                 # 주소에 제주가 포함된 경우
                 if "제주" in ws[f"J{row}"].value:
                     for island in island_dict:
-                        site_name = ws[f"B{row}"].value
+                        site_name: str = ws[f"B{row}"].value
                         # 사이트명이 포함된 경우
                         if island["fid_dsp"] in site_name:
                             # 처리 여부 확인
                             if island["add_dsp"]:
-                                ws[f"F{row}"].value += f"{island["cost"]}원 연락해야함"
+                                ws[f"F{row}"].value += island["add_dsp"]
                                 ws[f"F{row}"].font = red_font
                                 if "텐바이텐" in site_name:
                                     ws[f"D{row}"].value = str(
