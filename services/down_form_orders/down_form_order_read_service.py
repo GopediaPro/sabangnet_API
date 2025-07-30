@@ -1,3 +1,4 @@
+from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.down_form_orders.down_form_order import BaseDownFormOrder
@@ -18,13 +19,43 @@ class DownFormOrderReadService:
     async def get_down_form_order_by_idx(self, idx: str) -> DownFormOrderDto:
         return DownFormOrderDto.model_validate(await self.down_form_order_repository.get_down_form_order_by_idx(idx))
 
-    async def get_down_form_orders_by_pagenation(
+    async def get_down_form_orders_by_pagination(
             self,
             page: int = 1,
             page_size: int = 100,
             template_code: str = None
     ) -> tuple[list[BaseDownFormOrder], int]:
-        items: list[BaseDownFormOrder] = await self.down_form_order_repository.get_down_form_orders_pagination(page, page_size, template_code)
+        items: list[BaseDownFormOrder] = (
+            await self
+            .down_form_order_repository
+            .get_down_form_orders_by_pagination(
+                page,
+                page_size,
+                template_code
+            )
+        )
+        total: int = await self.down_form_order_repository.count_all(template_code)
+        return items, total
+    
+    async def get_down_form_orders_by_pagination_with_date_range(
+            self,
+            date_from: date,
+            date_to: date,
+            page: int = 1,
+            page_size: int = 100,
+            template_code: str = "all",
+    ) -> tuple[list[BaseDownFormOrder], int]:
+        items: list[BaseDownFormOrder] = (
+            await self
+            .down_form_order_repository
+            .get_down_form_orders_by_pagination_with_date_range(
+                date_from=date_from,
+                date_to=date_to,
+                page=page,
+                page_size=page_size,
+                template_code=template_code
+            )
+        )
         total: int = await self.down_form_order_repository.count_all(template_code)
         return items, total
 

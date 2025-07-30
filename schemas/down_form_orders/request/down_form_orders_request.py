@@ -1,7 +1,8 @@
+from datetime import date
 from typing import Any, Optional
 from pydantic import BaseModel, Field, ConfigDict
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto
-from schemas.receive_orders.request.receive_orders_request import ReceiveOrdersFillterRequest
+from schemas.receive_orders.request.receive_orders_request import ReceiveOrdersFillterRequest, BaseDateRangeRequest
 
 
 class DownFormOrderCreateJsonRequest(BaseModel):
@@ -66,7 +67,40 @@ class DownFormOrderBulkDeleteJsonRequest(BaseModel):
     ids: list[int]
 
 
-class DownFormOrderListRequest(BaseModel):
-    page: int = Field(1, description="페이지 번호")
-    page_size: int = Field(100, description="페이지 크기")
-    # 필터/정렬 옵션 필요시 추가
+class DownFormOrdersDateRangeFillterRequest(BaseDateRangeRequest):
+    """
+    날짜/주문상태 필수 요청 객체
+    """
+    # 부모 클래스의 Optional 필드들을 필수로 오버라이드
+    date_from: date = Field(..., description="시작 날짜", example="2025-06-02")
+    date_to: date = Field(..., description="종료 날짜", example="2025-06-06")
+
+
+class DownFormOrdersPaginationRequest(BaseModel):
+    page: int = Field(1, ge=1, description="페이지 번호")
+    page_size: int = Field(100, ge=1, le=1000, description="페이지 크기")
+
+    filters: DownFormOrdersDateRangeFillterRequest = Field(..., description="필터 정보")
+
+    template_code: str = Field(
+        ...,
+        description="\
+            form_name 필터링: 'all'은 전체, \
+            ''(빈값)은 form_name이 NULL 또는 빈 값, 그 외는 해당 값과 일치하는 항목 조회"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "page": 1,
+                    "page_size": 100,
+                    "template_code": "all",
+                    "filters": {
+                        "date_from": "2025-06-02",
+                        "date_to": "2025-06-06",
+                    }
+                }
+            ]
+        }
+    )
