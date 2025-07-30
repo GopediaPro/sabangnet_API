@@ -178,8 +178,9 @@ def compare_selected_sheet_pairs(excel_filename):
         print("\n")
 
     # 변경된 내용을 새 파일로 저장 (원본 파일 손상 방지를 위해)
-    path, file_name = os.path.split(excel_filename)
-    output_filename = os.path.join(path, f"checked_{file_name}")
+    path, full_name = os.path.split(excel_filename)
+    file_name, file_ext = os.path.splitext(full_name)
+    output_filename = os.path.join(path, f"{file_name}_checked{file_ext}")
 
     try:
         workbook.save(output_filename)
@@ -189,10 +190,12 @@ def compare_selected_sheet_pairs(excel_filename):
 
 # --- 사용 예시 ---
 if __name__ == "__main__":
+    print("비교 프로세스를 시작합니다.")
+
     excel_file = ""
 
     if len(sys.argv) > 1:
-        excel_file = sys.argv[1]
+        excel_file = str(sys.argv[1]).strip()
     else:
         excel_file = "G옥_합포장_자동화_g_happo_data_20250714_sorted.xlsx"
 
@@ -201,5 +204,7 @@ if __name__ == "__main__":
     date_yyyymmdd = today.strftime("%Y%m%d")
     current_dir = f"{current_dir}/{date_yyyymmdd}"
     excel_file = os.path.join(current_dir, excel_file)
+
+    print(f"비교할 엑셀 파일: {excel_file}")
 
     compare_selected_sheet_pairs(excel_file)
