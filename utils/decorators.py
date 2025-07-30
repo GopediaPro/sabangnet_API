@@ -138,4 +138,43 @@ def validate_excel_file():
                 }
             )
         return file
-    return validate_file 
+    return validate_file
+
+
+def product_registration_handler(
+    error_code: str = "PRODUCT_REGISTRATION_ERROR",
+    error_message: str = "상품 등록 처리 중 오류가 발생했습니다."
+):
+    """
+    상품 등록 API 요청을 위한 공통 핸들러 데코레이터
+    
+    Args:
+        error_code: 에러 코드
+        error_message: 기본 에러 메시지
+    """
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            logger = get_logger(__name__)
+            try:
+                return await func(*args, **kwargs)
+            except ValueError as e:
+                logger.error(f"상품 등록 검증 오류: {str(e)}")
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "error_code": "VALIDATION_ERROR",
+                        "message": str(e)
+                    }
+                )
+            except Exception as e:
+                logger.error(f"상품 등록 처리 오류: {str(e)}")
+                raise HTTPException(
+                    status_code=500,
+                    detail={
+                        "error_code": error_code,
+                        "message": error_message
+                    }
+                )
+        return wrapper
+    return decorator 
