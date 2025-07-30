@@ -20,6 +20,12 @@ from schemas.product_registration import (
     ExcelImportResponseDto
 )
 from utils.decorators import product_registration_handler, validate_excel_file
+from utils.exceptions.http_exceptions import (
+    ValidationException,
+    NotFoundException,
+    FileNotFoundException,
+    DataNotFoundException
+)
 from minio_handler import temp_file_to_object_name, delete_temp_file
 
 logger = logging.getLogger(__name__)
@@ -130,11 +136,11 @@ async def import_local_excel_to_db(
     
     # 파일 존재 확인
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail=f"파일을 찾을 수 없습니다: {file_path}")
+        raise FileNotFoundException(file_path)
     
     # Excel 파일 확장자 확인
     if not file_path.endswith(('.xlsx', '.xls')):
-        raise HTTPException(status_code=400, detail="Excel 파일만 처리 가능합니다. (.xlsx, .xls)")
+        raise ValidationException("Excel 파일만 처리 가능합니다. (.xlsx, .xls)")
     
     # Excel 파일 처리 및 DB 저장
     excel_result, bulk_result = await service.process_excel_and_create(file_path, sheet_name)
@@ -212,7 +218,7 @@ async def get_product_by_id(
     """ID로 상품 등록 데이터를 조회합니다."""
     result = await service.get_product_by_id(product_id)
     if not result:
-        raise HTTPException(status_code=404, detail="상품 등록 데이터를 찾을 수 없습니다.")
+        raise DataNotFoundException("상품 등록 데이터를 찾을 수 없습니다.")
     return result
 
 
@@ -248,7 +254,7 @@ async def update_product(
     """ID로 상품 등록 데이터를 업데이트합니다."""
     result = await service.update_product(product_id, data)
     if not result:
-        raise HTTPException(status_code=404, detail="상품 등록 데이터를 찾을 수 없습니다.")
+        raise DataNotFoundException("상품 등록 데이터를 찾을 수 없습니다.")
     
     logger.info(f"상품 업데이트 완료: ID={product_id}")
     return result
@@ -267,7 +273,7 @@ async def delete_product(
     """ID로 상품 등록 데이터를 삭제합니다."""
     deleted = await service.delete_product(product_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail="상품 등록 데이터를 찾을 수 없습니다.")
+        raise DataNotFoundException("상품 등록 데이터를 찾을 수 없습니다.")
     
     logger.info(f"상품 삭제 완료: ID={product_id}")
     return {"message": "상품 등록 데이터가 성공적으로 삭제되었습니다.", "deleted_id": product_id}
