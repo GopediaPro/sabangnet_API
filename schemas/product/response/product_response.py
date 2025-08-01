@@ -1,6 +1,12 @@
+import logging
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+logger.info("Product Response 스키마 로드 시작...")
+
 
 class ProductNameResponse(BaseModel):
     rev: int = Field(alias="rev", description="수정 차수")
@@ -14,7 +20,11 @@ class ProductNameResponse(BaseModel):
             company_goods_cd=dto.compayny_goods_cd,
             goods_nm=dto.goods_nm
         )
-    
+
+
+logger.info("ProductNameResponse 스키마 정의 완료")
+
+
 class ProductResponse(BaseModel):
     id: int = Field(alias="id", description="ID")
     goods_nm: str = Field(alias="goods_nm", description="상품명")
@@ -49,7 +59,11 @@ class ProductResponse(BaseModel):
             char_2_val=dto.char_2_val,
             created_at=dto.created_at
         )
-    
+
+
+logger.info("ProductResponse 스키마 정의 완료")
+
+
 class ProductPageResponse(BaseModel):
     products: list[ProductResponse] = Field(description="상품 목록")
     current_page: int = Field(description="현재 페이지")
@@ -62,3 +76,7 @@ class ProductPageResponse(BaseModel):
             current_page=current_page,
             page_size=page_size
         )
+
+
+logger.info("ProductPageResponse 스키마 정의 완료")
+logger.info("Product Response 스키마 로드 완료")
