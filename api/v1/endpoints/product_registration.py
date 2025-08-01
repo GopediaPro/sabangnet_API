@@ -10,30 +10,58 @@ import os
 import logging
 
 from core.db import get_async_session
-from services.product_registration import ProductRegistrationService
+from services.product_registration import ProductRegistrationService, ProductCodeIntegratedService
 from schemas.product_registration import (
     ProductRegistrationBulkResponseDto,
     ProductRegistrationBulkCreateDto,
     ProductRegistrationResponseDto,
     ProductRegistrationCreateDto,
     ExcelProcessResultDto,
-    ExcelImportResponseDto
+    ExcelImportResponseDto,
+    CompleteWorkflowResponseDto
 )
-from utils.decorators import product_registration_handler, validate_excel_file
+from utils.decorators import (
+    product_registration_handler, 
+    complete_workflow_handler,
+    process_excel_file_with_cleanup
+)
 from utils.exceptions.http_exceptions import (
     ValidationException,
     NotFoundException,
     FileNotFoundException,
-    DataNotFoundException
+    DataNotFoundException,
+    ProductRegistrationException
 )
-from minio_handler import temp_file_to_object_name, delete_temp_file
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+logger.info("Product Registration API 엔드포인트 로드 시작...")
+
+# 스키마 로드 검증
+try:
+    logger.info("Product Registration 스키마 검증 중...")
+    from schemas.product_registration import (
+        ProductRegistrationBulkResponseDto,
+        ProductRegistrationBulkCreateDto,
+        ProductRegistrationResponseDto,
+        ProductRegistrationCreateDto,
+        ExcelProcessResultDto,
+        ExcelImportResponseDto,
+        CompleteWorkflowResponseDto
+    )
+    logger.info("Product Registration 스키마 로드 성공")
+except Exception as e:
+    logger.error(f"Product Registration 스키마 로드 실패: {e}")
+    import traceback
+    logger.error(traceback.format_exc())
 
 router = APIRouter(
     prefix="/product-registration",
     tags=["product-registration"]
 )
+
+logger.info("Product Registration 라우터 생성 완료")
 
 
 async def get_product_registration_service(
@@ -41,6 +69,11 @@ async def get_product_registration_service(
 ) -> ProductRegistrationService:
     """상품 등록 서비스 의존성 주입"""
     return ProductRegistrationService(session)
+
+
+async def get_product_integrated_service() -> ProductCodeIntegratedService:
+    """상품 등록 통합 서비스 의존성 주입"""
+    return ProductCodeIntegratedService()
 
 
 @router.get("/", summary="상품 등록 API 상태 확인")
@@ -63,11 +96,9 @@ async def process_excel_file(
 ):
     """Excel 파일을 처리하여 데이터를 검증합니다."""
     
-    # Excel 파일 검증
-    validate_excel_file()(file)
-    
-    # 임시 파일로 저장
-    temp_file_path = temp_file_to_object_name(file)
+    # Excel 파일 처리 및 정리 함수 가져오기
+    process_file = process_excel_file_with_cleanup()
+    temp_file_path, cleanup_func = process_file(file)
     
     try:
         # Excel 파일 처리
@@ -77,8 +108,8 @@ async def process_excel_file(
         return result
         
     finally:
-        # 임시 파일 삭제
-        delete_temp_file(temp_file_path)
+        # 임시 파일 정리
+        cleanup_func()
 
 
 @router.post(
@@ -98,11 +129,9 @@ async def import_excel_to_db(
     데이터베이스에 저장된 데이터를 조회하여 반환합니다.
     """
     
-    # Excel 파일 검증
-    validate_excel_file()(file)
-    
-    # 임시 파일로 저장
-    temp_file_path = temp_file_to_object_name(file)
+    # Excel 파일 처리 및 정리 함수 가져오기
+    process_file = process_excel_file_with_cleanup()
+    temp_file_path, cleanup_func = process_file(file)
     
     try:
         # Excel 파일 처리 및 DB 저장
@@ -116,8 +145,70 @@ async def import_excel_to_db(
         )
         
     finally:
-        # 임시 파일 삭제
-        delete_temp_file(temp_file_path)
+        # 임시 파일 정리
+        cleanup_func()
+
+
+@router.post(
+    "/complete-workflow",
+    response_model=CompleteWorkflowResponseDto,
+    summary="전체 상품 등록 워크플로우",
+    description="Excel 파일 처리부터 사방넷 API 요청까지의 전체 프로세스를 한 번에 처리합니다."
+)
+async def process_complete_workflow(
+    file: UploadFile = File(..., description="처리할 Excel 파일"),
+    sheet_name: str = Query("Sheet1", description="처리할 시트명"),
+    service: ProductCodeIntegratedService = Depends(get_product_integrated_service)
+):
+    """
+    전체 상품 등록 워크플로우를 처리합니다:
+    1. Excel 파일 처리 및 DB 저장
+    2. DB Transfer (product_registration_raw_data → test_product_raw_data)
+    3. DB to SabangAPI 요청
+    """
+    
+    try:
+        # Excel 파일 처리 및 정리 함수 가져오기
+        process_file = process_excel_file_with_cleanup()
+        temp_file_path, cleanup_func = process_file(file)
+        
+        try:
+            # 전체 워크플로우 처리
+            result = await service.process_complete_product_registration_workflow(
+                temp_file_path, 
+                sheet_name
+            )
+            
+            logger.info(f"전체 워크플로우 완료: {file.filename}")
+            return CompleteWorkflowResponseDto(**result)
+            
+        finally:
+            # 임시 파일 정리
+            cleanup_func()
+            
+    except ValueError as e:
+        logger.error(f"전체 워크플로우 검증 오류: {str(e)}")
+        raise ValidationException(str(e))
+    except FileNotFoundError as e:
+        logger.error(f"파일을 찾을 수 없음: {str(e)}")
+        raise FileNotFoundException(str(e))
+    except Exception as e:
+        logger.error(f"전체 워크플로우 처리 오류: {str(e)}")
+        
+        # 오류 메시지에 추가 정보 포함
+        error_message = f"전체 워크플로우 처리 중 오류가 발생했습니다. 오류: {str(e)}"
+        
+        # 로그에서 XML 파싱 오류나 API 응답 정보가 있는지 확인
+        if "XML 파싱 오류" in str(e) or "unclosed token" in str(e):
+            error_message += " (XML 파싱 오류가 발생했습니다. 사방넷 API 응답을 확인해주세요.)"
+        
+        if "상품등록 결과 XML 파싱 오류" in str(e):
+            error_message += " (사방넷 API에서 반환된 XML 응답을 파싱할 수 없습니다.)"
+        
+        # 전체 오류 메시지를 로그에 기록
+        logger.error(f"전체 오류 메시지: {error_message}")
+            
+        raise ProductRegistrationException(error_message)
 
 
 @router.post(
