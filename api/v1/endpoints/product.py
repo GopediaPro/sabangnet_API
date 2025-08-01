@@ -39,11 +39,30 @@ from minio_handler import upload_file_to_minio, get_minio_file_url
 
 logger = get_logger(__name__)
 
+logger.info("Product API 엔드포인트 로드 시작...")
+
+# 스키마 로드 검증
+try:
+    logger.info("Product 스키마 검증 중...")
+    from schemas.product.db_xml_dto import DbToXmlResponse
+    from schemas.product.response.product_response import (
+        ProductPageResponse,
+        ProductNameResponse,
+        ProductResponse,
+    )
+    logger.info("Product 스키마 로드 성공")
+except Exception as e:
+    logger.error(f"Product 스키마 로드 실패: {e}")
+    import traceback
+    logger.error(traceback.format_exc())
+
 
 router = APIRouter(
     prefix="/product",
     tags=["product"],
 )
+
+logger.info("Product 라우터 생성 완료")
 
 
 def get_product_read_service(session: AsyncSession = Depends(get_async_session)) -> ProductReadService:
