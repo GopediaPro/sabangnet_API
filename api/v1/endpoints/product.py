@@ -125,19 +125,6 @@ async def excel_to_xml_n8n_test(request: Request):
         result: dict = response.json()
         return result
 
-
-@router.put("/name", response_model=ProductNameResponse)
-@product_handler
-async def modify_product_name(
-    request: ModifyProductNameForm,
-    product_update_service: ProductUpdateService = Depends(get_product_update_service)
-):
-    return ProductNameResponse.from_dto(await product_update_service.modify_product_name(
-        compayny_goods_cd=request.compayny_goods_cd,
-        product_name=request.name
-    ))
-
-
 @router.get("", response_model=ProductPageResponse)
 @product_handler
 async def get_products(
