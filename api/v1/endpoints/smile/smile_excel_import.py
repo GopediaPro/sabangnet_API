@@ -54,7 +54,7 @@ async def import_erp_data_from_excel(
     """ERP 데이터 Excel 파일을 처리하여 데이터베이스에 저장합니다."""
     
     # 파일 검증
-    validate_excel_file()(file)
+    validate_excel_file(file)
     
     # 파일 내용 읽기
     content = await file.read()
@@ -84,7 +84,7 @@ async def import_settlement_data_from_excel(
     logger.info(f"정산 데이터 가져오기 요청 - site: '{site}' (type: {type(site)})")
     
     # 파일 검증
-    validate_excel_file()(file)
+    validate_excel_file(file)
     
     # 파일 내용 읽기
     content = await file.read()
@@ -109,7 +109,7 @@ async def import_sku_data_from_excel(
     """SKU 데이터 Excel 파일을 처리하여 데이터베이스에 저장합니다."""
     
     # 파일 검증
-    validate_excel_file()(file)
+    validate_excel_file(file)
     
     # 파일 내용 읽기
     content = await file.read()
@@ -138,15 +138,15 @@ async def import_all_smile_data_from_excel(
     files = {}
     
     if erp_file:
-        validate_excel_file()(erp_file)
+        validate_excel_file(erp_file)
         files["erp"] = (await erp_file.read(), erp_file.filename)
     
     if settlement_file:
-        validate_excel_file()(settlement_file)
+        validate_excel_file(settlement_file)
         files["settlement"] = (await settlement_file.read(), settlement_file.filename)
     
     if sku_file:
-        validate_excel_file()(sku_file)
+        validate_excel_file(sku_file)
         files["sku"] = (await sku_file.read(), sku_file.filename)
     
     # 서비스 호출

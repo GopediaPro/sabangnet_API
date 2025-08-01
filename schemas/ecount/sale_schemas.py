@@ -2,7 +2,7 @@
 이카운트 매핑 관련 스키마
 """
 import re
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from core.settings import SETTINGS
@@ -77,19 +77,16 @@ class EcountSaleDto(BaseModel):
     error_message: Optional[str] = Field(None, description="오류메시지")
     is_test: bool = Field(True, description="테스트 여부")
     
-    @model_validator(mode='before')
+    @field_validator('com_code', 'user_id', mode='before')
     @classmethod
-    def set_default_auth_info(cls, values):
+    def set_default_auth_info(cls, v, info):
         """환경변수에서 기본 인증 정보를 설정합니다."""
-        if isinstance(values, dict):
-            # com_code가 설정되지 않은 경우 환경변수에서 가져오기
-            if not values.get('com_code'):
-                values['com_code'] = SETTINGS.ECOUNT_COM_CODE
-            if not values.get('user_id'):
-                values['user_id'] = SETTINGS.ECOUNT_USER_ID
-            
-        
-        return values
+        if v is None:
+            if info.field_name == 'com_code':
+                return SETTINGS.ECOUNT_COM_CODE
+            elif info.field_name == 'user_id':
+                return SETTINGS.ECOUNT_USER_ID
+        return v
     
     def model_post_init(self, __context) -> None:
         """모델 초기화 후 검증을 수행합니다."""

@@ -41,7 +41,6 @@ import logging
 import platform
 import traceback
 from pathlib import Path
-from typing import Callable
 from datetime import datetime
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
@@ -127,7 +126,7 @@ class PlainFormatter(logging.Formatter):
 class HTTPLoggingMiddleware(BaseHTTPMiddleware):
     """HTTP 요청/응답을 커스텀 로거로 기록하는 미들웨어"""
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(self, request: Request, call_next) -> Response:
         # 요청 시작 시간 기록
         start_time = time.time()
 

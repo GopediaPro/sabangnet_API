@@ -139,6 +139,9 @@ class ProductCodeRegistrationService:
             
             # 판매가[필수] (AG)    
             result['goods_price'] = self._get_selling_price(product_nm, gubun)
+
+            result['stock_use_yn'] = self.source_data.get('stock_use_yn', '')
+            logger.info(f"stock_use_yn 처리 - source_data: {self.source_data.get('stock_use_yn')}, result: {result['stock_use_yn']}")
             
             # TAG가[필수] (AH)
             result['goods_consumer_price'] = self._get_tag_price(product_nm, gubun)
@@ -353,8 +356,16 @@ class ProductCodeRegistrationService:
         #     IF(G5="1+1",VLOOKUP(F5,importrange("same file","상품등록!$k:$az"),6,0)*2+2000)))
         
         base_price = self.source_data.get('goods_price', 0)
-        if isinstance(base_price, str):
+        
+        # None 체크 및 타입 변환
+        if base_price is None:
+            base_price = 0
+        elif isinstance(base_price, str):
             base_price = int(base_price) if base_price.isdigit() else 0
+        elif isinstance(base_price, (int, float)):
+            base_price = int(base_price)
+        else:
+            base_price = 0
         
         if gubun == "마스터":
             return base_price + 100
@@ -401,18 +412,20 @@ class ProductCodeRegistrationService:
         #     IF(G5="1+1",(VLOOKUP(F5,importrange("same file","상품등록!$k:$az"),24,0)))))
         # 10번째 컬럼은 char_1_nm
         if gubun == "마스터":
-            return self.source_data.get('char_1_val', '')
+            char_1_val = self.source_data.get('char_1_val', '')
+            return char_1_val if char_1_val is not None else ''
         elif gubun == "전문몰":
             # TEXTJOIN 로직 구현 필요
             char_1_val = self.source_data.get('char_1_val', '')
-            if char_1_val:
+            if char_1_val and char_1_val is not None:
                 model_suffix = product_nm.split('-')[1] if '-' in product_nm else ''
                 values = char_1_val.split(',')
                 return ','.join([f"{model_suffix}_{val.strip()}" for val in values])
             return ''
         elif gubun == "1+1":
             # 24번째 컬럼에 해당하는 값
-            return self.source_data.get('delv_one_plus_one_detail', '')
+            delv_one_plus_one_detail = self.source_data.get('delv_one_plus_one_detail', '')
+            return delv_one_plus_one_detail if delv_one_plus_one_detail is not None else ''
     
     def _get_option_title_2(self, product_nm: str, gubun: str) -> str:
         """옵션제목(2) 조회"""
@@ -433,10 +446,12 @@ class ProductCodeRegistrationService:
         #     IF(G6="1+1",VLOOKUP(F6,importrange("same file","상품등록!$k:$az"),23,0))))
         # 12번째 컬럼은 char_2_val
         if gubun in ["마스터", "전문몰"]:
-            return self.source_data.get('char_2_val', '')
+            char_2_val = self.source_data.get('char_2_val', '')
+            return char_2_val if char_2_val is not None else ''
         elif gubun == "1+1":
             # 23번째 컬럼으로 대체 (추정)
-            return self.source_data.get('delv_one_plus_one', '') 
+            delv_one_plus_one = self.source_data.get('delv_one_plus_one', '')
+            return delv_one_plus_one if delv_one_plus_one is not None else '' 
     
     def _get_representative_image(self, product_nm: str, gubun: str) -> str:
         """대표이미지 조회"""
@@ -473,7 +488,7 @@ class ProductCodeRegistrationService:
         # =VLOOKUP(F5,importrange("same file","상품등록!$k:$az"),19,0)
         # 19번째 컬럼은 goods_remarks
         goods_remarks = self.source_data.get('goods_remarks', '')
-        if goods_remarks:
+        if goods_remarks and goods_remarks is not None:
             return goods_remarks
         else:
             return "상세설명 URL 없음"

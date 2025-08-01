@@ -24,7 +24,7 @@ class ProductRegistrationExcelProcessor:
             'char_1_nm', 'char_1_val', 'char_2_nm', 'char_2_val',
             'img_path', 'img_path1', 'img_path2', 'img_path3',
             'img_path4', 'img_path5', 'goods_remarks', 'mobile_bn',
-            'one_plus_one_bn', 'goods_remarks_url', 'delv_one_plus_one'
+            'one_plus_one_bn', 'goods_remarks_url', 'delv_one_plus_one', 'stock_use_yn'
         ]
     
     def read_excel_k_to_az_columns(self, file_path: str, sheet_name: str = "Sheet1") -> List[Dict]:
@@ -48,7 +48,18 @@ class ProductRegistrationExcelProcessor:
             
             logger.info(f"읽어온 컬럼 수: {len(k_to_az_columns.columns)}")
             logger.info(f"읽어온 행 수: {len(k_to_az_columns)}")
-            logger.info(f"읽어온 데이터: {k_to_az_columns}")
+            logger.info(f"읽어온 컬럼명: {list(k_to_az_columns.columns)}")
+            
+            # 첫 번째 행의 데이터도 로깅
+            if len(k_to_az_columns) > 0:
+                first_row = k_to_az_columns.iloc[0]
+                logger.info(f"첫 번째 행 데이터: {first_row.to_dict()}")
+            
+            # 모든 데이터를 상세히 로깅
+            # logger.info("=== 읽어온 데이터 상세 ===")
+            # for idx, row in k_to_az_columns.iterrows():
+            #     logger.info(f"행 {idx}: {row.to_dict()}")
+            # logger.info("=== 데이터 상세 끝 ===")
 
 
             # # 로그 파일로 전체 데이터 debug용 기록
@@ -68,6 +79,7 @@ class ProductRegistrationExcelProcessor:
             for idx, row in enumerate(data_list):
                 try:
                     processed_row = self._process_row_data(row, idx)
+                    logger.info(f"processed_row: {processed_row}, type: {type(processed_row)}")
                     if processed_row:
                         processed_data.append(processed_row)
                 except Exception as e:
@@ -106,12 +118,18 @@ class ProductRegistrationExcelProcessor:
         # 만약 모두 Unnamed 컬럼이면 ordered mapping 사용
         if all(str(k).startswith("Unnamed:") for k in row.keys()):
             column_mapping = self._get_ordered_column_mapping()
+            logger.info(f"column_mapping: {column_mapping}, type: {type(column_mapping)}")
         else:
             column_mapping = self._get_column_mapping()
-        
+            logger.info(f"column_mapping: {column_mapping}, type: {type(column_mapping)}")
+            
         for excel_col, db_field in column_mapping.items():
             raw_value = row.get(excel_col)
-            processed[db_field] = self._convert_value(raw_value, db_field)
+            converted_value = self._convert_value(raw_value, db_field)
+            if db_field == 'stock_use_yn':
+                logger.info(f"stock_use_yn 처리 - excel_col: {excel_col}, raw_value: '{raw_value}', converted_value: '{converted_value}'")
+                logger.info(f"전체 row 데이터: {row}")
+            processed[db_field] = converted_value
         
         return processed
     
@@ -145,7 +163,8 @@ class ProductRegistrationExcelProcessor:
             '모바일배너': 'mobile_bn',
             '1+1배너': 'one_plus_one_bn',
             '상세설명URL': 'goods_remarks_url',
-            '1+1옵션배송': 'delv_one_plus_one'
+            '1+1옵션배송': 'delv_one_plus_one',
+            '재고관리사용여부': 'stock_use_yn'
         }
     
     def _get_ordered_column_mapping(self) -> Dict[str, str]:
@@ -183,6 +202,12 @@ class ProductRegistrationExcelProcessor:
                 return int(float(value)) if value != '' else None
             except (ValueError, TypeError):
                 return None
+        
+        # stock_use_yn 필드는 빈 문자열도 허용
+        if field_name == 'stock_use_yn':
+            if value is not None:
+                return str(value).strip()
+            return None
         
         # String 필드 처리 (무조건 str로 변환)
         if value is not None:

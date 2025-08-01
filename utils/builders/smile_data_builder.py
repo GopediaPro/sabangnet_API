@@ -4,7 +4,7 @@ Smile Data Builder
 """
 
 import pandas as pd
-from typing import List, Optional, Dict, Any, Callable
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from models.smile.smile_erp_data import SmileErpData
 from models.smile.smile_settlement_data import SmileSettlementData

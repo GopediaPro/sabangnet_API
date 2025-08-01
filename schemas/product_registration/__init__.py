@@ -7,7 +7,9 @@ from .product_registration_dto import (
     ProductRegistrationResponseDto,
     ProductRegistrationBulkCreateDto,
     ProductRegistrationBulkResponseDto,
-    ExcelProcessResultDto
+    ExcelProcessResultDto,
+    ExcelImportResponseDto,
+    CompleteWorkflowResponseDto
 )
 
 __all__ = [
@@ -15,5 +17,7 @@ __all__ = [
     "ProductRegistrationResponseDto", 
     "ProductRegistrationBulkCreateDto",
     "ProductRegistrationBulkResponseDto",
-    "ExcelProcessResultDto"
+    "ExcelProcessResultDto",
+    "ExcelImportResponseDto",
+    "CompleteWorkflowResponseDto"
 ]

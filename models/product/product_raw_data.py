@@ -31,13 +31,13 @@ class ProductRawData(Base):
 
     # 분류·구분 코드
     goods_gubun: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    class_cd1: Mapped[str] = mapped_column(String(100))
-    class_cd2: Mapped[str] = mapped_column(String(100))
-    class_cd3: Mapped[str] = mapped_column(String(100))
+    class_cd1: Mapped[str | None] = mapped_column(String(100))
+    class_cd2: Mapped[str | None] = mapped_column(String(100))
+    class_cd3: Mapped[str | None] = mapped_column(String(100))
     class_cd4: Mapped[str | None] = mapped_column(String(100))
 
     # --- 구분 (마스터, 전문몰, 1+1)
-    gubun: Mapped[str] = mapped_column(String(10))
+    gubun: Mapped[str | None] = mapped_column(String(10))
 
     # 거래처
     partner_id: Mapped[str | None] = mapped_column(String(50))
@@ -45,26 +45,26 @@ class ProductRawData(Base):
 
     # 제조·원산지
     maker: Mapped[str | None] = mapped_column(String(50))
-    origin: Mapped[str] = mapped_column(String(100), nullable=False)
+    origin: Mapped[str | None] = mapped_column(String(100))
     make_year: Mapped[str | None] = mapped_column(CHAR(4))
     make_dm: Mapped[str | None] = mapped_column(CHAR(8))
 
     # 시즌·성별·상태
-    goods_season: Mapped[int] = mapped_column(SmallInteger)
-    sex: Mapped[int] = mapped_column(SmallInteger)
-    status: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    goods_season: Mapped[int | None] = mapped_column(SmallInteger)
+    sex: Mapped[int | None] = mapped_column(SmallInteger)
+    status: Mapped[int | None] = mapped_column(SmallInteger)
 
     # 배송·세금
     deliv_able_region: Mapped[int | None] = mapped_column(SmallInteger)
-    tax_yn: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    delv_type: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    tax_yn: Mapped[int | None] = mapped_column(SmallInteger)
+    delv_type: Mapped[int | None] = mapped_column(SmallInteger)
     delv_cost: Mapped[Decimal | None] = mapped_column(Numeric(12, 0))
 
     # 반품·가격
     banpum_area: Mapped[int | None] = mapped_column(SmallInteger)
     goods_cost: Mapped[Decimal | None] = mapped_column(Numeric(12, 0))
-    goods_price: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
-    goods_consumer_price: Mapped[Decimal] = mapped_column(Numeric(12, 0), nullable=False)
+    goods_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 0))
+    goods_consumer_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 0))
     goods_cost2: Mapped[Decimal | None] = mapped_column(Numeric(12, 0))
 
     # 옵션
@@ -74,7 +74,7 @@ class ProductRawData(Base):
     char_2_val: Mapped[str | None] = mapped_column(Text)
 
     # 이미지 (대표 + 1-24)
-    img_path: Mapped[str] = mapped_column(Text, nullable=False)
+    img_path: Mapped[str | None] = mapped_column(Text)
     img_path1: Mapped[str | None] = mapped_column(Text)
     img_path2: Mapped[str | None] = mapped_column(Text)
     img_path3: Mapped[str | None] = mapped_column(Text)
@@ -115,7 +115,7 @@ class ProductRawData(Base):
     stock_use_yn: Mapped[str | None] = mapped_column(CHAR(1))
 
     # 옵션·속성 제어
-    opt_type: Mapped[int] = mapped_column(SmallInteger, default=2)
+    opt_type: Mapped[int | None] = mapped_column(SmallInteger, default=2)
     prop1_cd: Mapped[str | None] = mapped_column(CHAR(3))
 
     # 속성값 1-33
