@@ -5,7 +5,7 @@ import re
 import pandas as pd
 from datetime import datetime
 from fastapi import UploadFile
-from typing import Any, Optional, Callable, Awaitable
+from typing import Any, Optional
 # util
 from utils.excels.convert_xlsx import ConvertXlsx
 from utils.logs.sabangnet_logger import get_logger
