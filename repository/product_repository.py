@@ -290,6 +290,92 @@ class ProductRepository:
         await self.session.execute(query)
         await self.session.commit()
 
+    async def update_product_id_by_compayny_goods_cd_with_bracket_removal(self, response_compayny_goods_cd: str, product_id: int) -> bool:
+        """
+        DB에 저장된 compayny_goods_cd에서 '[', ']'를 제거한 후 
+        response의 compayny_goods_cd와 매칭하여 product_id를 업데이트
+        
+        Args:
+            response_compayny_goods_cd: response에서 받은 compayny_goods_cd
+            product_id: 업데이트할 product_id
+            
+        Returns:
+            bool: 업데이트 성공 여부
+        """
+        # DB에서 모든 ProductRawData 조회
+        query = select(ProductRawData)
+        result = await self.session.execute(query)
+        all_products = result.scalars().all()
+        
+        # DB의 compayny_goods_cd에서 '[', ']' 제거 후 매칭
+        for product in all_products:
+            db_compayny_goods_cd_cleaned = product.compayny_goods_cd.replace('[', '').replace(']', '')
+            
+            if db_compayny_goods_cd_cleaned == response_compayny_goods_cd:
+                # 매칭되는 경우 product_id 업데이트
+                update_query = (
+                    update(ProductRawData)
+                    .where(ProductRawData.id == product.id)
+                    .values(product_id=product_id)
+                )
+                await self.session.execute(update_query)
+                await self.session.commit()
+                return True
+        
+        return False
+
+    async def update_product_ids_by_compayny_goods_cd_with_bracket_removal_batch(self, compayny_goods_cd_and_product_ids: list[tuple[str, int]]) -> dict:
+        """
+        여러 개의 compayny_goods_cd와 product_id 쌍을 배치로 처리하여 업데이트
+        
+        Args:
+            compayny_goods_cd_and_product_ids: (response_compayny_goods_cd, product_id) 튜플 리스트
+            
+        Returns:
+            dict: 성공/실패 통계
+        """
+        # DB에서 모든 ProductRawData를 한 번만 조회
+        query = select(ProductRawData)
+        result = await self.session.execute(query)
+        all_products = result.scalars().all()
+        
+        # DB 데이터를 딕셔너리로 변환 (성능 최적화)
+        db_products_dict = {}
+        for product in all_products:
+            db_compayny_goods_cd_cleaned = product.compayny_goods_cd.replace('[', '').replace(']', '')
+            db_products_dict[db_compayny_goods_cd_cleaned] = product.id
+        
+        success_count = 0
+        failed_count = 0
+        failed_items = []
+        
+        # 각 response compayny_goods_cd에 대해 매칭 시도
+        for response_compayny_goods_cd, product_id in compayny_goods_cd_and_product_ids:
+            if response_compayny_goods_cd in db_products_dict:
+                # 매칭되는 경우 product_id 업데이트
+                update_query = (
+                    update(ProductRawData)
+                    .where(ProductRawData.id == db_products_dict[response_compayny_goods_cd])
+                    .values(product_id=product_id)
+                )
+                await self.session.execute(update_query)
+                success_count += 1
+            else:
+                failed_count += 1
+                failed_items.append({
+                    'response_compayny_goods_cd': response_compayny_goods_cd,
+                    'product_id': product_id
+                })
+        
+        # 모든 업데이트를 한 번에 커밋
+        await self.session.commit()
+        
+        return {
+            'success_count': success_count,
+            'failed_count': failed_count,
+            'failed_items': failed_items
+        }
+
 async def insert_product_raw_data(session: AsyncSession, data: dict) -> ProductRawData:
     obj = ProductRawData(**data)
     session.add(obj)
