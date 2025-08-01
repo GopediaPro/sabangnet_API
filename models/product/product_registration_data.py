@@ -43,6 +43,9 @@ class ProductRegistrationRawData(Base):
     goods_price: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(12, 0), comment="판매가(유료배송)"
     )
+    stock_use_yn: Mapped[Optional[str]] = mapped_column(
+        String(1), comment="재고관리사용여부"
+    )
 
     # 인증 및 진행 옵션
     certno: Mapped[Optional[str]] = mapped_column(
@@ -120,8 +123,8 @@ class ProductRegistrationRawData(Base):
         String(50), comment="세분류_분류명"
     )
 
-    def __repr__(self) -> str:
-        return f"<ProductRegistrationRawData(id={self.id}, product_nm='{self.product_nm}', char_1_nm='{self.char_1_nm}')>"
+    # def __repr__(self) -> str:
+    #     return f"<ProductRegistrationRawData(id={self.id}, product_nm='{self.product_nm}', char_1_nm='{self.char_1_nm}')>"
 
     def to_dict(self) -> dict:
         """모델을 딕셔너리로 변환"""
@@ -133,6 +136,7 @@ class ProductRegistrationRawData(Base):
             'delv_cost': float(self.delv_cost) if self.delv_cost else None,
             'goods_search': self.goods_search,
             'goods_price': float(self.goods_price) if self.goods_price else None,
+            'stock_use_yn': self.stock_use_yn,
             'certno': self.certno,
             'char_process': self.char_process,
             'char_1_nm': self.char_1_nm,
