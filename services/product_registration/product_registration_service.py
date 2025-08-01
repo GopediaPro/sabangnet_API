@@ -180,6 +180,8 @@ class ProductRegistrationService:
             
             # 1. Excel 파일 처리
             excel_result = await self.process_excel_file(file_path, sheet_name)
+
+            logger.info(f"[DEBUG] excel_result: {excel_result}, type: {type(excel_result)}")
             
             if not excel_result.processed_data:
                 logger.warning("처리할 유효한 데이터가 없습니다.")
@@ -205,47 +207,68 @@ class ProductRegistrationService:
     async def process_db_to_xml_and_sabangnet_request(self) -> dict:
         """
         test_product_raw_data 테이블의 모든 데이터를 XML로 변환하고 사방넷 상품등록 요청을 수행합니다.
-        
         Returns:
             dict: 처리 결과 정보
         """
         try:
             logger.info("DB to XML 변환 및 사방넷 상품등록 요청 시작")
-            
+            logger.info(f"[DEBUG] process_db_to_xml_and_sabangnet_request 진입, self: {self}")
+
             # 1. DB to XML 파일 로컬 저장
             xml_file_path = await self.product_db_xml_usecase.db_to_xml_file_all()
+            logger.info(f"[DEBUG] xml_file_path: {xml_file_path}, type: {type(xml_file_path)}")
             total_count = await self.product_db_xml_usecase.get_product_raw_data_count()
-            
+            logger.info(f"[DEBUG] total_count: {total_count}, type: {type(total_count)}")
+
             logger.info(f"XML 파일 생성 완료: {xml_file_path}, 총 {total_count}개 상품")
-            
+
             # 2. 파일 서버 업로드
             object_name = upload_file_to_minio(xml_file_path)
             logger.info(f"MinIO에 업로드된 XML 파일 이름: {object_name}")
             xml_url = get_minio_file_url(object_name)
             logger.info(f"MinIO에 업로드된 XML URL: {xml_url}")
-            
+
             # 3. 사방넷 상품등록 요청
-            response_xml = ProductCreateService.request_product_create_via_url(xml_url)
+            logger.info(f"[DEBUG] ProductCreateService.request_product_create_via_url 호출 직전, xml_url: {xml_url}")
+            response_xml = await ProductCreateService.request_product_create_via_url(xml_url)
+            logger.info(f"[DEBUG] response_xml: {response_xml}, type: {type(response_xml)}")
             logger.info(f"사방넷 상품등록 결과: {response_xml}")
-            
+
             # 4. 응답 XML에서 PRODUCT_ID 추출 및 DB 업데이트
             product_registration_xml = ProductRegistrationXml()
             compayny_goods_cd_and_product_ids: list[tuple[str, int]] = product_registration_xml.input_product_id_to_db(response_xml)
+            logger.info(f"[DEBUG] compayny_goods_cd_and_product_ids: {compayny_goods_cd_and_product_ids}, type: {type(compayny_goods_cd_and_product_ids)}")
             await self.product_db_xml_usecase.update_product_id_by_compayny_goods_cd(compayny_goods_cd_and_product_ids)
-            
+
             logger.info(f"사방넷 상품등록 완료: {len(compayny_goods_cd_and_product_ids)}개 상품 ID 업데이트")
-            
-            return {
+
+            result = {
                 "success": True,
                 "message": "모든 상품 데이터를 XML로 변환하고 사방넷 상품등록 요청했습니다.",
                 "xml_file_path": xml_url,
                 "processed_count": total_count,
                 "updated_product_count": len(compayny_goods_cd_and_product_ids)
             }
-            
+            logger.info(f"[DEBUG] process_db_to_xml_and_sabangnet_request 반환값: {result}, type: {type(result)}")
+            return result
         except Exception as e:
             logger.error(f"DB to XML 변환 및 사방넷 상품등록 요청 오류: {e}")
-            raise
+            
+            # 오류 메시지에 추가 정보 포함
+            error_message = f"DB to XML 변환 및 사방넷 상품등록 요청 오류: {str(e)}"
+            
+            # XML 파싱 오류인 경우 추가 정보 포함
+            if "XML 파싱 오류" in str(e) or "unclosed token" in str(e):
+                error_message += " (사방넷 API에서 반환된 XML 응답을 파싱할 수 없습니다. API 응답을 확인해주세요.)"
+            
+            # 사방넷 API 응답 오류인 경우 추가 정보 포함
+            if "상품등록 결과 XML 파싱 오류" in str(e):
+                error_message += " (사방넷 API 응답에서 XML 파싱 오류가 발생했습니다.)"
+            
+            # 전체 오류 메시지를 로그에 기록
+            logger.error(f"전체 오류 메시지: {error_message}")
+            
+            raise Exception(error_message)
     
     async def get_product_by_id(self, id: int) -> Optional[ProductRegistrationResponseDto]:
         """
