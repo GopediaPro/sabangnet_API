@@ -11,7 +11,7 @@ from schemas.product.product_raw_data_dto import ProductRawDataDto
 from utils.mappings.product_create_field_eng_mapping import get_db_to_xml_mapping
 
 
-logger = get_logger(__name__)
+logger = get_logger(__name__, level="DEBUG")
 
 
 class ProductRegistrationXml(SabangnetXml):
@@ -149,7 +149,10 @@ class ProductRegistrationXml(SabangnetXml):
                         pass
             return compayny_goods_cd_and_product_ids
         except Exception as e:
-            raise RuntimeError(f"상품등록 결과 XML 파싱 오류: {e}")
+            # 오류 메시지에 XML 내용 전체 포함 (최대 2000자)
+            xml_preview = response_xml[:2000] + "..." if len(response_xml) > 2000 else response_xml
+            error_message = f"상품등록 결과 XML 파싱 오류: {e} (XML 내용: {xml_preview})"
+            raise RuntimeError(error_message)
 
         # 2. DB에 PRODUCT_ID update (compayny_goods_cd 기준)
         # >>> product_update_service로 옮겼음
