@@ -157,7 +157,7 @@ async def import_excel_to_db(
 )
 async def process_complete_workflow(
     file: UploadFile = File(..., description="처리할 Excel 파일"),
-    sheet_name: str = Query("Sheet1", description="처리할 시트명"),
+    sheet_name: str = Query("상품등록", description="처리할 시트명"),
     service: ProductCodeIntegratedService = Depends(get_product_integrated_service)
 ):
     """
