@@ -139,7 +139,7 @@ class ProductCodeIntegratedService:
     async def process_complete_product_registration_workflow(
         self, 
         file_path: str, 
-        sheet_name: str = "Sheet1"
+        sheet_name: str = "상품등록"
     ) -> Dict[str, Any]:
         """
         전체 상품 등록 워크플로우를 처리합니다:
