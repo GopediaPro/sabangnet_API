@@ -2,22 +2,27 @@ from decimal import Decimal
 from datetime import datetime
 from models.base_model import Base
 from sqlalchemy.orm import Mapped, mapped_column
-from schemas.receive_orders.receive_orders_dto import ReceiveOrdersDto
-from sqlalchemy import TIMESTAMP, Integer, String, Text, Numeric, DateTime
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Integer, String, Text, Numeric, DateTime
+from schemas.receive_orders.receive_orders_dto import ReceiveOrdersDto
+
 class BaseFormOrder(Base):
     """
     다운폼/내보내기 폼 주문 테이블의 공통 ORM 매핑 모델
     """
     __abstract__ = True
+    
+    # 기본 정보
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    process_dt: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=False))
+    process_dt: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     form_name: Mapped[str | None] = mapped_column(String(30))
     seq: Mapped[int | None] = mapped_column(Integer)
     idx: Mapped[str] = mapped_column(String(50), nullable=False)  # 사방넷주문번호
     # idx: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)  # 사방넷주문번호
     order_id: Mapped[str | None] = mapped_column(String(100))
     mall_order_id: Mapped[str | None] = mapped_column(Text)
+    
+    # 상품 정보
     product_id: Mapped[str | None] = mapped_column(Text)
     product_name: Mapped[str | None] = mapped_column(Text)
     mall_product_id: Mapped[str | None] = mapped_column(String(50))
@@ -29,7 +34,11 @@ class BaseFormOrder(Base):
     model_name: Mapped[str | None] = mapped_column(Text)
     erp_model_name: Mapped[str | None] = mapped_column(Text)
     location_nm: Mapped[str | None] = mapped_column(Text)
+    
+    # 수량 및 판매 정보
     sale_cnt: Mapped[int | None] = mapped_column(Integer)
+    
+    # 금액 정보
     pay_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
     delv_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
     total_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
@@ -43,22 +52,30 @@ class BaseFormOrder(Base):
     sum_pay_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
     sum_delv_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
     sum_total_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
+    
+    # 수취인 정보
     receive_name: Mapped[str | None] = mapped_column(String(100))
     receive_cel: Mapped[str | None] = mapped_column(String(20))
     receive_tel: Mapped[str | None] = mapped_column(String(20))
     receive_addr: Mapped[str | None] = mapped_column(Text)
     receive_zipcode: Mapped[str | None] = mapped_column(String(15))
-    delivery_payment_type: Mapped[str | None] = mapped_column(String(10))
+    
+    # 배송 정보
+    delivery_payment_type: Mapped[str | None] = mapped_column(String(50))
     delv_msg: Mapped[str | None] = mapped_column(Text)
     delivery_id: Mapped[str | None] = mapped_column(Text)
     delivery_class: Mapped[str | None] = mapped_column(Text)
+    invoice_no: Mapped[str | None] = mapped_column(Text)
+    
+    # 메시지 및 기타 정보
     free_gift: Mapped[str | None] = mapped_column(Text)
     etc_msg: Mapped[str | None] = mapped_column(Text)
     order_etc_7: Mapped[str | None] = mapped_column(Text)
-    invoice_no: Mapped[str | None] = mapped_column(Text)
     fld_dsp: Mapped[str | None] = mapped_column(Text)
     order_etc_6: Mapped[str | None] = mapped_column(Text)
-    order_date: Mapped[datetime | None] = mapped_column(DateTime)
+    
+    # 날짜 정보
+    order_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reg_date: Mapped[str | None] = mapped_column(String(14))
     ord_confirm_date: Mapped[str | None] = mapped_column(String(14))
     rtn_dt: Mapped[str | None] = mapped_column(String(14))
@@ -67,6 +84,8 @@ class BaseFormOrder(Base):
     cancel_dt: Mapped[str | None] = mapped_column(String(14))
     hope_delv_date: Mapped[str | None] = mapped_column(String(14))
     inv_send_dm: Mapped[str | None] = mapped_column(String(14))
+    
+    # 처리 상태 및 로그
     work_status: Mapped[str | None] = mapped_column(String(14))
     error_logs: Mapped[str | None] = mapped_column(JSONB, nullable=True)
 

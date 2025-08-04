@@ -47,6 +47,7 @@ class ProductDbXmlUsecase:
             product_create_db_count = await self.count_executing_service.get_and_increment(CountExecuting, "product_create_db")
             xml_generator = ProductRegistrationXml()
             xml_file_path = xml_generator.make_product_registration_xml(product_raw_data_dto_list, product_create_db_count)
+            logger.info(f"[DEBUG] db_to_xml_file_all 반환값: {xml_file_path}, type: {type(xml_file_path)}")
             return xml_file_path
                 
         except Exception as e:
@@ -60,11 +61,38 @@ class ProductDbXmlUsecase:
             총 개수
         """
         try:
-            return await self.product_read_service.get_product_raw_data_count()
+            result = await self.product_read_service.get_product_raw_data_count()
+            logger.info(f"[DEBUG] get_product_raw_data_count 반환값: {result}, type: {type(result)}")
+            return result
         except Exception as e:
             logger.error(f"상품 데이터 개수 조회 중 오류: {e}")
             raise 
 
     async def update_product_id_by_compayny_goods_cd(self, compayny_goods_cd_and_product_ids: list[tuple[str, int]]):
-        for compayny_goods_cd, product_id in compayny_goods_cd_and_product_ids:
-            await self.product_update_service.update_product_id_by_compayny_goods_cd(compayny_goods_cd, product_id)
+        logger.info(f"[DEBUG] update_product_id_by_compayny_goods_cd 진입, compayny_goods_cd_and_product_ids: {compayny_goods_cd_and_product_ids}, type: {type(compayny_goods_cd_and_product_ids)}")
+        
+        try:
+            # 배치 처리 방식으로 성능 최적화
+            result = await self.product_update_service.update_product_ids_by_compayny_goods_cd_with_bracket_removal_batch(
+                compayny_goods_cd_and_product_ids
+            )
+            
+            success_count = result['success_count']
+            failed_count = result['failed_count']
+            failed_items = result['failed_items']
+            
+            # 성공한 항목들 로깅
+            if success_count > 0:
+                logger.info(f"[SUCCESS] {success_count}개 product_id 업데이트 완료")
+            
+            # 실패한 항목들 상세 로깅
+            if failed_count > 0:
+                logger.warning(f"[FAILED] {failed_count}개 매칭 실패")
+                for failed_item in failed_items:
+                    logger.warning(f"[FAILED] 매칭되는 DB 레코드를 찾을 수 없음 (response_compayny_goods_cd: {failed_item['response_compayny_goods_cd']}, product_id: {failed_item['product_id']})")
+            
+            logger.info(f"[DEBUG] update_product_id_by_compayny_goods_cd 완료 - 성공: {success_count}, 실패: {failed_count}")
+            
+        except Exception as e:
+            logger.error(f"[ERROR] 배치 업데이트 중 오류 발생: {str(e)}")
+            raise

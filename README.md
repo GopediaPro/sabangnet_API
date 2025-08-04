@@ -116,10 +116,8 @@ logger.critical(내용)
 └── files                # 작업용 files
 └─────── excel
 └─────── json
-└─────── excel
-└─────── sample
+└─────── logs
 └─────── xml
-└── logs                 # 작업용 log 파일 관리
 ```
 
 ## 주의사항
@@ -223,6 +221,10 @@ ECOUNT_ID=
 ECOUNT_API=
 ECOUNT_ZONE=
 ECOUNT_DOMAIN=
+# hanjin API 연동관련
+HANJIN_API=
+HANJIN_CLIENT_ID=
+HANJIN_API_SECRET_KEY=
 ```
 
 ## 기술 스택

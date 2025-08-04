@@ -42,6 +42,7 @@ class Settings(BaseSettings):
 
     # Test Mode
     CONPANY_GOODS_CD_TEST_MODE: Optional[bool] = True
+    TEST_DB_NAME: Optional[str] = None
 
     DEPLOY_ENV: Optional[str] = "development"
 
@@ -51,6 +52,11 @@ class Settings(BaseSettings):
     ECOUNT_DOMAIN: Optional[str] = None
     ECOUNT_USER_ID: Optional[str] = None
     ECOUNT_COM_CODE: Optional[str] = None
+
+    # Hanjin
+    HANJIN_API: Optional[str] = None
+    HANJIN_CLIENT_ID: Optional[str] = None
+    HANJIN_CSR_NUM: Optional[str] = None
 
     class Config:
         env_file = ".env"

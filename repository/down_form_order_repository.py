@@ -1,7 +1,13 @@
+from typing import Any
+from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
+from utils.logs.sabangnet_logger import get_logger
 from sqlalchemy import select, delete, func, update, text
 from models.down_form_orders.down_form_order import BaseDownFormOrder
-from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto
+from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto, DownFormOrdersInvoiceNoUpdateDto
+
+
+logger = get_logger(__name__)
 
 
 class DownFormOrderRepository:
@@ -35,14 +41,19 @@ class DownFormOrderRepository:
             query = select(BaseDownFormOrder).where(
                 BaseDownFormOrder.idx == idx)
             result = await self.session.execute(query)
-            return result.scalar_one_or_none()
+            return result.scalars().first()
         except Exception as e:
             await self.session.rollback()
             raise e
         finally:
             await self.session.close()
 
-    async def get_down_form_orders_by_template_code(self, skip: int = None, limit: int = None, template_code: str = None) -> list[BaseDownFormOrder]:
+    async def get_down_form_orders_by_template_code(
+            self,
+            skip: int = None,
+            limit: int = None,
+            template_code: str = None
+    ) -> list[BaseDownFormOrder]:
         try:
             query = select(BaseDownFormOrder).order_by(BaseDownFormOrder.id)
             if template_code == 'all':
@@ -66,10 +77,54 @@ class DownFormOrderRepository:
         finally:
             await self.session.close()
 
-    async def get_down_form_orders_pagination(self, page: int = 1, page_size: int = 20, template_code: str = None) -> list[BaseDownFormOrder]:
+    async def get_down_form_orders_by_pagination(
+            self,
+            page: int = 1,
+            page_size: int = 20,
+            template_code: str = "all"
+    ) -> list[BaseDownFormOrder]:
         skip = (page - 1) * page_size
         limit = page_size
         return await self.get_down_form_orders_by_template_code(skip, limit, template_code)
+    
+    async def get_down_form_orders_by_pagination_with_date_range(
+            self,
+            date_from: date,
+            date_to: date,
+            page: int = 1,
+            page_size: int = 20,
+            template_code: str = "all"
+    ) -> list[BaseDownFormOrder]:
+        skip = (page - 1) * page_size
+        limit = page_size
+        
+        try:
+            query = select(BaseDownFormOrder).where(
+                BaseDownFormOrder.created_at >= date_from,
+                BaseDownFormOrder.created_at <= date_to
+            )
+            
+            if template_code == 'all':
+                pass
+            elif template_code is None or template_code == '':
+                query = query.where((BaseDownFormOrder.form_name == None) | (
+                    BaseDownFormOrder.form_name == ''))
+            else:
+                query = query.where(BaseDownFormOrder.form_name == template_code)
+            
+            if skip:
+                query = query.offset(skip)
+            if limit:
+                query = query.limit(limit)
+                
+            query = query.order_by(BaseDownFormOrder.id.desc())
+            result = await self.session.execute(query)
+            return result.scalars().all()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+        finally:
+            await self.session.close()
 
     async def get_down_form_orders_by_work_status(self, work_status: str) -> list[BaseDownFormOrder]:
         try:
@@ -103,6 +158,7 @@ class DownFormOrderRepository:
             return len(objects)
         except Exception as e:
             await self.session.rollback()
+            logger.error(f"Exception during bulk_insert: {e}")
             raise e
         finally:
             await self.session.close()
@@ -129,14 +185,18 @@ class DownFormOrderRepository:
         finally:
             await self.session.close()
 
-    async def bulk_delete(self, ids: list[int]) -> int:
+    async def bulk_delete(self, ids: list[int]) -> dict[int, str]:
+        result = {}
         try:
             for id in ids:
                 db_obj = await self.session.get(BaseDownFormOrder, id)
                 if db_obj:
+                    result[id] = "success"
                     await self.session.delete(db_obj)
+                else:
+                    result[id] = "not_found"
             await self.session.commit()
-            return len(ids)
+            return result
         except Exception as e:
             await self.session.rollback()
             raise e
@@ -172,12 +232,12 @@ class DownFormOrderRepository:
             deleted_count = result.rowcount
             await self.session.commit()
 
-            print(f"중복 제거 완료: {deleted_count}개 행 삭제됨")
+            logger.info(f"중복 제거 완료: {deleted_count}개 행 삭제됨")
             return deleted_count
 
         except Exception as e:
             await self.session.rollback()
-            print(f"중복 제거 실패: {e}")
+            logger.error(f"중복 제거 실패: {e}")
             raise e
 
     async def count_all(self, template_code: str = None) -> int:
@@ -193,6 +253,112 @@ class DownFormOrderRepository:
                     BaseDownFormOrder.form_name == template_code)
             result = await self.session.execute(query)
             return result.scalar_one()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+        finally:
+            await self.session.close()
+
+    async def get_orders_without_invoice_no(self, limit: int = 100) -> list[BaseDownFormOrder]:
+        """
+        invoice_no가 없는 주문 데이터를 조회합니다.
+        
+        Args:
+            limit: 조회할 최대 건수 (기본값: 100)
+            
+        Returns:
+            invoice_no가 없는 주문 데이터 리스트
+        """
+        try:
+            query = select(BaseDownFormOrder).where(
+                (BaseDownFormOrder.invoice_no == None) | 
+                (BaseDownFormOrder.invoice_no == '') |
+                (BaseDownFormOrder.invoice_no == 'null')
+            ).order_by(BaseDownFormOrder.id.desc()).limit(limit)
+            
+            result = await self.session.execute(query)
+            return result.scalars().all()
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"invoice_no가 없는 주문 조회 실패: {str(e)}")
+            raise e
+        finally:
+            await self.session.close()
+
+    async def save_to_down_form_orders(self, processed_data: list[dict[str, Any]], template_code: str) -> int:
+        logger.info(
+            f"[START] save_to_down_form_orders | processed_data_count={len(processed_data)} | template_code={template_code}")
+        if not processed_data:
+            logger.warning("No processed data to save.")
+            return 0
+        try:
+            objects = [BaseDownFormOrder(**row) for row in processed_data]
+            self.session.add_all(objects)
+            await self.session.commit()
+            logger.info(
+                f"[END] save_to_down_form_orders | saved_count={len(objects)}")
+            return len(objects)
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Exception during save_to_down_form_orders: {e}")
+            raise
+
+    async def bulk_update_invoice_no_by_idx(self, idx_invoice_no_dict_list: list[dict[str, str]]) -> list[DownFormOrdersInvoiceNoUpdateDto]:
+        try:
+
+            invoice_no_updated_down_form_orders: list[DownFormOrdersInvoiceNoUpdateDto] = []
+
+            for item in idx_invoice_no_dict_list:
+                idx_list: list[str] = []
+                invoice_no: str = item['invoice_no']
+
+                # idx 가 중첩되어있는 경우 (2083194955/2083194989/2083195004/2083195011 같은 경우)
+                if '/' in item['idx']:
+                    idx_list = item['idx'].split('/')
+                else:
+                    idx_list.append(item['idx'])
+
+                # invoice no 가 없는 경우
+                if not invoice_no:
+                    invoice_no_updated_down_form_orders.append(DownFormOrdersInvoiceNoUpdateDto(
+                        idx=", ".join(idx_list),
+                        invoice_no=invoice_no,
+                        message=f"invoice no is empty"
+                    ))
+                    continue
+
+                for idx in idx_list:
+                    # down form orders 에서 idx 로 검색
+                    if not await self.get_down_form_order_by_idx(idx):
+                        invoice_no_updated_down_form_orders.append(DownFormOrdersInvoiceNoUpdateDto(
+                            idx=idx,
+                            invoice_no=invoice_no,
+                            message=f"idx not found"
+                        ))
+                        continue
+
+                    # invoice_no 업데이트
+                    try:
+                        stmt = (
+                            update(BaseDownFormOrder)
+                            .where(BaseDownFormOrder.idx == idx)
+                            .values(invoice_no=invoice_no)
+                        )
+                        await self.session.execute(stmt)
+                        invoice_no_updated_down_form_orders.append(DownFormOrdersInvoiceNoUpdateDto(
+                            idx=idx,
+                            invoice_no=invoice_no,
+                            message=f"success"
+                        ))
+                    except Exception as e:
+                        invoice_no_updated_down_form_orders.append(DownFormOrdersInvoiceNoUpdateDto(
+                            idx=idx,
+                            invoice_no=invoice_no,
+                            message=f"error: {e}"
+                        ))
+                        continue
+            await self.session.commit()
+            return invoice_no_updated_down_form_orders
         except Exception as e:
             await self.session.rollback()
             raise e

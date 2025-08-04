@@ -4,7 +4,7 @@
 Excel 수식 변환부터 DB 저장까지의 전체 프로세스를 담당합니다.
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import logging
 from datetime import datetime
 from utils.logs.sabangnet_logger import get_logger
@@ -14,8 +14,10 @@ from repository.product_repository import ProductRepository
 from core.db import get_async_session
 from models.product.product_registration_data import ProductRegistrationRawData
 from repository.product_mycategory_repository import ProductMyCategoryRepository
+from services.product_registration.product_registration_service import ProductRegistrationService
+from schemas.product_registration import ExcelProcessResultDto, ProductRegistrationBulkResponseDto, ExcelImportResponseDto
 
-logger = get_logger(__name__)
+logger = get_logger(__name__, level="DEBUG")
 
 class ProductCodeIntegratedService:
     """품번코드대량등록툴 통합 서비스"""
@@ -48,8 +50,9 @@ class ProductCodeIntegratedService:
         Returns:
             {'success': [제품명...], 'failed': [{'제품명', 'error'} ...]}
         """
-        async_session = await get_async_session()
-        async with async_session as session:
+        from core.db import get_async_session
+        
+        async for session in get_async_session():
             # repository 인스턴스는 세션이 필요하므로 여기서 할당
             self.reg_repo = ProductRegistrationRepository(session)
             self.prod_repo = ProductRepository(session)
@@ -57,12 +60,19 @@ class ProductCodeIntegratedService:
             
             # 1. Fetch all registration data
             registration_data_list: List[ProductRegistrationRawData] = await self.reg_repo.get_all(limit=limit, offset=offset)
+            
+            # 모든 데이터를 상세히 로깅
+            logger.info(f"registration_data_list count: {len(registration_data_list)}")
+            for i, reg_data in enumerate(registration_data_list):
+                logger.info(f"Data {i+1}: {reg_data.to_dict()}")
+            
             success, failed = [], []
             product_raw_data_list = []
             # logger.info(f"registration_data_list log value: {registration_data_list}")
             for reg in registration_data_list:
                 reg_dict = reg.to_dict() if hasattr(reg, 'to_dict') else dict(reg.__dict__)
                 logger.debug(f"모든 컬럼 값: {reg_dict}")
+                logger.info(f"stock_use_yn 값 확인: {reg_dict.get('stock_use_yn')}")
                 product_nm = reg_dict.get('product_nm')
                 # 여기서 메서드 호출
                 class_cd_dict = await self.get_class_cd_dict(product_mycategory_repo, reg_dict)
@@ -72,7 +82,7 @@ class ProductCodeIntegratedService:
                         service = ProductCodeRegistrationService(reg_dict, class_cd_dict)
                         code_data = service.generate_product_code_data(product_nm, gubun)
                         product_raw_data_list.append(code_data)
-                        success.append({'product_nm': product_nm, 'gubun': gubun})
+                        success.append({'product_nm': product_nm, 'gubun': gubun, })
                     except Exception as e:
                         logger.error(f"[generate_and_save_all_product_code_data] Error generating product code for '{product_nm}' ({gubun}): {str(e)}")
                         failed.append({'product_nm': product_nm, 'gubun': gubun, 'error': str(e)})
@@ -86,3 +96,122 @@ class ProductCodeIntegratedService:
                     failed.append({'bulk_insert_error': str(e)})
 
             return {'success': success, 'failed': failed}
+
+    async def _process_excel_and_db_storage(self, file_path: str, sheet_name: str) -> Tuple[ExcelProcessResultDto, ProductRegistrationBulkResponseDto]:
+        """1단계: Excel 파일 처리 및 DB 저장"""
+        logger.info("1단계: Excel 파일 처리 및 DB 저장 시작")
+        from core.db import get_async_session
+        
+        async for session in get_async_session():
+            product_registration_service = ProductRegistrationService(session)
+            excel_result, bulk_result = await product_registration_service.process_excel_and_create(file_path, sheet_name)
+        
+        logger.info(f"1단계 완료: Excel 처리 {excel_result.valid_rows}개, DB 저장 {bulk_result.success_count}개")
+        return excel_result, bulk_result
+
+    async def _process_db_transfer(self) -> Dict[str, Any]:
+        """2단계: DB Transfer (product_registration_raw_data → test_product_raw_data)"""
+        logger.info("2단계: DB Transfer 시작")
+        transfer_result = await self.generate_and_save_all_product_code_data()
+        
+        logger.info(f"2단계 완료: 성공 {len(transfer_result['success'])}개, 실패 {len(transfer_result['failed'])}개")
+        return transfer_result
+
+    async def _process_sabang_api_request(self) -> Dict[str, Any]:
+        """3단계: DB to SabangAPI 요청"""
+        logger.info("3단계: DB to SabangAPI 요청 시작")
+        logger.info(f"[DEBUG] _process_sabang_api_request 진입")
+        
+        from core.db import get_async_session
+        
+        async for session in get_async_session():
+            logger.info(f"[DEBUG] session 컨텍스트 진입: {session}")
+            product_registration_service = ProductRegistrationService(session)
+            logger.info(f"[DEBUG] ProductRegistrationService 생성 완료: {product_registration_service}")
+            
+            logger.info(f"[DEBUG] process_db_to_xml_and_sabangnet_request 호출 직전")
+            sabang_result = await product_registration_service.process_db_to_xml_and_sabangnet_request()
+            logger.info(f"[DEBUG] process_db_to_xml_and_sabangnet_request 호출 완료, 결과: {sabang_result}, 타입: {type(sabang_result)}")
+        
+        logger.info(f"3단계 완료: {sabang_result['processed_count']}개 상품 처리")
+        return sabang_result
+
+    async def process_complete_product_registration_workflow(
+        self, 
+        file_path: str, 
+        sheet_name: str = "상품등록"
+    ) -> Dict[str, Any]:
+        """
+        전체 상품 등록 워크플로우를 처리합니다:
+        1. Excel 파일 처리 및 DB 저장
+        2. DB Transfer (product_registration_raw_data → test_product_raw_data)
+        3. DB to SabangAPI 요청
+        
+        Args:
+            file_path: Excel 파일 경로
+            sheet_name: 시트명
+            
+        Returns:
+            Dict[str, Any]: 전체 프로세스 결과
+        """
+        try:
+            logger.info("전체 상품 등록 워크플로우 시작")
+            
+            # 1. Excel 파일 처리 및 DB 저장
+            excel_result, bulk_result = await self._process_excel_and_db_storage(file_path, sheet_name)
+            
+            # 2. DB Transfer (product_registration_raw_data → test_product_raw_data)
+            transfer_result = await self._process_db_transfer()
+            
+            # 3. DB to SabangAPI 요청
+            sabang_result = await self._process_sabang_api_request()
+            
+            # 전체 결과 반환
+            return {
+                "success": True,
+                "message": "전체 상품 등록 워크플로우 완료",
+                "excel_processing": {
+                    "total_rows": excel_result.total_rows,
+                    "valid_rows": excel_result.valid_rows,
+                    "invalid_rows": excel_result.invalid_rows,
+                    "validation_errors": excel_result.validation_errors
+                },
+                "database_result": {
+                    "success_count": bulk_result.success_count,
+                    "error_count": bulk_result.error_count,
+                    "created_ids": bulk_result.created_ids,
+                    "errors": bulk_result.errors
+                },
+                "transfer_result": transfer_result,
+                "sabang_api_result": sabang_result
+            }
+            
+        except Exception as e:
+            logger.error(f"전체 상품 등록 워크플로우 오류: {e}")
+            return {
+                "success": False,
+                "message": f"워크플로우 처리 중 오류 발생: {str(e)}",
+                "excel_processing": {
+                    "total_rows": 0,
+                    "valid_rows": 0,
+                    "invalid_rows": 0,
+                    "validation_errors": [f"워크플로우 오류: {str(e)}"]
+                },
+                "database_result": {
+                    "success_count": 0,
+                    "error_count": 0,
+                    "created_ids": [],
+                    "errors": [f"워크플로우 오류: {str(e)}"]
+                },
+                "transfer_result": {
+                    "success": [],
+                    "failed": [f"워크플로우 오류: {str(e)}"]
+                },
+                "sabang_api_result": {
+                    "processed_count": 0,
+                    "success_count": 0,
+                    "error_count": 0,
+                    "errors": [f"워크플로우 오류: {str(e)}"]
+                },
+                "error": str(e)
+            }

@@ -1,6 +1,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from models.config.export_templates import ExportTemplates
+from utils.unicode_utils import normalize_unicode, find_matching_item
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ExportTemplateRepository:
@@ -22,3 +26,41 @@ class ExportTemplateRepository:
             raise e
         finally:
             await self.session.close()
+
+    async def find_template_code_by_site_usage_star(self, site_type: str, usage_type: str, is_star: bool) -> str:
+        """
+        site_type, usage_type, is_star를 기반으로 template_code를 찾는 메서드
+        args:
+            site_type: 사이트타입 (G마켓,옥션, 기본양식, 브랜디 등)
+            usage_type: 용도타입 (ERP용, 합포장용)
+            is_star: 스타배송 여부
+        returns:
+            template_code: 템플릿 코드
+        """
+        logger.info(f"Searching template_code with params: site_type='{site_type}', usage_type='{usage_type}', is_star={is_star}")
+        
+        # 모든 템플릿을 조회한 후 Python에서 비교
+        all_templates_query = select(ExportTemplates)
+        try:
+            all_result = await self.session.execute(all_templates_query)
+            all_templates = all_result.scalars().all()
+            
+            # 유틸리티 함수를 사용하여 매칭되는 템플릿 찾기
+            matching_template = find_matching_item(
+                [t for t in all_templates if t.is_active],
+                site_type=site_type,
+                usage_type=usage_type,
+                is_star=is_star
+            )
+            
+            if matching_template:
+                logger.info(f"Found matching template: {matching_template.template_code}")
+                return matching_template.template_code
+            
+            logger.warning(f"No matching template found for site_type='{site_type}', usage_type='{usage_type}', is_star={is_star}")
+            return None
+            
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Error in find_template_code_by_site_usage_star: {e}")
+            raise e

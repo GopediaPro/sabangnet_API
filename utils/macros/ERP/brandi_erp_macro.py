@@ -22,8 +22,8 @@ class ERPBrandiMacro:
 
         print('서식 적용 시작...')
         for row in range(2, ws.max_row + 1):
-            col_h.d_column(ws[f"D{row}"], ws[f"O{row}"],
-                           ws[f"P{row}"], ws[f"V{row}"])
+            col_h.d_column(ws[f"D{row}"],
+                           ws[f"P{row}"], ws[f"V{row}"]) # =P2+V2
             col_h.f_column(ws[f"F{row}"])
             col_h.h_i_column(ws[f"H{row}"])
             col_h.h_i_column(ws[f"I{row}"])

@@ -19,6 +19,7 @@ from schemas.down_form_orders.response.down_form_orders_response import (
     DownFormOrderBulkResponse,
     DownFormOrderPaginationResponse,
     DownFormOrderBulkCreateResponse,
+    DownFormOrderPaginationWithDateRangeResponse,
 )
 from schemas.down_form_orders.request.down_form_orders_request import (
     DownFormOrderCreateJsonRequest,
@@ -26,6 +27,7 @@ from schemas.down_form_orders.request.down_form_orders_request import (
     DownFormOrderBulkUpdateJsonRequest,
     DownFormOrderBulkDeleteJsonRequest,
     DownFormOrderBulkCreateFilterRequest,
+    DownFormOrdersPaginationWithDateRangeRequest,
 )
 # utils
 from utils.response_status import RowStatus
@@ -67,7 +69,7 @@ def get_data_processing_usecase(session: AsyncSession = Depends(get_async_sessio
 @router.get("", response_model=DownFormOrderBulkResponse)
 async def down_form_orders(
     skip: int = Query(0, ge=0, description="건너뛸 건수"),
-    limit: int = Query(200, ge=1, le=200, description="조회할 건수"),
+    limit: int = Query(200, ge=1, description="조회할 건수"),
     down_form_order_read_service: DownFormOrderReadService = Depends(
         get_down_form_order_read_service),
 ):
@@ -97,7 +99,7 @@ async def down_form_orders(
 
 
 @router.get("/pagination", response_model=DownFormOrderPaginationResponse)
-async def down_form_orders_pagination(
+async def down_form_orders_by_pagination(
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=1000),
     template_code: Optional[str] = Query(
@@ -107,13 +109,51 @@ async def down_form_orders_pagination(
     down_form_order_read_service: DownFormOrderReadService = Depends(
         get_down_form_order_read_service),
 ):
-    items, total = await down_form_order_read_service.get_down_form_orders_by_pagenation(page, page_size, template_code)
+    items, total = await down_form_order_read_service.get_down_form_orders_by_pagination(page, page_size, template_code)
     dto_items: list[DownFormOrderDto] = [
         DownFormOrderDto.model_validate(item) for item in items]
     return DownFormOrderPaginationResponse(
         total=total,
         page=page,
         page_size=page_size,
+        items=[
+            DownFormOrderResponse(
+                content=dto,
+                status=RowStatus.SUCCESS,
+                message="success"
+            ) for dto in dto_items
+        ]
+    )
+
+
+@router.post("/pagination/date-range", response_model=DownFormOrderPaginationWithDateRangeResponse)
+async def down_form_orders_by_pagination_with_date_range(
+    request: DownFormOrdersPaginationWithDateRangeRequest = Body(...),
+    down_form_order_read_service: DownFormOrderReadService = Depends(
+        get_down_form_order_read_service),
+):
+    date_from = request.filters.date_from
+    date_to = request.filters.date_to
+    template_code = request.template_code
+    page = request.page
+    page_size = request.page_size
+
+    items, total = await down_form_order_read_service.get_down_form_orders_by_pagination_with_date_range(
+        date_from=date_from,
+        date_to=date_to,
+        page=page,
+        page_size=page_size,
+        template_code=template_code
+    )
+    dto_items: list[DownFormOrderDto] = [
+        DownFormOrderDto.model_validate(item) for item in items]
+    return DownFormOrderPaginationWithDateRangeResponse(
+        total=total,
+        page=request.page,
+        page_size=request.page_size,
+        template_code=request.template_code,
+        date_from=date_from,
+        date_to=date_to,
         items=[
             DownFormOrderResponse(
                 content=dto,
@@ -176,14 +216,13 @@ async def bulk_delete_down_form_orders(
 ):
     logger.info(f"[bulk_delete] 요청: {request}")
     try:
-        result: int = await down_form_order_delete_service.bulk_delete_down_form_orders(request.ids)
-        logger.info(f"[bulk_delete] 성공: {len(request.ids)}건 삭제")
+        result: dict[int, str] = await down_form_order_delete_service.bulk_delete_down_form_orders(request.ids)
         return DownFormOrderBulkResponse(items=[
             DownFormOrderResponse(
                 content=None,
-                status=RowStatus.SUCCESS,
-                message="success"
-            ) for order_id in request.ids
+                status=RowStatus.SUCCESS if result[down_form_order_id] == "success" else RowStatus.SKIPPED,
+                message="success" if result[down_form_order_id] == "success" else "id not found"
+            ) for down_form_order_id in request.ids
         ])
     except Exception as e:
         logger.error(f"[bulk_delete] 실패: {str(e)}", e)
@@ -264,15 +303,21 @@ async def example_usage():
 
 @router.post("/bulk/filter", response_model=DownFormOrderBulkCreateResponse)
 async def bulk_create_down_form_orders_by_filter(
-    request: DownFormOrderBulkCreateFilterRequest = Form(...),
+    request: DownFormOrderBulkCreateFilterRequest,
     data_processing_usecase: DataProcessingUsecase = Depends(
         get_data_processing_usecase)
 ):
+    """
+    receive_orders 데이터를 down_form_orders 에 저장 (날짜 등 필터 사용)
+    """
     try:
         template_code: str = request.template_code
-        filters: dict[str, Any] = request.filters.model_dump(
-        ) if request.filters else {}
-        down_form_order_bulk_dto: DownFormOrdersBulkDto = await data_processing_usecase.save_down_form_orders_from_receive_orders_by_filter(filters, template_code)
+        filters: dict[str, Any] = request.filters if request.filters else {}
+        down_form_order_bulk_dto: DownFormOrdersBulkDto = (
+            await data_processing_usecase.save_down_form_orders_from_receive_orders_by_filter(
+                filters,
+                template_code
+            ))
         return DownFormOrderBulkCreateResponse.from_dto(down_form_order_bulk_dto)
     except Exception as e:
         return DownFormOrderBulkCreateResponse.from_dto(DownFormOrdersBulkDto(
@@ -290,6 +335,9 @@ async def bulk_create_down_form_orders_without_filter(
     data_processing_usecase: DataProcessingUsecase = Depends(
         get_data_processing_usecase)
 ):
+    """
+    receive_orders 데이터를 down_form_orders 에 저장 (필터 사용 안하고 raw data 받음)
+    """
     try:
         template_code: str = request.template_code
         raw_data: list[dict[str, Any]] = request.raw_data
@@ -310,6 +358,7 @@ async def bulk_create_down_form_orders_without_filter(
             message=f"error: {str(e)}"
         )
 
+
 @router.post("/db-to-excel")
 async def db_to_excel_url(
     template_code: str = Form(...),
@@ -320,8 +369,14 @@ async def db_to_excel_url(
     """
     db에서 데이터를 work_status에 따라 가져와 엑셀 파일로 변환 후 MinIO에 업로드하고 URL을 반환합니다.
     """
-    file_path, file_name = await data_processing_usecase.export_down_form_orders_to_excel_by_work_status(work_status=work_status, template_code=template_code)
+    file_path, file_name = await data_processing_usecase.export_down_form_orders_to_excel_by_work_status(
+        work_status=work_status,
+        template_code=template_code
+    )
     file_url, minio_object_name = upload_and_get_url(
-        file_path, template_code, file_name)
+        file_path,
+        template_code,
+        file_name
+    )
 
     return {"file_url": file_url, "minio_object_name": minio_object_name}

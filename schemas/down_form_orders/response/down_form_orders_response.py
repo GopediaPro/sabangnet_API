@@ -1,6 +1,11 @@
-from typing import Optional
+from datetime import date
+from typing import Optional, TypeVar, Generic
 from pydantic import BaseModel, ConfigDict, Field
-from schemas.down_form_orders.down_form_order_dto import DownFormOrdersBulkDto, DownFormOrderDto
+from schemas.down_form_orders.down_form_order_dto import DownFormOrdersBulkDto, DownFormOrderDto, DownFormOrdersInvoiceNoUpdateDto
+
+
+# 제네릭 타입 변수 정의
+T = TypeVar('T')
 
 
 class DownFormOrderReadResponse(BaseModel):
@@ -45,14 +50,28 @@ class DownFormOrderResponse(BaseModel):
     message: Optional[str] = None  # row별 에러 메시지 등
 
 
-class DownFormOrderBulkResponse(BaseModel):
+class BulkResponse(BaseModel, Generic[T]):
     """CRUD 범용 응답 객체"""
 
-    items: list[DownFormOrderResponse]
+    items: list[T]
+
+
+DownFormOrderBulkResponse = BulkResponse[DownFormOrderResponse]
+DownFormOrderInvoiceNoBulkUpdateResponse = BulkResponse[DownFormOrdersInvoiceNoUpdateDto]
 
 
 class DownFormOrderPaginationResponse(BaseModel):
     total: int
     page: int
     page_size: int
+    items: list[DownFormOrderResponse]
+
+
+class DownFormOrderPaginationWithDateRangeResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    template_code: str
+    date_from: date
+    date_to: date
     items: list[DownFormOrderResponse]
