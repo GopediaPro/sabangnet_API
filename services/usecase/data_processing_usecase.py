@@ -495,8 +495,7 @@ class DataProcessingUsecase:
                 f"temporary file path: {file_path} | file name: {file_name}")
             ex = ExcelHandler.from_file(file_path, sheet_index=0)
             # 4. 도서지역 배송비 추가
-            if parsed.get('usage_type') == 'ERP용':
-                ex.add_island_delivery(ex.wb)
+            ex.add_island_delivery(ex.wb)
 
             # 5. 템플릿 코드 추가
             ex.create_template_code_in_excel(template_code)
