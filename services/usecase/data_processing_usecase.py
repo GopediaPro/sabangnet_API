@@ -493,10 +493,10 @@ class DataProcessingUsecase:
             file_name, file_path = await self.process_macro_with_tempfile(template_code, file, sub_site)
             logger.info(
                 f"temporary file path: {file_path} | file name: {file_name}")
-            
-            # 4. 도서지역 배송비 추가
             ex = ExcelHandler.from_file(file_path, sheet_index=0)
-            ex.add_island_delivery(ex.wb)
+            # 4. 도서지역 배송비 추가
+            if parsed.get('usage_type') == 'ERP용':
+                ex.add_island_delivery(ex.wb)
 
             # 5. 템플릿 코드 추가
             ex.create_template_code_in_excel(template_code)
