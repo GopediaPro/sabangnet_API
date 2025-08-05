@@ -77,7 +77,7 @@ class ERPEtcSiteMacro:
         if "오늘의집" in b_cell_text:
             self.ws[f"V{row}"].value = 0
         elif "톡스토어" in b_cell_text:
-            order_key = str(self.ws[f"J{row}"].value).strip()
+            order_key = str(self.ws[f"E{row}"].value).strip()
             if order_key:
                 if order_key in self.order_set:
                     self.ws[f"V{row}"].value = 0

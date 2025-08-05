@@ -51,7 +51,7 @@ class ProductCodeRegistrationService:
             result['no_keyword'] = self._get_keyword_length(product_nm)
             
             # 모델명 (F)
-            result['product_nm'] = product_nm
+            result['product_name'] = product_nm
             
             # 구분 (G)
             result['gubun'] = gubun
@@ -140,7 +140,7 @@ class ProductCodeRegistrationService:
             # 판매가[필수] (AG)    
             result['goods_price'] = self._get_selling_price(product_nm, gubun)
 
-            result['stock_use_yn'] = "N"
+            result['stock_use_yn'] = self.source_data.get('stock_use_yn', '')
             logger.info(f"stock_use_yn 처리 - source_data: {self.source_data.get('stock_use_yn')}, result: {result['stock_use_yn']}")
             
             # TAG가[필수] (AH)
@@ -212,8 +212,8 @@ class ProductCodeRegistrationService:
             # 속성분류코드[필수] (CI)
             result['prop1_cd'] = "035"
             # 속성값1~8
-            # 속성값들 (기본값 설정) - ProductRawData 모델에는 prop_val1~33까지만 존재
-            for i in range(1, 34):
+            # 속성값들 (기본값 설정)
+            for i in range(1, 39):
                 result[f'prop_val{i}'] = self._get_attr_value(product_nm, i)
             
             # 나머지 필드들은 기본값 또는 빈 값으로 설정

@@ -24,7 +24,7 @@ class ProductRegistrationExcelProcessor:
             'char_1_nm', 'char_1_val', 'char_2_nm', 'char_2_val',
             'img_path', 'img_path1', 'img_path2', 'img_path3',
             'img_path4', 'img_path5', 'goods_remarks', 'mobile_bn',
-            'one_plus_one_bn', 'goods_remarks_url', 'delv_one_plus_one'
+            'one_plus_one_bn', 'goods_remarks_url', 'delv_one_plus_one', 'stock_use_yn'
         ]
     
     def read_excel_k_to_az_columns(self, file_path: str, sheet_name: str = "Sheet1") -> List[Dict]:
@@ -126,6 +126,9 @@ class ProductRegistrationExcelProcessor:
         for excel_col, db_field in column_mapping.items():
             raw_value = row.get(excel_col)
             converted_value = self._convert_value(raw_value, db_field)
+            if db_field == 'stock_use_yn':
+                logger.info(f"stock_use_yn 처리 - excel_col: {excel_col}, raw_value: '{raw_value}', converted_value: '{converted_value}'")
+                logger.info(f"전체 row 데이터: {row}")
             processed[db_field] = converted_value
         
         return processed
@@ -140,12 +143,12 @@ class ProductRegistrationExcelProcessor:
             # 실제 Excel 파일 구조에 맞게 수정해야 함
             '제품명': 'product_nm',
             '상품명': 'goods_nm', 
-            '상세페이지경로(이미지폴더)': 'detail_path_img',
+            '상세페이지경로': 'detail_path_img',
             '배송비': 'delv_cost',
             '키워드': 'goods_search',
-            '판매가\n(유료배송)': 'goods_price',
+            '판매가': 'goods_price',
             '인증번호': 'certno',
-            '진행옵션\n가져오기': 'char_process',
+            '진행옵션': 'char_process',
             '옵션명1': 'char_1_nm',
             '옵션상세1': 'char_1_val',
             '옵션명2': 'char_2_nm',
@@ -159,8 +162,9 @@ class ProductRegistrationExcelProcessor:
             '상세설명': 'goods_remarks',
             '모바일배너': 'mobile_bn',
             '1+1배너': 'one_plus_one_bn',
-            '상세설명url': 'goods_remarks_url',
-            '1+1옵션': 'delv_one_plus_one'
+            '상세설명URL': 'goods_remarks_url',
+            '1+1옵션배송': 'delv_one_plus_one',
+            '재고관리사용여부': 'stock_use_yn'
         }
     
     def _get_ordered_column_mapping(self) -> Dict[str, str]:
