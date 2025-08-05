@@ -19,6 +19,7 @@ from services.usecase.product_db_xml_usecase import ProductDbXmlUsecase
 from services.product.product_create_service import ProductCreateService
 from utils.make_xml.product_registration_xml import ProductRegistrationXml
 from minio_handler import upload_file_to_minio, get_minio_file_url
+from utils.make_xml.sabang_api_result_parser import SabangApiResultParser
 
 
 logger = get_logger(__name__)
@@ -234,7 +235,11 @@ class ProductRegistrationService:
             logger.info(f"[DEBUG] response_xml: {response_xml}, type: {type(response_xml)}")
             logger.info(f"사방넷 상품등록 결과: {response_xml}")
 
-            # 4. 응답 XML에서 PRODUCT_ID 추출 및 DB 업데이트
+            # 4. 응답 XML 파싱하여 JSON 결과 생성
+            sabang_api_result = SabangApiResultParser.parse_sabang_api_result(response_xml)
+            logger.info(f"사방넷 API 응답 파싱 결과: {sabang_api_result}")
+
+            # 5. 응답 XML에서 PRODUCT_ID 추출 및 DB 업데이트
             product_registration_xml = ProductRegistrationXml()
             compayny_goods_cd_and_product_ids: list[tuple[str, int]] = product_registration_xml.input_product_id_to_db(response_xml)
             logger.info(f"[DEBUG] compayny_goods_cd_and_product_ids: {compayny_goods_cd_and_product_ids}, type: {type(compayny_goods_cd_and_product_ids)}")
@@ -247,7 +252,8 @@ class ProductRegistrationService:
                 "message": "모든 상품 데이터를 XML로 변환하고 사방넷 상품등록 요청했습니다.",
                 "xml_file_path": xml_url,
                 "processed_count": total_count,
-                "updated_product_count": len(compayny_goods_cd_and_product_ids)
+                "updated_product_count": len(compayny_goods_cd_and_product_ids),
+                "sabang_api_result": sabang_api_result
             }
             logger.info(f"[DEBUG] process_db_to_xml_and_sabangnet_request 반환값: {result}, type: {type(result)}")
             return result

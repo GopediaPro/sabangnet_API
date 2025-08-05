@@ -12,6 +12,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.styles import Font, PatternFill, Alignment, Border
 from utils.logs.sabangnet_logger import get_logger
 
+logger = get_logger(__name__)
 """
 주문관리 Excel 파일 매크로 공통 처리 메소드
 - 기본 서식 설정
@@ -1082,12 +1083,12 @@ class ExcelHandler:
                                 ws[f"F{row}"].font = red_font
                                 if "텐바이텐" in site_name:
                                     ws[f"D{row}"].value = str(
-                                        int(ws[f"D{row}"].value) + island["cost"])
+                                        int(ws[f"D{row}"].value))
                                     ws[f"V{row}"].value += island["cost"]
                                     ws[f"V{row}"].font = black_font
                             else:
                                 ws[f"D{row}"].value = str(
-                                    int(ws[f"D{row}"].value) + island["cost"])
+                                    int(ws[f"D{row}"].value))
                                 ws[f"V{row}"].value += island["cost"]
                                 ws[f"V{row}"].font = black_font
 
