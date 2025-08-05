@@ -160,7 +160,7 @@ class ProductCodeRegistrationService:
             
             # 대표이미지[필수] (AM)
             # self._get_representative_image_check(gubun)
-            result['img_path'] = "IMG 없음"
+            result['img_path'] = self.source_data.get('img_path')
             
             # 종합몰(JPG)이미지 (AN)
             result['img_path1'] = self._get_mall_jpg_image(product_nm, gubun)
