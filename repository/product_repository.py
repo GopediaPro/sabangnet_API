@@ -5,6 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, func
 from models.product.product_raw_data import ProductRawData
 from models.product.modified_product_data import ModifiedProductData
+from utils.logs.sabangnet_logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class ProductRepository:
@@ -175,9 +178,73 @@ class ProductRepository:
         return raw_data
 
     async def find_product_raw_data_by_company_goods_cd(self, company_goods_cd: str) -> ProductRawData:
-        query = select(ProductRawData).where(ProductRawData.compayny_goods_cd == company_goods_cd).limit(1)
-        product_raw_data = await self.session.execute(query)
-        return product_raw_data.scalar_one_or_none()
+        query = select(ProductRawData).where(ProductRawData.compayny_goods_cd == company_goods_cd)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def update_product_raw_data_by_company_goods_cd(self, company_goods_cd: str, update_data: dict) -> bool:
+        """
+        company_goods_cd로 product_raw_data를 update
+        Args:
+            company_goods_cd: 업데이트할 상품의 company_goods_cd
+            update_data: 업데이트할 데이터 딕셔너리
+        Returns:
+            업데이트 성공 여부
+        """
+        try:
+            query = update(ProductRawData).where(ProductRawData.compayny_goods_cd == company_goods_cd).values(**update_data)
+            result = await self.session.execute(query)
+            await self.session.commit()
+            return result.rowcount > 0
+        except Exception as e:
+            await self.session.rollback()
+            print(f"[Update Error] {e}")
+            raise
+        finally:
+            await self.session.close()
+
+    async def upsert_product_raw_data(self, product_data: dict) -> dict:
+        """
+        company_goods_cd가 있으면 update, 없으면 create
+        Args:
+            product_data: 상품 데이터 딕셔너리
+        Returns:
+            {'success': bool, 'action': str, 'company_goods_cd': str}
+        """
+        company_goods_cd = product_data.get('compayny_goods_cd')
+        if not company_goods_cd:
+            raise ValueError("company_goods_cd가 필요합니다.")
+        
+        # 기존 데이터 조회
+        existing_data = await self.find_product_raw_data_by_company_goods_cd(company_goods_cd)
+        
+        if existing_data:
+            # 기존 데이터가 있으면 update
+            logger.info(f"기존 데이터 발견, update 수행: {company_goods_cd}")
+            success = await self.update_product_raw_data_by_company_goods_cd(company_goods_cd, product_data)
+            return {
+                'success': success,
+                'action': 'updated',
+                'company_goods_cd': company_goods_cd
+            }
+        else:
+            # 기존 데이터가 없으면 create
+            logger.info(f"새 데이터 생성: {company_goods_cd}")
+            try:
+                query = insert(ProductRawData).returning(ProductRawData.id)
+                result = await self.session.execute(query, [product_data])
+                await self.session.commit()
+                return {
+                    'success': True,
+                    'action': 'created',
+                    'company_goods_cd': company_goods_cd
+                }
+            except Exception as e:
+                await self.session.rollback()
+                logger.error(f"[Insert Error] {e}")
+                raise
+            finally:
+                await self.session.close()
 
     async def find_product_id_raw_data_by_product_nm_and_gubun(self, product_nm: str, gubun: str) -> Optional[int]:
         """상품명과 구분으로 test_product_raw_data의 ID 조회"""
