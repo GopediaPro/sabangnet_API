@@ -150,7 +150,7 @@ class ProductCodeRegistrationService:
             result['char_1_nm'] = self._get_option_title_1()
             
             # 옵션상세명칭(1) (AJ)
-            result['char_1_val'] = self._get_option_detail_1(product_nm, gubun, result['model_nm'])
+            result['char_1_val'] = self._get_option_detail_1(product_nm, gubun)
             
             # 옵션제목(2) (AK)
             result['char_2_nm'] = self._get_option_title_2(product_nm, gubun)
@@ -405,19 +405,22 @@ class ProductCodeRegistrationService:
         char_1_nm = self.source_data.get('char_1_nm', '')
         return char_1_nm if char_1_nm else "옵션제목 없음"
     
-    def _get_option_detail_1(self, product_nm: str, gubun: str, model_nm: str) -> str:
+    def _get_option_detail_1(self, product_nm: str, gubun: str) -> str:
         """옵션상세명칭(1) 조회"""
         # =IF(G5="마스터",VLOOKUP(F5,importrange("same file","상품등록!$k:$az"),10,0),
         #   IF(G5="전문몰",TEXTJOIN(",",TRUE, ARRAYFORMULA(INDEX(SPLIT(F5,"-"), 2)&"_"&SPLIT(VLOOKUP(F5,importrange("same file","상품등록!$k:$az"),10,0),","))),
         #     IF(G5="1+1",(VLOOKUP(F5,importrange("same file","상품등록!$k:$az"),24,0)))))
         # 10번째 컬럼은 char_1_nm
-        # model_nm 와 delv_one_plus_one을 가져와서 delv_one_plus_one의 구분자 ','를 기준으로 모든 값들의 앞에 model_nm에 '_'를 붙여서 합치기    
+        # product_nm 에서 '-' 기준으로 뒤에 있는 값을 가져옴 '-'이 없으면 product_nm 그대로 사용
+        model_nm = product_nm.split('-')[1] if '-' in product_nm else product_nm
+        # model_nm 와 delv_one_plus_one을 가져와서 delv_one_plus_one의 구분자 ','를 기준으로 모든 값들의 앞에 model_nm에 '_'를 붙여서 합치기  
         delv_one_plus_one = self.source_data.get('delv_one_plus_one', '')
         if delv_one_plus_one and delv_one_plus_one.strip():
             # 구분자 ','를 기준으로 값들을 분리
             values = [val.strip() for val in delv_one_plus_one.split(',') if val.strip()]
             # 각 값 앞에 model_nm_을 붙여서 합치기
             delv_one_plus_one_detail = ','.join([f"{model_nm}_{val}" for val in values])
+            logger.info(f"옵션상세명칭(1) 조회 delv_one_plus_one_detail: {delv_one_plus_one_detail}")
         else:
             delv_one_plus_one_detail = ''
         
@@ -437,7 +440,6 @@ class ProductCodeRegistrationService:
             return ''
         elif gubun == "1+1":
             # 24번째 컬럼에 해당하는 값
-            delv_one_plus_one_detail = self.source_data.get('delv_one_plus_one_detail', '')
             return delv_one_plus_one_detail if delv_one_plus_one_detail is not None else ''
     
     def _get_option_title_2(self, product_nm: str, gubun: str) -> str:
