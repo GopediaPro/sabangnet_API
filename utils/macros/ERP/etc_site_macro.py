@@ -1,11 +1,13 @@
 from openpyxl.styles import Font, Alignment
 from utils.excels.excel_handler import ExcelHandler
 from utils.excels.excel_column_handler import ExcelColumnHandler
+from utils.macros.ERP.utils import average_duplicate_cart_address_amounts
 
 
 class ERPEtcSiteMacro:
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str, is_star: bool = False):
         self.file_path = file_path
+        self.is_star = is_star
         self.ex = ExcelHandler.from_file(file_path)
         self.ws = self.ex.ws
         self.wb = self.ex.wb
@@ -61,7 +63,10 @@ class ERPEtcSiteMacro:
                 col_h.convert_int_column(ws[f"P{row}"])
                 self._v_column_red_font(ws[f"V{row}"])
             print(f"[{ws.title}] 서식 및 디자인 적용 완료")
-
+        # 장바구니번호와 수취인주소 조합으로 그룹화 후 평균 금액 적용 (스타배송 모드에서만)
+        if self.is_star:
+            average_duplicate_cart_address_amounts(self.ws)
+        
         output_path = self.ex.save_file(self.file_path)
         print(f"✓ 기타 사이트 ERP 자동화 완료! 최종 파일: {output_path}")
         return output_path
@@ -157,3 +162,5 @@ class ERPEtcSiteMacro:
         if v_cell.value == 0:
             v_cell.font = Font(color="FF0000", bold=True)
             v_cell.alignment = Alignment(horizontal='right')
+
+

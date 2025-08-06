@@ -44,20 +44,20 @@ class OrderMacroUtils:
             "etc_site_merge_packaging": etc_site_merge_packaging,
         }
 
-    def run_ali_macro(self, file_path: str) -> int:
-        return ERPAliMacro(file_path).ali_erp_macro_run()
+    def run_ali_macro(self, file_path: str, is_star: bool = False) -> int:
+        return ERPAliMacro(file_path, is_star).ali_erp_macro_run()
 
-    def run_etc_site_macro(self, file_path: str) -> int:
-        return ERPEtcSiteMacro(file_path).etc_site_macro_run()
+    def run_etc_site_macro(self, file_path: str, is_star: bool = False) -> int:
+        return ERPEtcSiteMacro(file_path, is_star).etc_site_macro_run()
 
-    def run_gmarket_auction_macro(self, file_path: str) -> int:
-        return ERPGmaAucMacro(file_path).gauc_erp_macro_run()
+    def run_gmarket_auction_macro(self, file_path: str, is_star: bool = False) -> int:
+        return ERPGmaAucMacro(file_path, is_star).gauc_erp_macro_run()
 
-    def run_brandi_macro(self, file_path: str) -> int:
-        return ERPBrandiMacro(file_path).brandi_erp_macro_run()
+    def run_brandi_macro(self, file_path: str, is_star: bool = False) -> int:
+        return ERPBrandiMacro(file_path, is_star).brandi_erp_macro_run()
 
-    def run_zigzag_macro(self, file_path: str) -> int:
-        return ERPZigzagMacro(file_path).zigzag_erp_macro_run()
+    def run_zigzag_macro(self, file_path: str, is_star: bool = False) -> int:
+        return ERPZigzagMacro(file_path, is_star).zigzag_erp_macro_run()
 
     def modify_site_column_for_star_delivery(self, file_path: str) -> str:
         """

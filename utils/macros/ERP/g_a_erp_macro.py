@@ -5,15 +5,20 @@ from openpyxl.worksheet.worksheet import Worksheet
 from utils.logs.sabangnet_logger import get_logger
 from utils.excels.excel_handler import ExcelHandler
 from utils.excels.excel_column_handler import ExcelColumnHandler
+from utils.macros.ERP.utils import average_duplicate_cart_address_amounts, average_duplicate_cart_address_amounts_df
 import pandas as pd
 
 logger = get_logger(__name__)
 
-
 class ERPGmaAucMacro:
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str, is_star: bool = False):
         self.ex: ExcelHandler = ExcelHandler.from_file(file_path)
         self.file_path = file_path
+        self.is_star = is_star
+        self.ws: Worksheet = self.ex.ws
+        self.wb: Workbook = self.ex.wb
+        self.basket_dict = {}
+        self.headers: list[str] = None
 
     def gauc_erp_macro_run(self):
 
@@ -26,7 +31,12 @@ class ERPGmaAucMacro:
         self.run_df_gauc_erp_macro(df)
         logger.info("시트별 정렬, 기본 값 처리 완료")
 
-        # 3. 시트별 데이터 분리
+        # 3. 스타배송 모드에서 장바구니번호-수취인주소 중복 금액 평균 처리
+        if self.is_star:
+            df = average_duplicate_cart_address_amounts_df(df)
+            logger.info("장바구니번호-수취인주소 중복 금액 평균 처리 완료")
+
+        # 4. 시트별 데이터 분리
         df_ok_cl_bb, df_iy = self._split_sheet_df(df)
         logger.info("시트별 데이터 분리 완료")
 
@@ -158,3 +168,45 @@ class ERPGmaAucMacro:
                     cell.font = Font(size=9)
 
             logger.info(f"[{ws.title}] 서식 및 디자인 적용 완료")
+
+    def _add_basket_dict(self, basket_cell: Cell, shipping_cell: Cell, b_cell: Cell):
+        """
+        장바구니 중복 값 추가 (B셀과 Q셀 조합 기준)
+        args:
+            basket_cell: 장바구니 번호 셀 (Q)
+            shipping_cell: 배송비 셀 (V)
+            b_cell: B셀
+        """
+        basket_no = str(basket_cell.value).strip() if basket_cell.value else ""
+        b_value = str(b_cell.value).strip() if b_cell.value else ""
+        
+        # B셀과 Q셀의 조합으로 키 생성
+        combined_key = f"{b_value}_{basket_no}"
+
+        if not basket_no or not b_value:
+            return
+
+        if combined_key not in self.basket_dict:
+            if shipping_cell.value != 0 and shipping_cell.value != "":
+                self.basket_dict[combined_key] = shipping_cell.value
+                shipping_cell.value = 0
+        else:
+            shipping_cell.value = 0
+
+    def _shipping_costs_column(self, basket_cell: Cell, shipping_cell: Cell, b_cell: Cell):
+        """
+        정렬된 데이터에서 B셀과 Q셀 조합 중복 값 중 첫 번째 값에 배송비 적용
+        args:
+            basket_cell: 장바구니 번호 셀 (Q)
+            shipping_cell: 배송비 셀 (V)
+            b_cell: B셀
+        """
+        basket_no = str(basket_cell.value).strip() if basket_cell.value else ""
+        b_value = str(b_cell.value).strip() if b_cell.value else ""
+        
+        # B셀과 Q셀의 조합으로 키 생성
+        combined_key = f"{b_value}_{basket_no}"
+
+        if combined_key in self.basket_dict:
+            shipping_cell.value = self.basket_dict[combined_key]
+            del self.basket_dict[combined_key]

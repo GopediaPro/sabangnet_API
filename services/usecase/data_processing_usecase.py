@@ -372,7 +372,7 @@ class DataProcessingUsecase:
                 raise ValueError(
                     f"Macro '{macro_name}' not found in MACRO_MAP.")
             try:
-                result = macro_func(file_path)
+                result = macro_func(file_path, is_star)
                 logger.info(
                     f"Macro '{macro_name}' executed successfully. file_path={result}")
                 return result
