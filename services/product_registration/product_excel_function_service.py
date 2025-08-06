@@ -163,13 +163,13 @@ class ProductCodeRegistrationService:
             result['img_path'] = self.source_data.get('img_path')
             
             # 종합몰(JPG)이미지 (AN)
-            result['img_path1'] = self._get_mall_jpg_image(product_nm, gubun)
+            result['img_path1'] = self._get_mall_jpg_image(product_nm, gubun, 1)
             
             # 부가이미지들 (AO~AW) - 빈 값으로 설정
             for i in range(2, 5):
-                result[f'img_path{i}'] = self._get_mall_jpg_image(product_nm, gubun)
-            for i in range(6, 11):
-                result[f'img_path{i}'] = self._get_additional_image(product_nm)
+                result[f'img_path{i}'] = self._get_mall_jpg_image(product_nm, gubun, i)
+            for i in range(6, 10):
+                result[f'img_path{i}'] = self.source_data.get('img_path1', '')
 
             # 추가 상세설명[필수] (AX)
             result['goods_remarks'] = self._get_product_detail_description(product_nm, gubun)
@@ -190,12 +190,12 @@ class ProductCodeRegistrationService:
             # 식품재료/원산지 (BI)
             # 원가2 (BJ)
             # 부가이미지11 (BK ~ BM)
-            for i in range(11, 14):
-                result[f'img_path{i}'] = self._get_mall_jpg_image(product_nm, gubun)
+            for i in range(12, 15):
+                result[f'img_path{i}'] = self._get_mall_jpg_image(product_nm, gubun, i)
             # 합포시 제외 여부 (BN)
             # 부가이미지14 (BO ~ BW)
             for i in range(14, 23):
-                result[f'img_path{i}'] = self._get_mall_jpg_image(product_nm, gubun)
+                result[f'img_path{i}'] = self._get_mall_jpg_image(product_nm, gubun, i)
             # 관리자메모 (BX)
             # 옵션수정여부 (BY)
             result['opt_type'] = 2
@@ -480,23 +480,20 @@ class ProductCodeRegistrationService:
             # 21번째 컬럼으로 대체
             return self.source_data.get('one_plus_one_bn', '') 
     
-    def _get_mall_jpg_image(self, product_nm: str, gubun: str) -> str:
+    def _get_mall_jpg_image(self, product_nm: str, gubun: str, i: int) -> str:
         """종합몰(JPG)이미지 조회"""
         # =IF(G6="마스터",VLOOKUP(F6,importrange("same file","상품등록!$k:$az"),13,0),
         #   IF(G6="전문몰",VLOOKUP(F6,importrange("same file","상품등록!$k:$az"),13,0),
         #     IF(G6="1+1",VLOOKUP(F6,importrange("same file","상품등록!$k:$az"),21,0))))
         # 13번째 컬럼은 img_path
-        if gubun in ["마스터", "전문몰"]:
+        if i == 21:
+            return self.source_data.get('mobile_bn', '')
+        elif gubun in ["마스터", "전문몰"]:
             return self.source_data.get('img_path', '')
         elif gubun == "1+1":
             # 21번째 컬럼으로 대체
-            return self.source_data.get('one_plus_one_bn', '') 
-        
-    def _get_additional_image(self, product_nm: str) -> str:
-        """부가이미지 조회"""
-        # =VLOOKUP(F5,importrange("same file","상품등록!$k:$az"),14,0)
-        # 14번째 컬럼은 img_mall_jpg
-        return self.source_data.get('img_mall_jpg', '')
+            return self.source_data.get('one_plus_one_bn', '')
+
     
     def _get_product_detail_description(self, product_nm: str, gubun: str) -> str:
         """상품상세설명 조회"""
