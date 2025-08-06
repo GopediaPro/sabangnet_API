@@ -150,7 +150,7 @@ class ProductCodeRegistrationService:
             result['char_1_nm'] = self._get_option_title_1()
             
             # 옵션상세명칭(1) (AJ)
-            result['char_1_val'] = self._get_option_detail_1(product_nm, gubun)
+            result['char_1_val'] = self._get_option_detail_1(product_nm, gubun, result['model_nm'])
             
             # 옵션제목(2) (AK)
             result['char_2_nm'] = self._get_option_title_2(product_nm, gubun)
@@ -405,12 +405,25 @@ class ProductCodeRegistrationService:
         char_1_nm = self.source_data.get('char_1_nm', '')
         return char_1_nm if char_1_nm else "옵션제목 없음"
     
-    def _get_option_detail_1(self, product_nm: str, gubun: str) -> str:
+    def _get_option_detail_1(self, product_nm: str, gubun: str, model_nm: str) -> str:
         """옵션상세명칭(1) 조회"""
         # =IF(G5="마스터",VLOOKUP(F5,importrange("same file","상품등록!$k:$az"),10,0),
         #   IF(G5="전문몰",TEXTJOIN(",",TRUE, ARRAYFORMULA(INDEX(SPLIT(F5,"-"), 2)&"_"&SPLIT(VLOOKUP(F5,importrange("same file","상품등록!$k:$az"),10,0),","))),
         #     IF(G5="1+1",(VLOOKUP(F5,importrange("same file","상품등록!$k:$az"),24,0)))))
         # 10번째 컬럼은 char_1_nm
+        # model_nm 와 delv_one_plus_one을 가져와서 delv_one_plus_one의 구분자 ','를 기준으로 모든 값들의 앞에 model_nm에 '_'를 붙여서 합치기    
+        delv_one_plus_one = self.source_data.get('delv_one_plus_one', '')
+        if delv_one_plus_one and delv_one_plus_one.strip():
+            # 구분자 ','를 기준으로 값들을 분리
+            values = [val.strip() for val in delv_one_plus_one.split(',') if val.strip()]
+            # 각 값 앞에 model_nm_을 붙여서 합치기
+            delv_one_plus_one_detail = ','.join([f"{model_nm}_{val}" for val in values])
+        else:
+            delv_one_plus_one_detail = ''
+        
+        # 옵션상세명칭(1) 조회
+        
+        
         if gubun == "마스터":
             char_1_val = self.source_data.get('char_1_val', '')
             return char_1_val if char_1_val is not None else ''
