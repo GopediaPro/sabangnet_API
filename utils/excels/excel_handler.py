@@ -1099,7 +1099,7 @@ class ExcelHandler:
                     _add_to_cell(ws[f"F{row}"], matched_island["add_dsp"], red_font)
                 
                 # cost 처리
-                if matched_island["cost"]:
+                if "cost" in matched_island and matched_island["cost"]:
                     _add_cost_to_cell(ws[f"D{row}"], matched_island["cost"])
                     _add_to_cell(ws[f"V{row}"], matched_island["cost"], black_font)
 
