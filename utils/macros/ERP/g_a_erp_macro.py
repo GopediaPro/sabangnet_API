@@ -5,15 +5,17 @@ from openpyxl.worksheet.worksheet import Worksheet
 from utils.logs.sabangnet_logger import get_logger
 from utils.excels.excel_handler import ExcelHandler
 from utils.excels.excel_column_handler import ExcelColumnHandler
+from utils.macros.ERP.utils import average_duplicate_cart_address_amounts
 
 
 logger = get_logger(__name__)
 
 
 class ERPGmaAucMacro:
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str, is_star: bool = False):
         self.ex: ExcelHandler = ExcelHandler.from_file(file_path)
         self.file_path = file_path
+        self.is_star = is_star
         self.ws: Worksheet = self.ex.ws
         self.wb: Workbook = self.ex.wb
         self.basket_dict = {}
@@ -80,7 +82,11 @@ class ERPGmaAucMacro:
                 col_h.convert_int_column(ws[f"V{row}"])
 
             logger.info(f"[{ws.title}] 서식 및 디자인 적용 완료")
-
+        
+        # 장바구니번호와 수취인주소 조합으로 그룹화 후 평균 금액 적용 (스타배송 모드에서만)
+        if self.is_star:
+            average_duplicate_cart_address_amounts(self.ws)
+        
         output_path = self.ex.save_file(self.file_path)
         logger.info(f"✓ G,옥 ERP 자동화 완료! 최종 파일: {output_path}")
         return output_path
