@@ -372,7 +372,13 @@ class DataProcessingUsecase:
                 raise ValueError(
                     f"Macro '{macro_name}' not found in MACRO_MAP.")
             try:
-                result = macro_func(file_path, is_star)
+                # ERP 매크로와 합포장 매크로를 구분하여 호출
+                if macro_name in ["AliMacro", "ZigzagMacro", "BrandiMacro", "ECTSiteMacro", "GmarketAuctionMacro"]:
+                    # ERP 매크로: file_path와 is_star 두 개 인자 전달
+                    result = macro_func(file_path, is_star)
+                else:
+                    # 합포장 매크로: file_path 하나만 전달
+                    result = macro_func(file_path)
                 logger.info(
                     f"Macro '{macro_name}' executed successfully. file_path={result}")
                 return result
