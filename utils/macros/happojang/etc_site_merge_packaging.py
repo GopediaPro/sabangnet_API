@@ -440,7 +440,7 @@ class ETCSheetManager:
 
     def _calculate_d_column_custom(self, ws: Worksheet) -> None:
         """
-        D열 계산: U + V(슬래시 합산) + 제주도 추가비용
+        D열 계산: U + V(슬래시 합산)
         """
         for row in range(2, ws.max_row + 1):
             # C열 이름 확인 (김비비 디버깅용)
@@ -448,7 +448,6 @@ class ETCSheetManager:
             
             u_val = ws[f'U{row}'].value or 0
             v_val = ws[f'V{row}'].value or 0
-            addr = str(ws[f'J{row}'].value or "")  # J열 주소 확인
             
             # V열 처리: "/" 구분자가 있으면 모든 숫자를 합산 (P열과 동일)
             v_num = 0
@@ -465,11 +464,9 @@ class ETCSheetManager:
                 except (ValueError, TypeError):
                     v_num = 0
             
-            # 제주도 추가비용 3000원
-            jeju_fee = 3000 if "제주" in addr else 0
             
             # D열에 계산 결과 설정
-            calculated_d = u_val + v_num + jeju_fee
+            calculated_d = u_val + v_num
             ws[f'D{row}'].value = calculated_d
 
     def _split_slash_values(self, value, expected_count: int) -> List[str]:
