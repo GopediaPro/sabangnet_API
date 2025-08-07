@@ -51,7 +51,7 @@ class DownFormOrderDto(BaseDTO):
     location_nm: Optional[str] = Field(None, description="Location")
 
     # 수량 및 가격 정보
-    sale_cnt: Optional[int] = Field(None, description="수량")
+    sale_cnt: Optional[str] = Field(None, description="수량")
     pay_cost: Optional[Decimal] = Field(None, description="결제금액")
     delv_cost: Optional[Decimal] = Field(None, description="배송비(수집)")
     total_cost: Optional[Decimal] = Field(None, description="주문금액")
