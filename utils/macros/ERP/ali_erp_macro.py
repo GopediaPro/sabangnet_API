@@ -1,12 +1,14 @@
 import openpyxl
 from utils.excels.excel_handler import ExcelHandler
 from utils.excels.excel_column_handler import ExcelColumnHandler
+from utils.macros.ERP.utils import average_duplicate_cart_address_amounts
 
 
 class ERPAliMacro:
-    def __init__(self, file_path):
+    def __init__(self, file_path, is_star: bool = False):
         self.ex = ExcelHandler.from_file(file_path)
         self.file_path = file_path
+        self.is_star = is_star
         self.ws = self.ex.ws
         self.wb = self.ex.wb
 
@@ -62,6 +64,10 @@ class ERPAliMacro:
                     ws[f"F{row}"], ws[f"S{row}"], vlookup_dict)
             print(f"[{ws.title}] 서식 및 디자인 적용 완료")
 
+        # 장바구니번호와 수취인주소 조합으로 그룹화 후 평균 금액 적용 (스타배송 모드에서만)
+        if self.is_star:
+            average_duplicate_cart_address_amounts(self.ws)
+        
         output_path = self.ex.save_file(self.file_path)
         print(f"✓ 알리 ERP 자동화 완료! 최종 파일: {output_path}")
         return output_path

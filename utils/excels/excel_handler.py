@@ -12,6 +12,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.styles import Font, PatternFill, Alignment, Border
 from utils.logs.sabangnet_logger import get_logger
 
+logger = get_logger(__name__)
 """
 주문관리 Excel 파일 매크로 공통 처리 메소드
 - 기본 서식 설정
@@ -1037,59 +1038,70 @@ class ExcelHandler:
     def add_island_delivery(self, wb=None):
         """
         도서지역 쇼핑몰별 배송비 추가 
+        B = 사이트명, D = 금액, F = 모델명, V = 배송비, J = 주소
         """
+        def _add_to_cell(cell, value, font=None):
+            """셀에 값을 추가하는 헬퍼 함수"""
+            if cell.value:
+                cell.value += value
+            else:
+                cell.value = value
+            if font:
+                cell.font = font
+        
+        def _add_cost_to_cell(cell, cost):
+            """숫자 셀에 cost를 추가하는 헬퍼 함수"""
+            current_value = int(cell.value) if cell.value else 0
+            cell.value = str(current_value + cost)
+        
         red_font = Font(color="FF0000", bold=True)
         black_font = Font(color="000000", bold=False, size=9)
-        island_dict: list[dict] = [{"site_name": "GSSHOP", "fid_dsp": "GSSHOP", "cost": 3000, "add_dsp": None},
-                                   {'site_name': "텐바이텐", "fid_dsp": "텐바이텐", "cost": 3000,
-                                       "add_dsp": "3000원 연락해야함, 어드민 조회필요(외부몰/자체몰)"},
-                                   {'site_name': "쿠팡", "fid_dsp": "쿠팡",
-                                       "cost": 3000, "add_dsp": None},
-                                   {'site_name': "무신사", "fid_dsp": "무신사",
-                                       "cost": 3000, "add_dsp": None},
-                                   {'site_name': "NS홈쇼핑", "fid_dsp": "NS홈쇼핑",
-                                       "cost": 3000, "add_dsp": None},
-                                   {'site_name': "CJ온스타일", "fid_dsp": "CJ온스타일",
-                                       "cost": 3000, "add_dsp": None},
-                                   {'site_name': "브랜디", "fid_dsp": "브랜디",
-                                       "cost": 3000, "add_dsp": "3000원 연락해야함"},
-                                   {'site_name': "에이블리", "fid_dsp": "에이블리",
-                                       "cost": 3000, "add_dsp": None},
-                                   {'site_name': "보리보리", "fid_dsp": "보리보리",
-                                       "cost": 3000, "add_dsp": "3000원 연락해야함"},
-                                   {'site_name': "지그재그", "fid_dsp": "지그재그",
-                                       "cost": 3000, "add_dsp": None},
-                                   {'site_name': "카카오톡선물하기", "fid_dsp": "카카오선물하기",
-                                       "cost": 3000, "add_dsp": "3000원 연락해야함"},
-                                   {'site_name': "11번가", "fid_dsp": "11번가",
-                                       "cost": 5000, "add_dsp": None},
-                                   {'site_name': "홈&쇼핑", "fid_dsp": "홈&쇼핑",
-                                       "cost": 3000, "add_dsp": "3000원 연락해야함"},
-                                   ]
+        
+        island_dict = [
+            {"site_name": "GSSHOP", "fid_dsp": "GSSHOP", "cost": 3000, "add_dsp": None},
+            {"site_name": "텐바이텐", "fid_dsp": "텐바이텐", "add_dsp": "3000원 연락해야함, 어드민 조회필요(외부몰/자체몰)"},
+            {"site_name": "쿠팡", "fid_dsp": "쿠팡", "cost": 3000, "add_dsp": None},
+            {"site_name": "무신사", "fid_dsp": "무신사", "cost": 3000, "add_dsp": None},
+            {"site_name": "NS홈쇼핑", "fid_dsp": "NS홈쇼핑", "cost": 3000, "add_dsp": None},
+            {"site_name": "CJ온스타일", "fid_dsp": "CJ온스타일", "cost": 3000, "add_dsp": None},
+            {"site_name": "오늘의집", "fid_dsp": "오늘의집", "cost": 3000, "add_dsp": None},
+            {"site_name": "브랜디", "fid_dsp": "브랜디", "add_dsp": "3000원 연락해야함"},
+            {"site_name": "에이블리", "fid_dsp": "에이블리", "cost": 3000, "add_dsp": None},
+            {"site_name": "보리보리", "fid_dsp": "보리보리", "add_dsp": "3000원 연락해야함"},
+            {"site_name": "지그재그", "fid_dsp": "지그재그", "cost": 3000, "add_dsp": None},
+            {"site_name": "카카오톡선물하기", "fid_dsp": "카카오선물하기", "add_dsp": "3000원 연락해야함"},
+            {"site_name": "11번가", "fid_dsp": "11번가", "cost": 5000, "add_dsp": None},
+            {"site_name": "홈&쇼핑", "fid_dsp": "홈&쇼핑", "add_dsp": "3000원 연락해야함"},
+        ]
+        
         if wb is None:
             wb = self.wb
+            
         for ws in wb:
             for row in range(2, ws.max_row + 1):
-                # 주소에 제주가 포함된 경우
-                if "제주" in ws[f"J{row}"].value:
-                    for island in island_dict:
-                        site_name: str = ws[f"B{row}"].value
-                        # 사이트명이 포함된 경우
-                        if island["fid_dsp"] in site_name:
-                            # 처리 여부 확인
-                            if island["add_dsp"]:
-                                ws[f"F{row}"].value += island["add_dsp"]
-                                ws[f"F{row}"].font = red_font
-                                if "텐바이텐" in site_name:
-                                    ws[f"D{row}"].value = str(
-                                        int(ws[f"D{row}"].value) + island["cost"])
-                                    ws[f"V{row}"].value += island["cost"]
-                                    ws[f"V{row}"].font = black_font
-                            else:
-                                ws[f"D{row}"].value = str(
-                                    int(ws[f"D{row}"].value) + island["cost"])
-                                ws[f"V{row}"].value += island["cost"]
-                                ws[f"V{row}"].font = black_font
+                # 제주 주소가 아니면 건너뛰기
+                if "제주" not in ws[f"J{row}"].value:
+                    continue
+                    
+                site_name = ws[f"B{row}"].value
+                
+                # 매칭되는 사이트 찾기
+                matched_island = next(
+                    (island for island in island_dict if island["fid_dsp"] in site_name), 
+                    None
+                )
+                
+                if not matched_island:
+                    continue
+                
+                # add_dsp 처리
+                if matched_island["add_dsp"]:
+                    _add_to_cell(ws[f"F{row}"], matched_island["add_dsp"], red_font)
+                
+                # cost 처리
+                if "cost" in matched_island and matched_island["cost"]:
+                    _add_cost_to_cell(ws[f"D{row}"], matched_island["cost"])
+                    _add_to_cell(ws[f"V{row}"], matched_island["cost"], black_font)
 
     @staticmethod
     def merge_excel_files(file_paths: List[str], output_path: str = None, sheet_index: int = 0) -> str:

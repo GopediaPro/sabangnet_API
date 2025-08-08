@@ -325,7 +325,7 @@ class DataProcessingUsecase:
             f"[END] save_down_form_orders_from_macro_run_excel | saved_count={saved_count}")
         return saved_count
 
-    async def process_macro_with_tempfile(self, template_code: str, file: UploadFile, sub_site: str = None) -> tuple[str, str]:
+    async def process_macro_with_tempfile(self, template_code: str, file: UploadFile, sub_site: str = None, is_star: bool = False) -> tuple[str, str]:
         """
         1. 업로드 파일을 임시 파일로 저장
         2. 매크로 실행 (run_macro_with_file)
@@ -337,19 +337,25 @@ class DataProcessingUsecase:
         file_name = file.filename
         temp_upload_file_path = temp_file_to_object_name(file)
         try:
-            file_path = await self.run_macro_with_file(template_code, temp_upload_file_path, sub_site)
+            file_path = await self.run_macro_with_file(template_code, temp_upload_file_path, sub_site, is_star)
         finally:
             delete_temp_file(temp_upload_file_path)
         return file_name, file_path
 
-    async def run_macro_with_file(self, template_code: str, file_path: str, sub_site: str = None) -> str:
+    async def run_macro_with_file(self, template_code: str, file_path: str, sub_site: str = None, is_star: bool = False) -> str:
         """
         1. 템플릿 설정 조회
         2. 템플릿 코드에 해당하는 데이터를 조회하여 매크로 실행
         3. 데이터를 저장하고 저장된 경로를 반환
         """
         logger.info(
-            f"run_macro called with template_code={template_code}, file_path={file_path}, sub_site={sub_site}")
+            f"run_macro called with template_code={template_code}, file_path={file_path}, sub_site={sub_site}, is_star={is_star}")
+
+        # is_star=True인 경우 B열 사이트 값에 "-스타배송" 추가
+        if is_star:
+            logger.info(f"스타배송 모드 활성화 - B열 사이트 값 수정 시작")
+            file_path = self.order_macro_utils.modify_site_column_for_star_delivery(file_path)
+            logger.info(f"스타배송 수정 완료: {file_path}")
 
         # sub_site가 있으면 해당하는 매크로명 조회, 없으면 기본 매크로명 조회
         if sub_site:
@@ -366,7 +372,13 @@ class DataProcessingUsecase:
                 raise ValueError(
                     f"Macro '{macro_name}' not found in MACRO_MAP.")
             try:
-                result = macro_func(file_path)
+                # ERP 매크로와 합포장 매크로를 구분하여 호출
+                if macro_name in ["AliMacro", "ZigzagMacro", "BrandiMacro", "ECTSiteMacro", "GmarketAuctionMacro"]:
+                    # ERP 매크로: file_path와 is_star 두 개 인자 전달
+                    result = macro_func(file_path, is_star)
+                else:
+                    # 합포장 매크로: file_path 하나만 전달
+                    result = macro_func(file_path)
                 logger.info(
                     f"Macro '{macro_name}' executed successfully. file_path={result}")
                 return result
@@ -487,15 +499,15 @@ class DataProcessingUsecase:
             # 2. 파일명 파싱하여 sub_site 정보 추출
             parsed = self.parse_filename(original_filename)
             sub_site = parsed.get('sub_site')
-            logger.info(f"sub_site: {sub_site}")
+            is_star = parsed.get('is_star')
+            logger.info(f"sub_site: {sub_site} | is_star: {is_star}")
 
             # 3. 임시 파일 생성 및 매크로 실행
-            file_name, file_path = await self.process_macro_with_tempfile(template_code, file, sub_site)
+            file_name, file_path = await self.process_macro_with_tempfile(template_code, file, sub_site, is_star)
             logger.info(
                 f"temporary file path: {file_path} | file name: {file_name}")
-            
-            # 4. 도서지역 배송비 추가
             ex = ExcelHandler.from_file(file_path, sheet_index=0)
+            # 4. 도서지역 배송비 추가
             ex.add_island_delivery(ex.wb)
 
             # 5. 템플릿 코드 추가

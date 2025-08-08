@@ -1,6 +1,8 @@
 # std
 import re
 from collections import defaultdict
+import openpyxl
+from openpyxl import load_workbook
 # utils
 from utils.logs.sabangnet_logger import get_logger
 # erp
@@ -42,20 +44,76 @@ class OrderMacroUtils:
             "etc_site_merge_packaging": etc_site_merge_packaging,
         }
 
-    def run_ali_macro(self, file_path: str) -> int:
-        return ERPAliMacro(file_path).ali_erp_macro_run()
+    def run_ali_macro(self, file_path: str, is_star: bool = False) -> int:
+        return ERPAliMacro(file_path, is_star).ali_erp_macro_run()
 
-    def run_etc_site_macro(self, file_path: str) -> int:
-        return ERPEtcSiteMacro(file_path).etc_site_macro_run()
+    def run_etc_site_macro(self, file_path: str, is_star: bool = False) -> int:
+        return ERPEtcSiteMacro(file_path, is_star).etc_site_macro_run()
 
-    def run_gmarket_auction_macro(self, file_path: str) -> int:
-        return ERPGmaAucMacro(file_path).gauc_erp_macro_run()
+    def run_gmarket_auction_macro(self, file_path: str, is_star: bool = False) -> int:
+        return ERPGmaAucMacro(file_path, is_star).gauc_erp_macro_run()
 
-    def run_brandi_macro(self, file_path: str) -> int:
-        return ERPBrandiMacro(file_path).brandi_erp_macro_run()
+    def run_brandi_macro(self, file_path: str, is_star: bool = False) -> int:
+        return ERPBrandiMacro(file_path, is_star).brandi_erp_macro_run()
 
-    def run_zigzag_macro(self, file_path: str) -> int:
-        return ERPZigzagMacro(file_path).zigzag_erp_macro_run()
+    def run_zigzag_macro(self, file_path: str, is_star: bool = False) -> int:
+        return ERPZigzagMacro(file_path, is_star).zigzag_erp_macro_run()
+
+    def modify_site_column_for_star_delivery(self, file_path: str) -> str:
+        """
+        is_star=True일 때 B열(사이트) 값에 "-스타배송" 추가
+        Args:
+            file_path: Excel 파일 경로
+        Returns:
+            수정된 파일 경로
+        """
+        try:
+            # Excel 파일 로드
+            workbook = load_workbook(file_path)
+            worksheet = workbook.active
+            
+            # B열(사이트)의 모든 셀을 순회하며 수정
+            for row in range(2, worksheet.max_row + 1):  # 헤더 제외하고 2행부터 시작
+                cell = worksheet[f'B{row}']
+                if cell.value:
+                    original_value = str(cell.value)
+                    modified_value = self._add_star_delivery_suffix(original_value)
+                    if modified_value != original_value:
+                        cell.value = modified_value
+                        logger.info(f"B{row} 수정: '{original_value}' -> '{modified_value}'")
+            
+            # 수정된 파일 저장
+            workbook.save(file_path)
+            logger.info(f"스타배송 수정 완료: {file_path}")
+            return file_path
+            
+        except Exception as e:
+            logger.error(f"스타배송 수정 중 오류 발생: {e}")
+            raise
+
+    def _add_star_delivery_suffix(self, site_value: str) -> str:
+        """
+        사이트 값에 "-스타배송" 추가
+        Args:
+            site_value: 원본 사이트 값 (예: "[베이지베이글]G마켓2.0")
+        Returns:
+            수정된 사이트 값 (예: "[베이지베이글-스타배송]G마켓2.0")
+        """
+        if not site_value:
+            return site_value
+        
+        # ']' 문자를 찾아서 그 앞에 "-스타배송" 추가
+        if ']' in site_value:
+            # ']' 위치를 찾아서 그 앞에 "-스타배송" 삽입
+            bracket_end_index = site_value.find(']')
+            if bracket_end_index > 0:
+                # ']' 앞에 이미 "-스타배송"이 있는지 확인
+                before_bracket = site_value[:bracket_end_index]
+                if "-스타배송" not in before_bracket:
+                    modified_value = site_value[:bracket_end_index] + "-스타배송" + site_value[bracket_end_index:]
+                    return modified_value
+        
+        return site_value
 
     def process_orders_for_db(self, dto_list: list[DownFormOrderDto]) -> list[dict]:
         """DB 저장을 위한 주문 리스트 전체 처리"""

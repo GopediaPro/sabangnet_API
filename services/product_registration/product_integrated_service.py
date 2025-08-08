@@ -16,8 +16,9 @@ from models.product.product_registration_data import ProductRegistrationRawData
 from repository.product_mycategory_repository import ProductMyCategoryRepository
 from services.product_registration.product_registration_service import ProductRegistrationService
 from schemas.product_registration import ExcelProcessResultDto, ProductRegistrationBulkResponseDto, ExcelImportResponseDto
+from utils.make_xml.sabang_api_result_parser import SabangApiResultParser
 
-logger = get_logger(__name__, level="DEBUG")
+logger = get_logger(__name__)
 
 class ProductCodeIntegratedService:
     """품번코드대량등록툴 통합 서비스"""
@@ -44,6 +45,7 @@ class ProductCodeIntegratedService:
         """
         product_registration_raw_data 테이블에서 데이터를 읽어 generate_product_code_data로 변환 후,
         test_product_raw_data 테이블에 저장하는 비동기 통합 함수 (유효성 검증 제외)
+        company_goods_cd가 매칭되면 update, 없으면 create 수행
         Args:
             limit: 조회할 데이터 수 제한
             offset: 조회 시작 위치
@@ -67,7 +69,8 @@ class ProductCodeIntegratedService:
                 logger.info(f"Data {i+1}: {reg_data.to_dict()}")
             
             success, failed = [], []
-            product_raw_data_list = []
+            updated_count, created_count = 0, 0
+            
             # logger.info(f"registration_data_list log value: {registration_data_list}")
             for reg in registration_data_list:
                 reg_dict = reg.to_dict() if hasattr(reg, 'to_dict') else dict(reg.__dict__)
@@ -81,21 +84,49 @@ class ProductCodeIntegratedService:
                     try:
                         service = ProductCodeRegistrationService(reg_dict, class_cd_dict)
                         code_data = service.generate_product_code_data(product_nm, gubun)
-                        product_raw_data_list.append(code_data)
-                        success.append({'product_nm': product_nm, 'gubun': gubun, })
+                        
+                        # company_goods_cd로 upsert 수행
+                        company_goods_cd = code_data.get('compayny_goods_cd')
+                        if company_goods_cd:
+                            # upsert 메서드 사용
+                            upsert_result = await self.prod_repo.upsert_product_raw_data(code_data)
+                            if upsert_result['success']:
+                                if upsert_result['action'] == 'updated':
+                                    updated_count += 1
+                                else:
+                                    created_count += 1
+                                success.append({
+                                    'product_nm': product_nm, 
+                                    'gubun': gubun, 
+                                    'company_goods_cd': company_goods_cd,
+                                    'action': upsert_result['action']
+                                })
+                            else:
+                                failed.append({
+                                    'product_nm': product_nm, 
+                                    'gubun': gubun, 
+                                    'error': 'upsert 실패',
+                                    'company_goods_cd': company_goods_cd
+                                })
+                        else:
+                            logger.warning(f"company_goods_cd가 생성되지 않음: {product_nm} ({gubun})")
+                            failed.append({'product_nm': product_nm, 'gubun': gubun, 'error': 'company_goods_cd 생성 실패'})
+                            
                     except Exception as e:
-                        logger.error(f"[generate_and_save_all_product_code_data] Error generating product code for '{product_nm}' ({gubun}): {str(e)}")
+                        logger.error(f"[generate_and_save_all_product_code_data] Error processing product code for '{product_nm}' ({gubun}): {str(e)}")
                         failed.append({'product_nm': product_nm, 'gubun': gubun, 'error': str(e)})
 
-            # 3. Bulk insert into test_product_raw_data
-            if product_raw_data_list:
-                try:
-                    await self.prod_repo.product_raw_data_create(product_raw_data_list)
-                except Exception as e:
-                    logger.error(f"[generate_and_save_all_product_code_data] Bulk insert error: {str(e)}")
-                    failed.append({'bulk_insert_error': str(e)})
-
-            return {'success': success, 'failed': failed}
+            logger.info(f"처리 완료 - 생성: {created_count}개, 업데이트: {updated_count}개, 실패: {len(failed)}개")
+            return {
+                'success': success, 
+                'failed': failed,
+                'summary': {
+                    'created_count': created_count,
+                    'updated_count': updated_count,
+                    'failed_count': len(failed),
+                    'total_processed': len(success) + len(failed)
+                }
+            }
 
     async def _process_excel_and_db_storage(self, file_path: str, sheet_name: str) -> Tuple[ExcelProcessResultDto, ProductRegistrationBulkResponseDto]:
         """1단계: Excel 파일 처리 및 DB 저장"""
@@ -133,8 +164,15 @@ class ProductCodeIntegratedService:
             sabang_result = await product_registration_service.process_db_to_xml_and_sabangnet_request()
             logger.info(f"[DEBUG] process_db_to_xml_and_sabangnet_request 호출 완료, 결과: {sabang_result}, 타입: {type(sabang_result)}")
         
+        # sabang_api_result 추출
+        sabang_api_result = sabang_result.get('sabang_api_result', {})
+        logger.info(f"사방넷 API 응답 파싱 결과: {sabang_api_result}")
+        
         logger.info(f"3단계 완료: {sabang_result['processed_count']}개 상품 처리")
-        return sabang_result
+        return {
+            **sabang_result,
+            'sabang_api_result': sabang_api_result
+        }
 
     async def process_complete_product_registration_workflow(
         self, 
