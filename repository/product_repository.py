@@ -180,7 +180,7 @@ class ProductRepository:
     async def find_product_raw_data_by_company_goods_cd(self, company_goods_cd: str) -> ProductRawData:
         query = select(ProductRawData).where(ProductRawData.compayny_goods_cd == company_goods_cd)
         result = await self.session.execute(query)
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
     async def update_product_raw_data_by_company_goods_cd(self, company_goods_cd: str, update_data: dict) -> bool:
         """
