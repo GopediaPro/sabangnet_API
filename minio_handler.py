@@ -71,9 +71,13 @@ def remove_port_from_url(url):
         host = parsed.netloc.split(':')[0]
     else:
         host = parsed.netloc
+    
+    # HTTP를 HTTPS로 변경
+    scheme = 'https' if parsed.scheme == 'http' else parsed.scheme
+    
     # 다시 URL로 조립
     new_url = urlunparse((
-        parsed.scheme,
+        scheme,
         host,
         parsed.path,
         parsed.params,
