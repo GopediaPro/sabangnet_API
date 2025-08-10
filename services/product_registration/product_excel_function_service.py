@@ -168,8 +168,8 @@ class ProductCodeRegistrationService:
             # 부가이미지들 (AO~AW) - 빈 값으로 설정
             for i in range(2, 5):
                 result[f'img_path{i}'] = self._get_mall_jpg_image(product_nm, gubun, i)
-            for i in range(6, 10):
-                result[f'img_path{i}'] = self.source_data.get('img_path1', '')
+            for i in range(6, 11):
+                result[f'img_path{i}'] = self._get_mall_jpg_image(product_nm, gubun, i)
 
             # 추가 상세설명[필수] (AX)
             result['goods_remarks'] = self._get_product_detail_description(product_nm, gubun)
@@ -209,6 +209,8 @@ class ProductCodeRegistrationService:
             # 원산지 상세지역 (CF)
             # 수입신고번호 (CG)
             # 수입면장이미지 (CH)
+            # 속성 수정 여부 (CH)
+            result['prop_edit_yn'] = "Y"
             # 속성분류코드[필수] (CI)
             result['prop1_cd'] = "035"
             # 속성값1~8
@@ -486,6 +488,17 @@ class ProductCodeRegistrationService:
         #   IF(G6="전문몰",VLOOKUP(F6,importrange("same file","상품등록!$k:$az"),13,0),
         #     IF(G6="1+1",VLOOKUP(F6,importrange("same file","상품등록!$k:$az"),21,0))))
         # 13번째 컬럼은 img_path
+        # i = 6 ~ 10까지는 img_path1 ~ img_path5로 대체
+        if i == 6:
+            return self.source_data.get('img_path1', '')
+        elif i == 7:
+            return self.source_data.get('img_path2', '')
+        elif i == 8:
+            return self.source_data.get('img_path3', '')
+        elif i == 9:
+            return self.source_data.get('img_path4', '')
+        elif i == 10:
+            return self.source_data.get('img_path5', '')
         if i == 21:
             return self.source_data.get('mobile_bn', '')
         elif gubun in ["마스터", "전문몰"]:
