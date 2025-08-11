@@ -1,7 +1,7 @@
 import openpyxl
 from utils.excels.excel_handler import ExcelHandler
 from utils.excels.excel_column_handler import ExcelColumnHandler
-from utils.macros.ERP.utils import average_duplicate_cart_address_amounts
+from utils.macros.ERP.utils import average_duplicate_order_address_amounts
 
 
 class ERPAliMacro:
@@ -56,7 +56,6 @@ class ERPAliMacro:
                 col_h.d_column(
                     # =U2+V2
                     self.ws[f'D{row}'], self.ws[f'U{row}'], self.ws[f'V{row}'])
-                self._jeju_address_column(ws, row, ws[f"J{row}"])
                 col_h.convert_int_column(ws[f"P{row}"])
                 col_h.convert_int_column(ws[f"Q{row}"])
                 # VLOOKUP 적용
@@ -66,7 +65,7 @@ class ERPAliMacro:
 
         # 장바구니번호와 수취인주소 조합으로 그룹화 후 평균 금액 적용 (스타배송 모드에서만)
         if self.is_star:
-            average_duplicate_cart_address_amounts(self.ws)
+            average_duplicate_order_address_amounts(self.ws)
         
         output_path = self.ex.save_file(self.file_path)
         print(f"✓ 알리 ERP 자동화 완료! 최종 파일: {output_path}")
@@ -110,16 +109,6 @@ class ERPAliMacro:
                     formatted = i_cell.value
                 i_cell.value = formatted
             h_cell.value = i_cell.value
-
-    def _jeju_address_column(self, ws, row, cell):
-        """
-        제주 주소 포맷
-        args:
-            cell: 대상 셀 (J)
-        """
-        if cell.value and "제주" in str(cell.value):
-            self.ex.process_jeju_address(
-                ws, row, f_col='F', j_col='J')
 
     def _vlookup_column(self, key_cell, value_cell, vlookup_dict):
         """
