@@ -10,8 +10,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 from utils.excels.excel_handler import ExcelHandler
-
-import pandas as pd
+from utils.macros.happojang.utils import process_slash_separated_columns
 
 # 설정 상수
 MALL_NAME = "기타사이트"
@@ -50,7 +49,7 @@ class ETCSiteConfig:
         "카카오톡스토어": 10,  
         "위메프": 13,
         "인터파크": 12,
-        "쿠팡": 13,
+        "쿠팡": 14,
         "티몬": 12,
         "하이마트": 12
     }
@@ -427,6 +426,9 @@ class ETCSheetManager:
         # 9. 문자열→숫자 변환 
         ex.convert_numeric_strings(cols=("F","M", "AA"))
 
+        # sale_cnt (G열) '/' 구분자 합산
+        process_slash_separated_columns(ws, ['G'])
+        
         # 10. 열 정렬
         ex.set_column_alignment()
         # F열 왼쪽정렬 
