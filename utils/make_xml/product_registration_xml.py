@@ -2,6 +2,7 @@ from typing import Any
 from pathlib import Path
 from datetime import datetime
 import xml.etree.ElementTree as ET
+import html
 from core.settings import SETTINGS
 from utils.logs.sabangnet_logger import get_logger
 from utils.make_xml.sabangnet_xml import SabangnetXml
@@ -39,7 +40,13 @@ class ProductRegistrationXml(SabangnetXml):
                     self._make_test_xml_element(xml_tag_name, db_field, db_value, data, row_idx)
                 else:
                     child = ET.SubElement(data, xml_tag_name)
-                    child.text = str(db_value) if db_value is not None else ""
+                    # HTML 엔티티가 인코딩된 경우 디코딩하여 원본 텍스트로 복원
+                    if db_value is not None:
+                        # HTML 엔티티 디코딩 (예: &lt; -> <, &gt; -> >)
+                        decoded_value = html.unescape(str(db_value))
+                        child.text = decoded_value
+                    else:
+                        child.text = ""
         
         return data
 
@@ -89,9 +96,15 @@ class ProductRegistrationXml(SabangnetXml):
         file_path = Path(file_name)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # 임시로 메모리에 XML 문자열 생성
+        xml_string = ET.tostring(root, encoding='unicode')
+        
+        # HTML 엔티티를 원본으로 복원 (XML 라이브러리가 자동으로 인코딩한 것을 되돌림)
+        xml_string = xml_string.replace('&lt;', '<').replace('&gt;', '>')
+        
         with open(file_path, "wb") as f:
             f.write('<?xml version="1.0" encoding="euc-kr"?>\n'.encode("EUC-KR"))
-            tree.write(f, encoding='EUC-KR', xml_declaration=False)
+            f.write(xml_string.encode("EUC-KR"))
         
         return file_path
 

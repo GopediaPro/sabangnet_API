@@ -36,7 +36,7 @@ class BaseFormOrder(Base):
     location_nm: Mapped[str | None] = mapped_column(Text)
     
     # 수량 및 판매 정보
-    sale_cnt: Mapped[int | None] = mapped_column(Integer)
+    sale_cnt: Mapped[str | None] = mapped_column(String(25))
     
     # 금액 정보
     pay_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))

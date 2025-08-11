@@ -117,6 +117,7 @@ class ProductRawData(Base):
     # 옵션·속성 제어
     opt_type: Mapped[int | None] = mapped_column(SmallInteger, default=2)
     prop1_cd: Mapped[str | None] = mapped_column(CHAR(3))
+    prop_edit_yn: Mapped[str | None] = mapped_column(CHAR(1))
 
     # 속성값 1-33
     prop_val1: Mapped[str | None] = mapped_column(String(25))
