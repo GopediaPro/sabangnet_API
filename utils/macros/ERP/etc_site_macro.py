@@ -1,7 +1,7 @@
 from openpyxl.styles import Font, Alignment
 from utils.excels.excel_handler import ExcelHandler
 from utils.excels.excel_column_handler import ExcelColumnHandler
-from utils.macros.ERP.utils import average_duplicate_cart_address_amounts
+from utils.macros.ERP.utils import average_duplicate_order_address_amounts
 
 
 class ERPEtcSiteMacro:
@@ -20,8 +20,6 @@ class ERPEtcSiteMacro:
             self._overlap_by_site_column(self.ws[f"B{row}"], row)
             self._toss_process_column(self.ws[f"B{row}"], row)
             self._order_num_by_site_column(self.ws[f"B{row}"])
-            self._kakao_jeju_process_column(
-                self.ws[f"B{row}"], self.ws[f"J{row}"], self.ws[f"F{row}"])
             col_h.h_i_column(self.ws[f"H{row}"])
             col_h.h_i_column(self.ws[f"I{row}"])
         
@@ -65,7 +63,7 @@ class ERPEtcSiteMacro:
             print(f"[{ws.title}] 서식 및 디자인 적용 완료")
         # 장바구니번호와 수취인주소 조합으로 그룹화 후 평균 금액 적용 (스타배송 모드에서만)
         if self.is_star:
-            average_duplicate_cart_address_amounts(self.ws)
+            average_duplicate_order_address_amounts(self.ws)
         
         output_path = self.ex.save_file(self.file_path)
         print(f"✓ 기타 사이트 ERP 자동화 완료! 최종 파일: {output_path}")
@@ -135,23 +133,6 @@ class ERPEtcSiteMacro:
             order_num = cell.value
             if order_num is not None and str(order_num).replace('.', '').isdigit():
                 cell.value = int(float(order_num))
-
-    def _kakao_jeju_process_column(self, b_cell, j_cell, f_cell):
-        """
-        카카오 제주 주문 처리
-        args:
-            b_cell: 주문 번호 셀
-            j_cell: 주소 셀
-            f_cell: 주문 번호 셀
-        """
-        b_text = str(b_cell.value)
-        j_text = str(j_cell.value)
-        if "카카오" in b_text and "제주" in j_text:
-            f_text = str(f_cell.value)
-            if "[3000원 연락해야함]" not in f_text:
-                f_cell.value = f_text + "[3000원 연락해야함]"
-                f_cell.font = Font(color="FF0000", bold=True)
-                
 
     def _v_column_red_font(self, v_cell):
         """
