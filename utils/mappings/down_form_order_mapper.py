@@ -70,7 +70,9 @@ FIELD_TYPE_MAPPING = {
 
     # 정수 필드 (Integer)
     'seq': 'int',
-    'sale_cnt': 'int',
+    
+    # 문자열 필드 (String) - sale_cnt는 문자열로 저장하되 계산시에만 정수로 변환
+    'sale_cnt': 'str',
 
     # Decimal 필드 (Numeric)
     'pay_cost': 'decimal',
