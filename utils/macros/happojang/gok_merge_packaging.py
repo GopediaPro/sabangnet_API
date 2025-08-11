@@ -10,7 +10,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
 from utils.excels.excel_handler import ExcelHandler
-
+from utils.macros.happojang.utils import process_slash_separated_columns
 
 # 설정 상수
 MALL_NAME = "G·옥"
@@ -27,7 +27,7 @@ REQUIRED_SHEETS = list(ACCOUNT_MAPPING.keys())
 
 class GokDataProcessor:
     """G옥 데이터 정리 처리 유틸리티"""
-    MULTI_SEP_RE = re.compile(r"[\/;]")
+    MULTI_SEP_RE = re.compile(r"[\/]")
     BRACKET_RE = re.compile(r"\[(.*?)\]")
     
     @staticmethod
@@ -187,6 +187,9 @@ class GokSheetManager:
         # 9. D열 수식 설정
         # ex.autofill_d_column(formula="=O{row}+P{row}+V{row}")
         ex.calculate_d_column_values(first_col='O', second_col='P', third_col='V')
+
+        # sale_cnt (G열) '/' 구분자 합산
+        process_slash_separated_columns(ws, ['G'])
 
         # 10. 서식 초기화
         ex.clear_fills_from_second_row()
