@@ -184,25 +184,6 @@ def convert_field_to_db_type(field_name: str, value: Any) -> Any:
         elif field_type == 'int':
             if isinstance(value, str) and value.strip() == '':
                 return None
-            # 분수 형태의 문자열 처리 (예: '1/1', '2/3' 등)
-            if isinstance(value, str) and '/' in value:
-                try:
-                    # 분수 계산
-                    parts = value.split('/')
-                    if len(parts) == 2:
-                        numerator = float(parts[0])
-                        denominator = float(parts[1])
-                        if denominator != 0:
-                            return int(numerator / denominator)
-                        else:
-                            logger.warning(f"Division by zero in fraction: {value}")
-                            return None
-                    else:
-                        logger.warning(f"Invalid fraction format: {value}")
-                        return None
-                except (ValueError, TypeError) as e:
-                    logger.warning(f"Error converting fraction {value} to int: {e}")
-                    return None
             try:
                 return int(float(value)) if value else None
             except (ValueError, TypeError) as e:
