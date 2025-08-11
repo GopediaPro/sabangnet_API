@@ -11,7 +11,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.workbook.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 from utils.excels.excel_handler import ExcelHandler
-
+from utils.macros.happojang.utils import process_slash_separated_columns
 
 # 설정 상수
 MALL_NAME = "지그재그"
@@ -222,6 +222,9 @@ def zigzag_merge_packaging(input_path: str) -> str:
 
     # 9. D열 금액 계산 설정 (=U+V)
     ex.calculate_d_column_values(first_col='U', second_col='V')
+
+    # sale_cnt (G열) '/' 구분자 합산
+    process_slash_separated_columns(ws, ['G'])
 
     # ========== 자동화 시트 생성 (맨 앞에 위치) ==========
     # 매크로가 적용된 전체 시트를 "자동화" 이름으로 맨 앞에 복사

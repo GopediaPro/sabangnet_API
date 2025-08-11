@@ -13,6 +13,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.styles import Alignment
 
 from utils.excels.excel_handler import ExcelHandler
+from utils.macros.happojang.utils import process_slash_separated_columns
 
 
 # 설정 상수
@@ -186,12 +187,6 @@ class BrandySheetProcessor:
             for col in ('H', 'I'):
                 cell_value = ws[f'{col}{row}'].value
                 ws[f'{col}{row}'].value = ex.format_phone_number(cell_value)
-        
-        # 9. 제주도 주문 처리
-        for row in range(2, self.last_row + 1):
-            j_value = ws[f'J{row}'].value
-            if j_value and "제주" in str(j_value):
-                ex.process_jeju_address(row)
 
         # 10. 문자열→숫자 변환 2025-07-16 숫자처리 대상 조정
         ex.convert_numeric_strings(cols=("D", "O", "P", "U", "V"))
@@ -204,6 +199,9 @@ class BrandySheetProcessor:
         # Q열 왼쪽정렬 
         for row in range(1, ws.max_row + 1):
             ws[f"Q{row}"].alignment = Alignment(horizontal='left')
+        
+        # sale_cnt (G열) '/' 구분자 합산
+        process_slash_separated_columns(ws, ['G'])
 
         # 11. 열 정렬
         ex.set_column_alignment()
