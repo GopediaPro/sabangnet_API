@@ -122,21 +122,21 @@ class ProductRegistrationRepository:
             logger.error(f"데이터 조회 오류: {e}")
             raise
     
-    async def get_all(self, limit: int = None, offset: int = None) -> list[ProductRegistrationRawData]:
+    async def get_products_all(self, skip: int = 0, limit: int = 100) -> list[ProductRegistrationRawData]:
         """
         모든 상품 등록 데이터를 조회합니다.
         
         Args:
+            skip: 조회 시작 위치 (None이면 0)
             limit: 조회할 데이터 수 제한 (None이면 제한 없음)
-            offset: 조회 시작 위치 (None이면 0)
         
         Returns:
             list[ProductRegistrationRawData]: 조회된 데이터 리스트
         """
         try:
             stmt = select(ProductRegistrationRawData).order_by(ProductRegistrationRawData.created_at.desc())
-            if offset is not None:
-                stmt = stmt.offset(offset)
+            if skip is not None:
+                stmt = stmt.offset(skip)
             if limit is not None:
                 stmt = stmt.limit(limit)
             result = await self.session.execute(stmt)
@@ -145,7 +145,24 @@ class ProductRegistrationRepository:
         except SQLAlchemyError as e:
             logger.error(f"데이터 목록 조회 오류: {e}")
             raise
-    
+
+    async def get_products_by_pagenation(self, page: int = 1, page_size: int = 100) -> list[ProductRegistrationRawData]:
+        """
+        페이징 조회 상품 등록 데이터를 조회합니다.
+        """
+        try:
+            stmt = select(ProductRegistrationRawData).order_by(ProductRegistrationRawData.created_at.desc())
+            if page is not None:
+                stmt = stmt.offset((page - 1) * page_size)
+            if page_size is not None:
+                stmt = stmt.limit(page_size)
+            result = await self.session.execute(stmt)
+            return result.scalars().all()
+        
+        except SQLAlchemyError as e:
+            logger.error(f"데이터 목록 조회 오류: {e}")
+            raise
+
     async def update_by_id(self, id: int, data: ProductRegistrationCreateDto) -> Optional[ProductRegistrationRawData]:
         """
         ID로 상품 등록 데이터를 업데이트합니다.
@@ -274,8 +291,3 @@ class ProductRegistrationRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
       
-async def get_all_registration_data(session: AsyncSession) -> list[ProductRegistrationRawData]:
-    result = await session.execute(
-        select(ProductRegistrationRawData)
-    )
-    return result.scalars().all()

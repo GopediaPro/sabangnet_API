@@ -1,3 +1,8 @@
+"""
+Product API
+기존의 '품번코드대량등록툴' 이라는 엑셀 시트와 관련된 API 엔드포인트
+"""
+
 # std
 import requests
 from pathlib import Path
@@ -58,8 +63,8 @@ except Exception as e:
 
 
 router = APIRouter(
-    prefix="/product",
-    tags=["product"],
+    prefix="/product-bulk-tool",
+    tags=["product-bulk-tool"],
 )
 
 logger.info("Product 라우터 생성 완료")
@@ -81,8 +86,36 @@ def get_product_registration_service(session: AsyncSession = Depends(get_async_s
     return ProductRegistrationService(session=session)
 
 
+@router.get("/all", response_model=ProductPageResponse)
+@product_handler()
+async def get_products_all(
+    skip: int = Query(0, ge=0, description="건너뛸 건수"),
+    limit: int = Query(200, ge=1, description="조회할 건수"),
+    product_read_service: ProductReadService = Depends(get_product_read_service)
+):
+    return ProductPageResponse.builder(
+        products=[ProductResponse.from_dto(product) for product in await product_read_service.get_products_all(skip=skip, limit=limit)],
+        current_page=1,
+        page_size=10000
+    )
+
+
+@router.get("/pagenation", response_model=ProductPageResponse)
+@product_handler()
+async def get_products_by_pagenation(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=1000), # 기본 20건
+    product_read_service: ProductReadService = Depends(get_product_read_service)
+):
+    return ProductPageResponse.builder(
+        products=[ProductResponse.from_dto(product) for product in await product_read_service.get_products_by_pagenation(page=page, page_size=page_size)],
+        current_page=page,
+        page_size=page_size
+    )
+
+
 @router.post("/db-to-xml-all/sabangnet-request", response_model=DbToXmlResponse)
-@product_handler
+@product_handler()
 async def db_to_xml_sabangnet_request_all(
     product_registration_service: ProductRegistrationService = Depends(get_product_registration_service)
 ):
@@ -99,8 +132,9 @@ async def db_to_xml_sabangnet_request_all(
     )
 
 
+# 현재 사용 안함 (n8n 연동 중단 상태)
 @router.post("/excel-to-xml-n8n-test", response_model=dict)
-@product_handler
+@product_handler()
 async def excel_to_xml_n8n_test(request: Request):
     data: dict = await request.json()
     file_name = data.get("fileName")
@@ -125,21 +159,9 @@ async def excel_to_xml_n8n_test(request: Request):
         result: dict = response.json()
         return result
 
-@router.get("", response_model=ProductPageResponse)
-@product_handler
-async def get_products(
-    page: int = Query(1, ge=1),
-    product_read_service: ProductReadService = Depends(get_product_read_service)
-):
-    return ProductPageResponse.builder(
-        products=[ProductResponse.from_dto(product) for product in await product_read_service.get_products_by_pagenation(page=page)],
-        current_page=page,
-        page_size=20
-    )
-
 
 @router.get("/bulk/db-to-excel", response_class=StreamingResponse)
-@product_handler
+@product_handler()
 async def bulk_db_to_excel(
     product_read_service: ProductReadService = Depends(get_product_read_service)
 ) -> StreamingResponse:
