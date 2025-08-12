@@ -387,14 +387,14 @@ class ProductCodeRegistrationService:
         cost_price = self._get_selling_price(product_nm, gubun)
         
         if gubun == "마스터":
-            return int(cost_price + (cost_price * 0.6))
+            return int(cost_price + (cost_price * 0.2))
         elif gubun == "전문몰":
             total_cost = cost_price + 100 + 3000
-            selling_price = total_cost + (total_cost * 0.6)
+            selling_price = total_cost + (total_cost * 0.2)
             # ROUNDUP to nearest 100
             return math.ceil(selling_price / 100) * 100
         elif gubun == "1+1":
-            selling_price = cost_price + (cost_price * 0.6)
+            selling_price = cost_price + (cost_price * 0.2)
             # ROUNDUP to nearest 100
             return math.ceil(selling_price / 100) * 100
         else:
