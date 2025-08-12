@@ -53,18 +53,15 @@ class ProductCreateXml(SabangnetXml):
             xml_tag_name = PRODUCT_CREATE_FIELD_MAPPING.get(excel_header)
             if not xml_tag_name or column_idx < 7: # 태그 매핑 딕셔너리에 없거나, 엑셀 7번째 칼럼까지는 무시
                 continue
-            if SETTINGS.CONPANY_GOODS_CD_TEST_MODE:
-                self._make_test_xml_element(xml_tag_name, excel_header, excel_value, data_element, row_idx)
-            else:
-                if isinstance(xml_tag_name, tuple):
-                    values = [val.strip() for val in excel_value.split(">")] # 3 or 4개의 값이 있음.
-                    for i, category_code in enumerate(values):
-                        if category_code:
-                            child: ET.Element = ET.SubElement(data_element, xml_tag_name[i])
-                            child.text = category_code
-                    continue
-                child: ET.Element = ET.SubElement(data_element, xml_tag_name)
-                child.text = str(excel_value)
+            if isinstance(xml_tag_name, tuple):
+                values = [val.strip() for val in excel_value.split(">")] # 3 or 4개의 값이 있음.
+                for i, category_code in enumerate(values):
+                    if category_code:
+                        child: ET.Element = ET.SubElement(data_element, xml_tag_name[i])
+                        child.text = category_code
+                continue
+            child: ET.Element = ET.SubElement(data_element, xml_tag_name)
+            child.text = str(excel_value)
 
     def _make_test_xml_element(self, xml_tag_name: str, excel_header: str, excel_value: str, data_element: ET.Element, row_idx: int) -> None:
         """
