@@ -1,21 +1,24 @@
-def average_duplicate_cart_address_amounts(ws):
+from utils.logs.sabangnet_logger import get_logger
+logger = get_logger(__name__)
+
+def average_duplicate_order_address_amounts(ws):
     """
-    Q셀(장바구니번호)과 J셀(수취인주소)이 같은 값들의 D셀(금액)을 평균내는 메서드
+    E셀(주문번호)과 J셀(수취인주소)이 같은 값들의 D셀(금액)을 평균내는 메서드
     
     Args:
         ws: openpyxl의 worksheet 객체
     """
-    # 장바구니번호와 수취인주소 조합으로 그룹화
+    # 주문번호와 수취인주소 조합으로 그룹화
     duplicate_groups = {}
     
     for row in range(2, ws.max_row + 1):
-        cart_number = str(ws[f"Q{row}"].value).strip()
+        order_number = str(ws[f"E{row}"].value).strip()
         address = str(ws[f"J{row}"].value).strip()
         amount = ws[f"D{row}"].value
         
         # 빈 값이 아닌 경우에만 처리
-        if cart_number and cart_number != "None" and address and address != "None":
-            key = f"{cart_number}_{address}"
+        if order_number and order_number != "None" and address and address != "None":
+            key = f"{order_number}_{address}"
             
             if key not in duplicate_groups:
                 duplicate_groups[key] = []
@@ -35,4 +38,4 @@ def average_duplicate_cart_address_amounts(ws):
             for item in group:
                 ws[f"D{item['row']}"].value = average_amount
             
-            print(f"장바구니번호-주소 조합 '{key}'의 {len(group)}개 행에 평균 금액 {average_amount:.2f} 적용")
+            logger.info(f"주문번호-주소 조합 '{key}'의 {len(group)}개 행에 평균 금액 {average_amount:.2f} 적용")

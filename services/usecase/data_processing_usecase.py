@@ -68,8 +68,8 @@ class DataProcessingUsecase:
         normalized_filename = normalize_for_comparison(filename)
         is_star = '스타배송' in normalized_filename
         
-        # [사이트타입]-용도타입-세부사이트 추출
-        match = re.search(r'\[([^\]]+)\]-([^-]+?)(?:-([^.]+?))?(?:\.xlsx)?$', filename)
+        # [사이트타입]-용도타입-세부사이트 추출 (구분자: - 또는 _)
+        match = re.search(r'\[([^\]]+)\]-([^-_]+?)(?:[-_]([^.]+?))?(?:\.xlsx)?$', filename)
         
         if not match:
             return {
