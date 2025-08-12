@@ -22,8 +22,23 @@ class ProductRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_products(self, page: int) -> list[ProductRawData]:
-        query = select(ProductRawData).offset((page - 1) * 20).limit(20).order_by(ProductRawData.created_at.desc())
+    async def get_products_all(self, skip: int, limit: int) -> list[ProductRawData]:
+        query = (
+            select(ProductRawData)
+            .offset(skip)
+            .limit(limit)
+            .order_by(ProductRawData.created_at.desc())
+        )
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
+    async def get_products_by_pagenation(self, page: int, page_size: int) -> list[ProductRawData]:
+        query = (
+            select(ProductRawData)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .order_by(ProductRawData.created_at.desc())
+        )
         result = await self.session.execute(query)
         return result.scalars().all()
 
