@@ -106,7 +106,7 @@ PRODUCT_CREATE_FIELD_MAPPING = {
     # 기타
     "관리자메모": "DESCRITION",
     "옵션수정여부": "OPT_TYPE",
-    # "속성수정여부": "PROP_EDIT_YN" -> 디자인업무일지 X 명세서 O
+    "속성수정여부": "PROP_EDIT_YN",
     "영문 상품명": "GOODS_NM_EN",
     "출력 상품명": "GOODS_NM_PR",
     "인증서이미지": "IMG_PATH23",

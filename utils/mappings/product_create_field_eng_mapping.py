@@ -73,6 +73,7 @@ DB_TO_XML_FIELD_MAPPING = {
     "stock_use_yn": "STOCK_USE_YN",
     "opt_type": "OPT_TYPE",
     "prop1_cd": "PROP1_CD",
+    "prop_edit_yn": "PROP_EDIT_YN",
     "prop_val1": "PROP_VAL1",
     "prop_val2": "PROP_VAL2",
     "prop_val3": "PROP_VAL3",
