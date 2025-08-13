@@ -36,18 +36,15 @@ class ProductRegistrationXml(SabangnetXml):
         for db_field, xml_tag_name in get_db_to_xml_mapping().items():
             if xml_tag_name:
                 db_value = getattr(product_raw_data, db_field, None)
-                if SETTINGS.CONPANY_GOODS_CD_TEST_MODE:
-                    self._make_test_xml_element(xml_tag_name, db_field, db_value, data, row_idx)
+                child = ET.SubElement(data, xml_tag_name)
+                # HTML 엔티티가 인코딩된 경우 디코딩하여 원본 텍스트로 복원
+                if db_value is not None:
+                    # HTML 엔티티 디코딩 (예: &lt; -> <, &gt; -> >)
+                    decoded_value = html.unescape(str(db_value))
+                    child.text = decoded_value
                 else:
-                    child = ET.SubElement(data, xml_tag_name)
-                    # HTML 엔티티가 인코딩된 경우 디코딩하여 원본 텍스트로 복원
-                    if db_value is not None:
-                        # HTML 엔티티 디코딩 (예: &lt; -> <, &gt; -> >)
-                        decoded_value = html.unescape(str(db_value))
-                        child.text = decoded_value
-                    else:
-                        child.text = ""
-        
+                    child.text = ""
+    
         return data
 
     def make_product_registration_xml(

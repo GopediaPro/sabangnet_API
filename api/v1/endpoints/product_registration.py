@@ -1,6 +1,9 @@
 """
 Product Registration API
-상품 등록 관련 API 엔드포인트
+기존 엑셀 파일의 '상품등록' 시트와 관련된 API 엔드포인트
+- '상품등록' 시트는 월간 상품등록 일정에 포함된 기초 상품 데이터들이 들어가는 시트입니다.
+- '상품등록' 시트에 등록되어있는 기초 상품데이터 목록을 바탕으로 '품번코드대량등록툴' 이 작성됩니다.
+- 판매 예정인 상품들의 데이터라고 이해하면 됩니다.
 """
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
@@ -10,8 +13,11 @@ import os
 import logging
 
 from core.db import get_async_session
-from services.product_registration import ProductRegistrationService, ProductCodeIntegratedService
+from services.product_registration import ProductRegistrationService, ProductCodeIntegratedService, ProductRegistrationReadService
 from schemas.product_registration import (
+    ProductRegistrationDto,
+    ProductRegistrationReadResponse,
+    ProductRegistrationPaginationReadResponse,
     ProductRegistrationBulkResponseDto,
     ProductRegistrationBulkCreateDto,
     ProductRegistrationResponseDto,
@@ -71,12 +77,49 @@ async def get_product_registration_service(
     return ProductRegistrationService(session)
 
 
+async def get_product_registration_read_service(
+    session: AsyncSession = Depends(get_async_session)
+) -> ProductRegistrationReadService:
+    """상품 등록 조회 서비스 의존성 주입"""
+    return ProductRegistrationReadService(session)
+
+
 async def get_product_integrated_service() -> ProductCodeIntegratedService:
     """상품 등록 통합 서비스 의존성 주입"""
     return ProductCodeIntegratedService()
 
 
-@router.get("/", summary="상품 등록 API 상태 확인")
+@router.get("", response_model=ProductRegistrationReadResponse)
+@product_registration_handler()
+async def get_products_all(
+    skip: int = Query(0, ge=0, description="건너뛸 건수"),
+    limit: int = Query(200, ge=1, le=2000, description="조회할 건수"),
+    product_read_service: ProductRegistrationReadService = Depends(get_product_registration_read_service)
+):
+    product_registration_dto_list=await product_read_service.get_products_all(skip=skip, limit=limit)
+    return ProductRegistrationReadResponse(
+        item_count=len(product_registration_dto_list),
+        product_registration_dto_list=product_registration_dto_list
+    )
+
+
+@router.get("/pagenation", response_model=ProductRegistrationPaginationReadResponse)
+@product_registration_handler()
+async def get_products_by_pagenation(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=2000), # 기본 20건
+    product_read_service: ProductRegistrationReadService = Depends(get_product_registration_read_service)
+):
+    product_registration_dto_list=await product_read_service.get_products_by_pagenation(page=page, page_size=page_size)
+    return ProductRegistrationPaginationReadResponse(
+        current_page=page,
+        page_size=page_size,
+        item_count=len(product_registration_dto_list),
+        product_registration_dto_list=product_registration_dto_list
+    )
+
+
+@router.get("/status", summary="상품 등록 API 상태 확인")
 async def get_api_status():
     """API 상태를 확인합니다."""
     return {"message": "Product Registration API is running", "status": "ok"}
@@ -88,7 +131,7 @@ async def get_api_status():
     summary="Excel 파일 처리",
     description="Excel 파일을 업로드하여 K:AZ 컬럼 데이터를 처리합니다."
 )
-@product_registration_handler
+@product_registration_handler()
 async def process_excel_file(
     file: UploadFile = File(..., description="처리할 Excel 파일"),
     sheet_name: str = Query("Sheet1", description="처리할 시트명"),
@@ -118,7 +161,7 @@ async def process_excel_file(
     summary="Excel 파일 가져오기 및 DB 저장",
     description="Excel 파일을 처리하여 바로 데이터베이스에 저장합니다."
 )
-@product_registration_handler
+@product_registration_handler()
 async def import_excel_to_db(
     file: UploadFile = File(..., description="가져올 Excel 파일"),
     sheet_name: str = Query("Sheet1", description="처리할 시트명"),
@@ -217,7 +260,7 @@ async def process_complete_workflow(
     summary="로컬 Excel 파일 가져오기",
     description="서버의 로컬 Excel 파일을 처리하여 데이터베이스에 저장합니다."
 )
-@product_registration_handler
+@product_registration_handler()
 async def import_local_excel_to_db(
     file_path: str = Query(..., description="처리할 Excel 파일 경로"),
     sheet_name: str = Query("Sheet1", description="처리할 시트명"),
@@ -250,7 +293,7 @@ async def import_local_excel_to_db(
     summary="단일 상품 등록",
     description="단일 상품 등록 데이터를 생성합니다."
 )
-@product_registration_handler
+@product_registration_handler()
 async def create_single_product(
     data: ProductRegistrationCreateDto,
     service: ProductRegistrationService = Depends(get_product_registration_service)
@@ -267,7 +310,7 @@ async def create_single_product(
     summary="대량 상품 등록",
     description="여러 상품 등록 데이터를 한 번에 생성합니다."
 )
-@product_registration_handler
+@product_registration_handler()
 async def create_bulk_products(
     data: ProductRegistrationBulkCreateDto,
     service: ProductRegistrationService = Depends(get_product_registration_service)
@@ -284,7 +327,7 @@ async def create_bulk_products(
     summary="상품 등록 데이터 목록 조회",
     description="상품 등록 데이터 목록을 조회합니다."
 )
-@product_registration_handler
+@product_registration_handler()
 async def get_products_list(
     limit: int = Query(100, ge=1, le=1000, description="조회할 데이터 수"),
     offset: int = Query(0, ge=0, description="조회 시작 위치"),
@@ -301,7 +344,7 @@ async def get_products_list(
     summary="상품 등록 데이터 단일 조회",
     description="ID로 상품 등록 데이터를 조회합니다."
 )
-@product_registration_handler
+@product_registration_handler()
 async def get_product_by_id(
     product_id: int,
     service: ProductRegistrationService = Depends(get_product_registration_service)
@@ -319,7 +362,7 @@ async def get_product_by_id(
     summary="상품 등록 데이터 검색",
     description="제품명이나 상품명으로 데이터를 검색합니다."
 )
-@product_registration_handler
+@product_registration_handler()
 async def search_products(
     q: str = Query(..., min_length=1, description="검색어 (제품명, 상품명)"),
     limit: int = Query(50, ge=1, le=200, description="조회할 데이터 수"),
@@ -336,7 +379,7 @@ async def search_products(
     summary="상품 등록 데이터 업데이트",
     description="ID로 상품 등록 데이터를 업데이트합니다."
 )
-@product_registration_handler
+@product_registration_handler()
 async def update_product(
     product_id: int,
     data: ProductRegistrationCreateDto,
@@ -356,7 +399,7 @@ async def update_product(
     summary="상품 등록 데이터 삭제",
     description="ID로 상품 등록 데이터를 삭제합니다."
 )
-@product_registration_handler
+@product_registration_handler()
 async def delete_product(
     product_id: int,
     service: ProductRegistrationService = Depends(get_product_registration_service)

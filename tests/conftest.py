@@ -186,7 +186,7 @@ def client(test_app: FastAPI) -> Generator[TestClient, Any, None]:
         global_mocks = {}
         
         # Product 관련 의존성
-        from api.v1.endpoints.product import get_product_read_service, get_product_update_service, get_product_db_xml_usecase
+        from api.v1.endpoints.product_bulk_tool import get_product_read_service, get_product_update_service, get_product_db_xml_usecase
         from services.product.product_read_service import ProductReadService
         from services.product.product_update_service import ProductUpdateService
         from services.usecase.product_db_xml_usecase import ProductDbXmlUsecase

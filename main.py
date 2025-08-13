@@ -16,7 +16,7 @@ from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.v1.endpoints.macro import router as macro_router
-from api.v1.endpoints.product import router as products_router
+from api.v1.endpoints.product_bulk_tool import router as products_router
 from api.v1.endpoints.ecount.erp import router as ecount_router
 from api.v1.endpoints.receive_order import router as receive_order_router
 from api.v1.endpoints.mall_price import router as mall_price_router
