@@ -308,7 +308,7 @@ class ProductRegistrationService:
             List[ProductRegistrationResponseDto]: 조회된 데이터 리스트
         """
         try:
-            data_list = await self.repository.get_all(limit, offset)
+            data_list = await self.repository.get_products_all(limit)
             return [ProductRegistrationResponseDto.from_orm(data) for data in data_list]
             
         except Exception as e:
