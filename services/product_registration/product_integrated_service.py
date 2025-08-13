@@ -61,7 +61,7 @@ class ProductCodeIntegratedService:
             product_mycategory_repo = ProductMyCategoryRepository(session)
             
             # 1. Fetch all registration data
-            registration_data_list: List[ProductRegistrationRawData] = await self.reg_repo.get_all(limit=limit, offset=offset)
+            registration_data_list: List[ProductRegistrationRawData] = await self.reg_repo.get_products_all(limit=limit)
             
             # 모든 데이터를 상세히 로깅
             logger.info(f"registration_data_list count: {len(registration_data_list)}")
