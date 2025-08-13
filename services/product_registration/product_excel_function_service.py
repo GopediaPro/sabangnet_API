@@ -160,7 +160,7 @@ class ProductCodeRegistrationService:
             
             # 대표이미지[필수] (AM)
             # self._get_representative_image_check(gubun)
-            result['img_path'] = self.source_data.get('img_path')
+            result['img_path'] = self._get_representative_image(product_nm, gubun)
             
             # 종합몰(JPG)이미지 (AN)
             result['img_path1'] = self._get_mall_jpg_image(product_nm, gubun, 1)
@@ -171,7 +171,7 @@ class ProductCodeRegistrationService:
             for i in range(6, 11):
                 result[f'img_path{i}'] = self._get_mall_jpg_image(product_nm, gubun, i)
 
-            # 추가 상세설명[필수] (AX)
+            # 상품상세설명[필수] (AX)
             result['goods_remarks'] = self._get_product_detail_description(product_nm, gubun)
 
             # TODO 추가상품그룹 관리 - 사방넷 - 상품관리 -> 추가상품그룹 관리 참고 - 자료 없음. 
@@ -203,7 +203,7 @@ class ProductCodeRegistrationService:
             # 출력 상품명 (CA)
             # 인증서이미지 (CB)
             # 추가 상품상세설명_1 (CC)
-            result['goods_remarks2'] = self._get_product_detail_description(product_nm, gubun)
+            result['goods_remarks2'] = result['goods_remarks']
             # 추가 상품상세설명_2 (CD)
             # 추가 상품상세설명_3 (CE)
             # 원산지 상세지역 (CF)
@@ -233,14 +233,11 @@ class ProductCodeRegistrationService:
     
     def _get_representative_image_check(self, gubun: str) -> str:
         """대표이미지확인 로직"""
-        if gubun in ["마스터", "전문몰"]:
-            img_path = self.source_data.get('img_path')
-            return img_path if img_path else "IMG 없음"
-        elif gubun == "1+1":
+        if gubun == "1+1":
             one_plus_one_bn = self.source_data.get('one_plus_one_bn')
             return one_plus_one_bn if one_plus_one_bn else "IMG 없음"
         else:
-            return "IMG 없음"
+            return self.source_data.get('img_path')
     
     def _get_detail_image_check(self, product_nm: str) -> str:
         """상세이미지확인 로직"""
@@ -380,6 +377,7 @@ class ProductCodeRegistrationService:
     
     def _get_tag_price(self, product_nm: str, gubun: str) -> int:
         """TAG가 조회"""
+        # 전반적으로 20% 수정 & 1000단위 반올림
         # =IF(G5="마스터",AG5+(AG5*60%),
         #   IF(G5="전문몰",ROUNDUP((AG5+100+3000)+((AG5+100+3000)*60%),-3),
         #     IF(G5="1+1",ROUNDUP((AG5+(AG5*60%)),-3))))
@@ -387,16 +385,18 @@ class ProductCodeRegistrationService:
         cost_price = self._get_selling_price(product_nm, gubun)
         
         if gubun == "마스터":
-            return int(cost_price + (cost_price * 0.2))
+            selling_price = cost_price + (cost_price * 0.2)
+            # ROUNDUP to nearest 1000
+            return math.ceil(selling_price / 1000) * 1000
         elif gubun == "전문몰":
             total_cost = cost_price + 100 + 3000
             selling_price = total_cost + (total_cost * 0.2)
-            # ROUNDUP to nearest 100
-            return math.ceil(selling_price / 100) * 100
+            # ROUNDUP to nearest 1000
+            return math.ceil(selling_price / 1000) * 1000
         elif gubun == "1+1":
             selling_price = cost_price + (cost_price * 0.2)
-            # ROUNDUP to nearest 100
-            return math.ceil(selling_price / 100) * 100
+            # ROUNDUP to nearest 1000
+            return math.ceil(selling_price / 1000) * 1000
         else:
             return cost_price
     
