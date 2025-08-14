@@ -6,6 +6,7 @@ Product Registration Service
 from typing import List, Optional, Tuple
 from utils.logs.sabangnet_logger import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
+from pathlib import Path
 
 from repository.product_registration_repository import ProductRegistrationRepository
 from utils.excels.excel_processor import ProductRegistrationExcelProcessor
@@ -378,3 +379,65 @@ class ProductRegistrationService:
             await self.session.rollback()
             logger.error(f"상품 삭제 오류: {e}")
             raise
+
+    async def request_product_create_with_xml(self, xml_file_path: str) -> dict:
+        """
+        XML 파일을 사용하여 사방넷 상품등록 요청을 수행합니다.
+        Args:
+            xml_file_path: XML 파일 경로
+        Returns:
+            dict: 처리 결과 정보
+        """
+        try:
+            logger.info(f"XML 파일 기반 사방넷 상품등록 요청 시작: {xml_file_path}")
+            
+            # XML 파일 경로 검증
+            xml_path = Path(xml_file_path)
+            if not xml_path.exists():
+                raise FileNotFoundError(f"XML 파일이 존재하지 않습니다: {xml_file_path}")
+            
+            # 1. 파일 서버 업로드
+            object_name = upload_file_to_minio(xml_path)
+            logger.info(f"MinIO에 업로드된 XML 파일 이름: {object_name}")
+            xml_url = get_minio_file_url(object_name)
+            logger.info(f"MinIO에 업로드된 XML URL: {xml_url}")
+
+            # 2. 사방넷 상품등록 요청
+            logger.info(f"사방넷 API 요청 시작: {xml_url}")
+            response_xml = await ProductCreateService.request_product_create_via_url(xml_url)
+            logger.info(f"사방넷 상품등록 결과: {response_xml}")
+
+            # 3. 응답 XML 파싱하여 JSON 결과 생성
+            sabang_api_result = SabangApiResultParser.parse_sabang_api_result(response_xml)
+            logger.info(f"사방넷 API 응답 파싱 결과: {sabang_api_result}")
+
+            # 4. 응답 XML에서 PRODUCT_ID 추출 및 DB 업데이트
+            product_registration_xml = ProductRegistrationXml()
+            compayny_goods_cd_and_product_ids = product_registration_xml.input_product_id_to_db(response_xml)
+            
+            if compayny_goods_cd_and_product_ids:
+                await self.product_db_xml_usecase.update_product_id_by_compayny_goods_cd(compayny_goods_cd_and_product_ids)
+                logger.info(f"PRODUCT_ID 업데이트 완료: {len(compayny_goods_cd_and_product_ids)}개")
+
+            # 5. 결과 반환
+            return {
+                'processed_count': len(compayny_goods_cd_and_product_ids) if compayny_goods_cd_and_product_ids else 0,
+                'success_count': sabang_api_result.get('success_count', 0),
+                'error_count': sabang_api_result.get('error_count', 0),
+                'errors': sabang_api_result.get('errors', []),
+                'sabang_api_result': sabang_api_result,
+                'xml_file_path': xml_file_path,
+                'xml_url': xml_url
+            }
+            
+        except Exception as e:
+            logger.error(f"XML 기반 사방넷 상품등록 요청 오류: {e}")
+            return {
+                'processed_count': 0,
+                'success_count': 0,
+                'error_count': 1,
+                'errors': [f'XML 기반 사방넷 상품등록 요청 오류: {str(e)}'],
+                'sabang_api_result': {},
+                'xml_file_path': xml_file_path,
+                'xml_url': None
+            }
