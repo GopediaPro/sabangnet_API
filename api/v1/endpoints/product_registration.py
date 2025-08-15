@@ -8,12 +8,14 @@ Product Registration API
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Dict, Any
 import os
 import logging
+import tempfile
 
 from core.db import get_async_session
 from services.product_registration import ProductRegistrationService, ProductCodeIntegratedService, ProductRegistrationReadService
+from services.product_registration.product_integrated_service_v2 import ProductCodeIntegratedServiceV2
 from schemas.product_registration import (
     ProductRegistrationDto,
     ProductRegistrationReadResponse,
@@ -87,6 +89,11 @@ async def get_product_registration_read_service(
 async def get_product_integrated_service() -> ProductCodeIntegratedService:
     """상품 등록 통합 서비스 의존성 주입"""
     return ProductCodeIntegratedService()
+
+
+async def get_product_integrated_service_v2() -> ProductCodeIntegratedServiceV2:
+    """상품 등록 통합 서비스 V2 의존성 주입"""
+    return ProductCodeIntegratedServiceV2()
 
 
 @router.get("", response_model=ProductRegistrationReadResponse)
@@ -193,7 +200,7 @@ async def import_excel_to_db(
 
 
 @router.post(
-    "/complete-workflow",
+    "/complete-workflow-db",
     response_model=CompleteWorkflowResponseDto,
     summary="전체 상품 등록 워크플로우",
     description="Excel 파일 처리부터 사방넷 API 요청까지의 전체 프로세스를 한 번에 처리합니다."
@@ -252,6 +259,59 @@ async def process_complete_workflow(
         logger.error(f"전체 오류 메시지: {error_message}")
             
         raise ProductRegistrationException(error_message)
+
+@router.post(
+    "/complete-workflow",
+    response_model=CompleteWorkflowResponseDto,
+    summary="전체 상품 등록 워크플로우 V2",
+    description="Excel 파일을 업로드하여 전체 상품 등록 워크플로우 V2를 실행합니다. bulk_result 기반으로 DB Transfer와 SabangAPI 요청을 처리합니다."
+)
+@product_registration_handler()
+async def process_complete_product_registration_workflow_v2(
+    file: UploadFile = File(..., description="Excel 파일"),
+    sheet_name: str = "상품등록",
+    service: ProductCodeIntegratedServiceV2 = Depends(get_product_integrated_service_v2)
+) -> Dict[str, Any]:
+    """
+    전체 상품 등록 워크플로우 V2를 처리합니다:
+    1. Excel 파일 처리 및 DB 저장
+    2. DB Transfer (product_registration_raw_data → test_product_raw_data) - bulk_result 기반
+    3. DB to SabangAPI 요청 - transfer_result 기반
+    """
+    try:
+        # 파일 확장자 검증
+        if not file.filename.endswith(('.xlsx', '.xls')):
+            raise HTTPException(status_code=400, detail="Excel 파일(.xlsx, .xls)만 업로드 가능합니다.")
+        
+        # 임시 파일로 저장
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+        
+        try:
+            logger.info(f"전체 상품 등록 워크플로우 V2 시작: {file.filename}")
+            
+            # 워크플로우 실행
+            result = await service.process_complete_product_registration_workflow_v2(
+                file_path=temp_file_path,
+                sheet_name=sheet_name
+            )
+            
+            logger.info(f"전체 상품 등록 워크플로우 V2 완료: {result.get('success', False)}")
+            
+            return result
+            
+        finally:
+            # 임시 파일 삭제
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+                
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"전체 상품 등록 워크플로우 V2 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"워크플로우 V2 처리 중 오류 발생: {str(e)}")
 
 
 @router.post(

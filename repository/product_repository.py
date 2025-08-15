@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.inspection import inspect
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,6 +6,7 @@ from sqlalchemy import select, insert, update, func
 from models.product.product_raw_data import ProductRawData
 from models.product.modified_product_data import ModifiedProductData
 from utils.logs.sabangnet_logger import get_logger
+
 
 logger = get_logger(__name__)
 
@@ -196,6 +197,21 @@ class ProductRepository:
         query = select(ProductRawData).where(ProductRawData.compayny_goods_cd == company_goods_cd)
         result = await self.session.execute(query)
         return result.scalars().first()
+
+    async def get_product_raw_data_by_company_goods_cds(self, company_goods_cds: List[str]) -> List[ProductRawData]:
+        """
+        특정 company_goods_cd 목록으로 product_raw_data 조회
+        Args:
+            company_goods_cds: 조회할 company_goods_cd 목록
+        Returns:
+            ProductRawData 목록
+        """
+        if not company_goods_cds:
+            return []
+        
+        query = select(ProductRawData).where(ProductRawData.compayny_goods_cd.in_(company_goods_cds))
+        result = await self.session.execute(query)
+        return result.scalars().all()
 
     async def update_product_raw_data_by_company_goods_cd(self, company_goods_cd: str, update_data: dict) -> bool:
         """
