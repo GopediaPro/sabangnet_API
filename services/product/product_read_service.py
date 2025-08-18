@@ -1,7 +1,7 @@
 import io
 import pandas as pd
 import urllib.parse
-
+from typing import List
 from fastapi.responses import StreamingResponse
 
 from utils.logs.sabangnet_logger import get_logger
@@ -42,6 +42,17 @@ class ProductReadService:
     
     async def get_product_raw_data_all(self) -> list[ProductRawDataDto]:
         objects = await self.product_repository.get_product_raw_data_all()
+        return [ProductRawDataDto.model_validate(obj) for obj in objects]
+    
+    async def get_product_raw_data_by_company_goods_cds(self, company_goods_cds: List[str]) -> list[ProductRawDataDto]:
+        """
+        특정 company_goods_cd 목록으로 product_raw_data 조회
+        Args:
+            company_goods_cds: 조회할 company_goods_cd 목록
+        Returns:
+            ProductRawDataDto 목록
+        """
+        objects = await self.product_repository.get_product_raw_data_by_company_goods_cds(company_goods_cds)
         return [ProductRawDataDto.model_validate(obj) for obj in objects]
     
     async def get_product_raw_data_count(self) -> int:
