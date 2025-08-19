@@ -126,7 +126,7 @@ class SmileMacroHandler:
                 # 데이터베이스에서 ERP 값과 정산 여부 조회
                 erp_value = await self._find_erp_value(order_num)
                 settlement_value = await self._check_settlement(order_num)
-                self.logger.info(f"행 {row_num} (사용자ID: {user_id}): ERP='{erp_value}', 정산='{settlement_value}', 주문번호='{order_num}'")
+                # self.logger.info(f"행 {row_num} (사용자ID: {user_id}): ERP='{erp_value}', 정산='{settlement_value}', 주문번호='{order_num}'")
             else:
                 erp_value = ""
                 settlement_value = "X"
@@ -167,7 +167,7 @@ class SmileMacroHandler:
             # ERP 매칭이 되고 정산이 완료된 경우만 삭제
             if erp_match == "ERP" and settlement == "정산":
                 rows_to_delete.append(row_num)
-                self.logger.info(f"행 {row_num}: ERP=ERP, 정산=정산 (삭제 대상)")
+                # self.logger.info(f"행 {row_num}: ERP=ERP, 정산=정산 (삭제 대상)")
             # ERP 매칭이 안되고 정산도 안된 경우는 보존 (데이터 검증 필요)
             elif erp_match == "X" and settlement == "X":
                 self.logger.info(f"행 {row_num}: ERP=X, 정산=X (검증 필요 - 보존)")
@@ -194,24 +194,21 @@ class SmileMacroHandler:
         
         # B열(정산예정금) + C열(서비스 이용료) 더한 값 계산하여 E열에 입력
         # 정산예정금과 서비스 이용료의 합계를 계산
-        self.logger.info("5단계: B열(정산예정금) + C열(서비스 이용료) 합계 계산 시작")
+        # self.logger.info("5단계: B열(정산예정금) + C열(서비스 이용료) 합계 계산 시작")
         
         # 디버깅: 처음 몇 행의 B, C열 값 확인
-        for row_num in range(2, min(7, self.ws.max_row + 1)):
-            b_value = self.ws[f'B{row_num}'].value
-            c_value = self.ws[f'C{row_num}'].value
-            self.logger.info(f"행 {row_num}: B열={b_value}({type(b_value)}), C열={c_value}({type(c_value)})")
+        # for row_num in range(2, min(7, self.ws.max_row + 1)):
+        #     b_value = self.ws[f'B{row_num}'].value
+        #     c_value = self.ws[f'C{row_num}'].value
+        #     self.logger.info(f"행 {row_num}: B열={b_value}({type(b_value)}), C열={c_value}({type(c_value)})")
         
         SmileCommonUtils.calculate_sum_formula(self.ws, "E", ["B", "C"], 2)
         self.logger.info("5단계: 합계 계산 완료")
     
     def _stage_6_sku_processing(self, sku_data: pd.DataFrame):
         """6단계: SKU 분해 및 모델명 조합"""
-        # AA 뒤에 AB, AC, AD 추가
-        SmileCommonUtils.insert_columns(self.ws, 28, 3)
-        
-        # AD 뒤에 AE 열 추가
-        SmileCommonUtils.insert_columns(self.ws, 31, 1, ["모델명+수량"])
+        # AA 뒤에 AB, AC, AD, AE 추가
+        SmileCommonUtils.insert_columns(self.ws, 28, 4)
         
         # SKU 데이터를 딕셔너리로 변환
         sku_dict = SmileCommonUtils.create_sku_dictionary(sku_data)
