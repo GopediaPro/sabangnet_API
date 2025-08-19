@@ -280,6 +280,7 @@ class ReceiveOrderCreateService:
             success_models = await self.receive_orders_repository.bulk_insert_orders(order_dict_list)
             
             return ReceiveOrdersBulkCreateResponse(
+                success=True,
                 total_count=len(order_dict_list),
                 success_count=len(success_models),
                 duplicated_count=len(order_dict_list) - len(success_models),
