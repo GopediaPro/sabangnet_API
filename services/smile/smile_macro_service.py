@@ -11,13 +11,14 @@ from utils.macros.smile.smile_common_utils import SmileCommonUtils
 from repository.smile_erp_data_repository import SmileErpDataRepository
 from repository.smile_settlement_data_repository import SmileSettlementDataRepository
 from repository.smile_sku_data_repository import SmileSkuDataRepository
+from repository.smile_macro_repository import SmileMacroRepository
 from schemas.smile.smile_macro_dto import (
     SmileMacroRequestDto, 
     SmileMacroResponseDto, 
     SmileMacroStageRequestDto
 )
 from minio_handler import upload_and_get_url_and_size, url_arrange
-
+from models.smile.smile_macro import SmileMacro
 logger = get_logger(__name__)
 
 
@@ -34,6 +35,7 @@ class SmileMacroService:
             self.erp_repository = SmileErpDataRepository(session)
             self.settlement_repository = SmileSettlementDataRepository(session)
             self.sku_repository = SmileSkuDataRepository(session)
+            self.smile_macro_repository = SmileMacroRepository(session)
     
     def _generate_random_alphabat(self) -> str:
         """랜덤 알파벳 생성"""
@@ -58,11 +60,6 @@ class SmileMacroService:
         # A 컬럼 데이터 수집
         a_data = []
         g_data = []
-        
-        # 헤더는 유지
-        header_row = []
-        for col in range(1, macro_handler.ws.max_column + 1):
-            header_row.append(macro_handler.ws.cell(row=1, column=col).value)
         
         # 데이터 행 처리 (2행부터)
         for row in range(2, macro_handler.ws.max_row + 1):
@@ -112,6 +109,171 @@ class SmileMacroService:
         
         return a_handler, g_handler
     
+    async def save_macro_handler_to_db(self, macro_handler: SmileMacroHandler) -> bool:
+        """
+        매크로 핸들러의 데이터를 DB에 저장
+        
+        Args:
+            macro_handler: 매크로 핸들러
+            
+        Returns:
+            bool: 저장 성공 여부
+        """
+        try:
+            if not self.session:
+                self.logger.warning("데이터베이스 세션이 없습니다. DB 저장을 건너뜁니다.")
+                return False
+            
+            # 컬럼 매핑 정보 (source_field -> target_column)
+            column_mapping = {
+                'A': 'fld_dsp',           # 아이디*
+                'B': 'expected_payout', # 정산예정금??
+                'C': 'service_fee',    # 서비스 이용료
+                'D': 'mall_order_id',  # 장바구니번호(결제번호)
+                'E': 'pay_cost',       # 금액[배송비미포함]
+                'F': 'delv_cost',      # 배송비 금액
+                'G': None,             # 구매결정일자 - source_field 없음
+                'H': 'mall_product_id', # 상품번호*
+                'I': 'order_id',       # 주문번호*
+                'J': 'chat_1',         # 주문옵션
+                'K': 'product_name',   # 상품명
+                'L': 'item_name',      # 제품명
+                'M': 'sale_cnt',       # 수량
+                'N': None,             # 추가구성 - source_field 없음
+                'O': None,             # 사은품 - source_field 없음
+                'P': 'sale_cost',      # 판매금액
+                'Q': 'mall_user_id',   # 구매자ID
+                'R': 'user_name',      # 구매자명
+                'S': 'receive_name',   # 수령인명
+                'T': 'delivery_method_str', # 배송비
+                'U': 'receive_cel',    # 수령인 휴대폰
+                'V': 'receive_tel',    # 수령인 전화번호
+                'W': 'receive_addr',   # 주소
+                'X': 'receive_zipcode', # 우편번호
+                'Y': 'delv_msg',       # 배송시 요구사항
+                'Z': None,             # (옥션)복수구매할인 - source_field 없음
+                'AA': None,            # (옥션)우수회원할인 - source_field 없음
+                'AB': 'sku1_num',      # SKU1번호
+                'AC': 'sku1_cnt',      # SKU1수량
+                'AD': 'sku2_num',      # SKU2번호
+                'AE': 'sku2_cnt',      # SKU2수량
+                'AF': 'sku_num',       # SKU번호 및 수량
+                'AG': 'pay_dt',        # 결제완료일
+                'AH': 'user_tel',      # 구매자 전화번호
+                'AI': 'user_cel',      # 구매자 휴대폰
+                'AJ': 'buy_coupon',    # 구매쿠폰적용금액
+                'AK': None,            # 발송예정일 - source_field 없음
+                'AL': None,            # 발송일자 - source_field 없음
+                'AM': None,            # 배송구분 - source_field 없음
+                'AN': 'delv_id',       # 배송번호
+                'AO': 'delv_status',   # 배송상태
+                'AP': None,            # 배송완료일자 - source_field 없음
+                'AQ': None,            # 배송지연사유 - source_field 없음
+                'AR': None,            # 배송점포 - source_field 없음
+                'AS': None,            # 상품미수령상세사유 - source_field 없음
+                'AT': None,            # 상품미수령신고사유 - source_field 없음
+                'AU': None,            # 상품미수령신고일자 - source_field 없음
+                'AV': None,            # 상품미수령이의제기일자 - source_field 없음
+                'AW': None,            # 상품미수령철회요청일자 - source_field 없음
+                'AX': None,            # 송장번호(방문수령인증키) - source_field 없음
+                'AY': None,            # 일시불할인 - source_field 없음
+                'AZ': None,            # 재배송일 - source_field 없음
+                'BA': None,            # 재배송지 우편번호 - source_field 없음
+                'BB': None,            # 재배송지 운송장번호 - source_field 없음
+                'BC': None,            # 재배송지 주소 - source_field 없음
+                'BD': None,            # 재배송택배사명 - source_field 없음
+                'BE': None,            # 정산완료일 - source_field 없음
+                'BF': 'order_dt',      # 주문일자(결제확인전)
+                'BG': 'order_method',  # 주문종류
+                'BH': None,            # 주문확인일자 - source_field 없음
+                'BI': 'delv_method_id', # 택배사명(발송방법)
+                'BJ': None,            # 판매단가 - source_field 없음 (sale_cost와 중복)
+                'BK': 'sale_method',   # 판매방식
+                'BL': 'order_etc_7',   # 판매자 관리코드
+                'BM': None,            # 판매자 상세관리코드 - source_field 없음
+                'BN': None,            # 판매자북캐시적립 - source_field 없음
+                'BO': 'sale_coupon',   # 판매자쿠폰할인
+                'BP': None,            # 판매자포인트적립 - source_field 없음
+            }
+            
+            # 데이터 수집
+            smile_macro_data_list = []
+            
+            # 헤더 제외하고 2행부터 처리
+            for row_num in range(2, macro_handler.ws.max_row + 1):
+                row_data = {}
+                
+                # 각 컬럼을 순회하며 데이터 수집
+                for col_letter in column_mapping.keys():
+                    if column_mapping[col_letter] is None:
+                        continue  # source_field가 없는 컬럼은 건너뛰기
+                    
+                    cell_value = macro_handler.ws[f'{col_letter}{row_num}'].value
+                    field_name = column_mapping[col_letter]
+                    
+                    # 데이터 타입 변환
+                    if field_name in ['sale_cnt']:
+                        # 정수형 필드
+                        try:
+                            if cell_value is not None and str(cell_value).strip():
+                                row_data[field_name] = int(float(cell_value))
+                            else:
+                                row_data[field_name] = None
+                        except (ValueError, TypeError):
+                            row_data[field_name] = None
+                    elif field_name in ['expected_payout', 'service_fee', 'pay_cost', 'delv_cost', 'sale_cost', 'buy_coupon', 'sale_coupon']:
+                        # 숫자형 필드
+                        try:
+                            if cell_value is not None and str(cell_value).strip():
+                                # 문자열 정리 (쉼표, 원화 기호 제거)
+                                cleaned_value = str(cell_value).replace(',', '').replace('₩', '').replace('원', '').strip()
+                                if cleaned_value:
+                                    row_data[field_name] = float(cleaned_value)
+                                else:
+                                    row_data[field_name] = None
+                            else:
+                                row_data[field_name] = None
+                        except (ValueError, TypeError):
+                            row_data[field_name] = None
+                    elif field_name in ['pay_dt', 'order_dt']:
+                        # 날짜형 필드
+                        try:
+                            if cell_value is not None and str(cell_value).strip():
+                                from datetime import datetime
+                                # 다양한 날짜 형식 처리
+                                date_str = str(cell_value).strip()
+                                if len(date_str) == 10:  # YYYY-MM-DD
+                                    row_data[field_name] = datetime.strptime(date_str, '%Y-%m-%d').date()
+                                elif len(date_str) == 8:  # YYYYMMDD
+                                    row_data[field_name] = datetime.strptime(date_str, '%Y%m%d').date()
+                                else:
+                                    row_data[field_name] = None
+                            else:
+                                row_data[field_name] = None
+                        except (ValueError, TypeError):
+                            row_data[field_name] = None
+                    else:
+                        # 문자열 필드
+                        if cell_value is not None:
+                            row_data[field_name] = str(cell_value).strip()
+                        else:
+                            row_data[field_name] = None
+                
+                smile_macro_data_list.append(row_data)
+            
+            # DB에 저장
+            if smile_macro_data_list:
+                await self.smile_macro_repository.create_multiple_smile_macro(smile_macro_data_list)
+                self.logger.info(f"매크로 핸들러 데이터 {len(smile_macro_data_list)}개 DB 저장 완료")
+                return True
+            else:
+                self.logger.warning("저장할 데이터가 없습니다.")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"매크로 핸들러 DB 저장 중 오류: {str(e)}")
+            return False
+    
     async def process_smile_macro_with_db(self, file_path: str, output_path: Optional[str] = None) -> SmileMacroResponseDto:
         """
         데이터베이스에서 데이터를 가져와서 스마일배송 매크로 처리
@@ -119,7 +281,7 @@ class SmileMacroService:
         Args:
             file_path: 처리할 엑셀 파일 경로
             output_path: 출력 파일 경로 (None이면 자동 생성)
-            site: 사이트명 (G마켓, 옥션 등), None이면 전체 사이트
+            fld_dsp: 사이트명 (G마켓, 옥션 등), None이면 전체 사이트
             
         Returns:
             SmileMacroResponseDto - 처리 결과
@@ -175,8 +337,16 @@ class SmileMacroService:
             after_stage_8_rows = macro_handler.ws.max_row - 1  # 헤더 제외
             self.logger.info(f"6-8단계 처리 후 데이터 행 수: {after_stage_8_rows}")
             
-            # A 컬럼을 기준으로 데이터 분리
+            # macro_handler에 헤더 변경
+            SmileCommonUtils.update_smile_macro_headers(macro_handler.ws)
+
+            # A 컬럼을 기준으로 데이터 분리, Header 변경
             a_handler, g_handler = self._split_data_by_column_a(macro_handler)
+
+            # A 데이터 값 변경
+            SmileCommonUtils.transform_column_a_data(macro_handler.ws)
+            # macro_handler DB에 저장 
+            await self.save_macro_handler_to_db(macro_handler)
             
             # A 데이터 파일 저장
             a_filename = self._generate_filename('A')
@@ -218,7 +388,7 @@ class SmileMacroService:
         Args:
             file_paths: 처리할 엑셀 파일 경로 리스트
             output_path: 출력 파일 경로 (None이면 자동 생성)
-            site: 사이트명 (G마켓, 옥션 등), None이면 전체 사이트
+            fld_dsp: 사이트명 (G마켓, 옥션 등), None이면 전체 사이트
             
         Returns:
             SmileMacroResponseDto - 처리 결과
@@ -269,7 +439,7 @@ class SmileMacroService:
         
         Args:
             file_paths: 처리할 엑셀 파일 경로 리스트
-            site: 사이트명 (G마켓, 옥션 등), None이면 전체 사이트
+            fld_dsp: 사이트명 (G마켓, 옥션 등), None이면 전체 사이트
             template_code: 템플릿 코드 (MinIO 경로용)
             
         Returns:
@@ -417,12 +587,12 @@ class SmileMacroService:
         """
         return SmileCommonUtils.convert_to_dataframe(data)
     
-    async def get_erp_data_from_db(self, site: Optional[str] = None) -> pd.DataFrame:
+    async def get_erp_data_from_db(self, fld_dsp: Optional[str] = None) -> pd.DataFrame:
         """
         데이터베이스에서 ERP 데이터 조회
         
         Args:
-            site: 사이트명 (G마켓, 옥션 등), None이면 전체 조회
+            fld_dsp: 사이트명 (G마켓, 옥션 등), None이면 전체 조회
             
         Returns:
             pd.DataFrame: ERP 데이터 DataFrame
@@ -432,8 +602,8 @@ class SmileMacroService:
                 self.logger.warning("데이터베이스 세션이 없습니다. 빈 DataFrame을 반환합니다.")
                 return pd.DataFrame()
             
-            if site:
-                erp_data_list = await self.erp_repository.get_erp_data_by_site(site)
+            if fld_dsp:
+                erp_data_list = await self.erp_repository.get_erp_data_by_fld_dsp(fld_dsp)
             else:
                 erp_data_list = await self.erp_repository.get_all_erp_data()
             
@@ -442,7 +612,7 @@ class SmileMacroService:
             for erp_data in erp_data_list:
                 erp_data_dicts.append({
                     '날짜': erp_data.date.strftime('%Y-%m-%d') if erp_data.date else None,
-                    '사이트': erp_data.site,
+                    '사이트': erp_data.fld_dsp,
                     '고객성함': erp_data.customer_name,
                     '주문번호': erp_data.order_number,
                     'ERP': erp_data.erp_code
@@ -456,12 +626,12 @@ class SmileMacroService:
             self.logger.error(f"데이터베이스에서 ERP 데이터 조회 중 오류: {str(e)}")
             return pd.DataFrame()
     
-    async def get_settlement_data_from_db(self, site: Optional[str] = None) -> pd.DataFrame:
+    async def get_settlement_data_from_db(self, fld_dsp: Optional[str] = None) -> pd.DataFrame:
         """
         데이터베이스에서 정산 데이터 조회
         
         Args:
-            site: 사이트명 (G마켓, 옥션 등), None이면 전체 조회
+            fld_dsp: 사이트명 (G마켓, 옥션 등), None이면 전체 조회
             
         Returns:
             pd.DataFrame: 정산 데이터 DataFrame
@@ -471,8 +641,8 @@ class SmileMacroService:
                 self.logger.warning("데이터베이스 세션이 없습니다. 빈 DataFrame을 반환합니다.")
                 return pd.DataFrame()
             
-            if site:
-                settlement_data_list = await self.settlement_repository.get_settlement_data_by_site(site)
+            if fld_dsp:
+                settlement_data_list = await self.settlement_repository.get_settlement_data_by_site(fld_dsp)
             else:
                 settlement_data_list = await self.settlement_repository.get_all_settlement_data()
             

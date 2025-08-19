@@ -31,18 +31,18 @@ class SmileErpDataRepository:
             logger.error(f"ERP 데이터 조회 중 오류: {str(e)}")
             return []
     
-    async def get_erp_data_by_site(self, site: str) -> List[SmileErpData]:
+    async def get_erp_data_by_fld_dsp(self, fld_dsp: str) -> List[SmileErpData]:
         """
         사이트별 ERP 데이터 조회
         
         Args:
-            site: 사이트명 (G마켓, 옥션 등)
+            fld_dsp: 사이트명 (G마켓, 옥션 등)
             
         Returns:
             List[SmileErpData]: 사이트별 ERP 데이터 리스트
         """
         try:
-            query = select(SmileErpData).where(SmileErpData.site == site)
+            query = select(SmileErpData).where(SmileErpData.fld_dsp == fld_dsp)
             result = await self.session.execute(query)
             return result.scalars().all()
         except Exception as e:
