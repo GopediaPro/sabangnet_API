@@ -1,7 +1,12 @@
 from datetime import date
 from typing import Optional, TypeVar, Generic
 from pydantic import BaseModel, ConfigDict, Field
-from schemas.down_form_orders.down_form_order_dto import DownFormOrdersBulkDto, DownFormOrderDto, DownFormOrdersInvoiceNoUpdateDto
+from schemas.down_form_orders.down_form_order_dto import (
+    DownFormOrdersBulkDto, 
+    DownFormOrderDto, 
+    DownFormOrdersInvoiceNoUpdateDto,
+    DownFormOrdersFromReceiveOrdersDto
+)
 
 
 # 제네릭 타입 변수 정의
@@ -41,6 +46,18 @@ class DownFormOrderBulkCreateResponse(BaseModel):
 
     @classmethod
     def from_dto(cls, dto: DownFormOrdersBulkDto) -> "DownFormOrderBulkCreateResponse":
+        return cls.model_validate(dto.model_dump())
+
+
+class DownFormOrdersFromReceiveOrdersResponse(BaseModel):
+    success: Optional[bool] = Field(None, description="성공 여부")
+    mall_id: Optional[str] = Field(None, description="쇼핑몰 아이디")
+    processed_count: Optional[int] = Field(None, description="처리된 데이터 수")
+    saved_count: Optional[int] = Field(None, description="저장된 데이터 수")
+    message: Optional[str] = Field(None, description="메시지")
+
+    @classmethod
+    def from_dto(cls, dto: DownFormOrdersFromReceiveOrdersDto) -> "DownFormOrdersFromReceiveOrdersResponse":
         return cls.model_validate(dto.model_dump())
 
 
