@@ -5,6 +5,7 @@ from core.db import get_async_session
 # sql
 from sqlalchemy.ext.asyncio import AsyncSession
 # fastapi
+from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Depends, Query, Body, UploadFile, File, Form
 # service
 from services.usecase.data_processing_usecase import DataProcessingUsecase
@@ -29,6 +30,8 @@ from schemas.down_form_orders.request.down_form_orders_request import (
     DownFormOrderBulkCreateFilterRequest,
     DownFormOrdersPaginationWithDateRangeRequest,
 )
+from schemas.integration_request import IntegrationRequest
+from schemas.integration_response import ResponseHandler, Metadata
 # utils
 from utils.response_status import RowStatus
 from utils.excels.excel_handler import ExcelHandler
@@ -126,42 +129,58 @@ async def down_form_orders_by_pagination(
     )
 
 
-@router.post("/pagination/date-range", response_model=DownFormOrderPaginationWithDateRangeResponse)
+@router.post("/pagination/date-range", response_class=JSONResponse)
 async def down_form_orders_by_pagination_with_date_range(
-    request: DownFormOrdersPaginationWithDateRangeRequest = Body(...),
+    request: IntegrationRequest[DownFormOrdersPaginationWithDateRangeRequest] = Body(...),
     down_form_order_read_service: DownFormOrderReadService = Depends(
         get_down_form_order_read_service),
 ):
-    date_from = request.filters.date_from
-    date_to = request.filters.date_to
-    template_code = request.template_code
-    page = request.page
-    page_size = request.page_size
+    try:
+        date_from = request.data.filters.date_from
+        date_to = request.data.filters.date_to
+        template_code = request.data.template_code
+        page = request.data.page
+        page_size = request.data.page_size
 
-    items, total = await down_form_order_read_service.get_down_form_orders_by_pagination_with_date_range(
-        date_from=date_from,
-        date_to=date_to,
-        page=page,
-        page_size=page_size,
-        template_code=template_code
-    )
-    dto_items: list[DownFormOrderDto] = [
-        DownFormOrderDto.model_validate(item) for item in items]
-    return DownFormOrderPaginationWithDateRangeResponse(
-        total=total,
-        page=request.page,
-        page_size=request.page_size,
-        template_code=request.template_code,
-        date_from=date_from,
-        date_to=date_to,
-        items=[
-            DownFormOrderResponse(
-                content=dto,
-                status=RowStatus.SUCCESS,
-                message="success"
-            ) for dto in dto_items
-        ]
-    )
+        items, total = await down_form_order_read_service.get_down_form_orders_by_pagination_with_date_range(
+            date_from=date_from,
+            date_to=date_to,
+            page=page,
+            page_size=page_size,
+            template_code=template_code
+        )
+        dto_items: list[DownFormOrderDto] = [
+            DownFormOrderDto.model_validate(item) for item in items]
+        response = DownFormOrderPaginationWithDateRangeResponse(
+            total=total,
+            page=request.data.page,
+            page_size=request.data.page_size,
+            template_code=request.data.template_code,
+            date_from=date_from,
+            date_to=date_to,
+            items=[
+                DownFormOrderResponse(
+                    content=dto,
+                    status=RowStatus.SUCCESS,
+                    message="success"
+                ) for dto in dto_items
+                ]
+            )
+        return ResponseHandler.ok(
+            data=response,
+            metadata=Metadata(
+                version="v1",
+                request_id=request.metadata.request_id
+            )
+        )
+    except Exception as e:
+        return ResponseHandler.internal_error(
+            message=str(e),
+            metadata=Metadata(
+                version="v1",
+                request_id=request.metadata.request_id
+            )
+        )
 
 
 @router.post("/bulk", response_model=DownFormOrderBulkResponse)
