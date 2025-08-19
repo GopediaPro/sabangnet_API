@@ -13,13 +13,14 @@ from services.down_form_orders.down_form_order_create_service import DownFormOrd
 from services.down_form_orders.down_form_order_delete_service import DownFormOrderDeleteService
 from services.down_form_orders.down_form_order_update_service import DownFormOrderUpdateService
 # schema
-from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto, DownFormOrdersBulkDto
+from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto, DownFormOrdersBulkDto, DownFormOrdersFromReceiveOrdersDto
 from schemas.down_form_orders.response.down_form_orders_response import (
     DownFormOrderResponse,
     DownFormOrderBulkResponse,
     DownFormOrderPaginationResponse,
     DownFormOrderBulkCreateResponse,
     DownFormOrderPaginationWithDateRangeResponse,
+    DownFormOrdersFromReceiveOrdersResponse,
 )
 from schemas.down_form_orders.request.down_form_orders_request import (
     DownFormOrderCreateJsonRequest,
@@ -28,6 +29,7 @@ from schemas.down_form_orders.request.down_form_orders_request import (
     DownFormOrderBulkDeleteJsonRequest,
     DownFormOrderBulkCreateFilterRequest,
     DownFormOrdersPaginationWithDateRangeRequest,
+    DownFormOrdersFromReceiveOrdersFillterRequest
 )
 # utils
 from utils.response_status import RowStatus
@@ -380,3 +382,36 @@ async def db_to_excel_url(
     )
 
     return {"file_url": file_url, "minio_object_name": minio_object_name}
+
+
+@router.post("/create-from-receive-orders")
+async def create_down_form_orders_from_receive_orders(
+    request: DownFormOrdersFromReceiveOrdersFillterRequest = Body(...),
+    get_data_processing_usecase: DataProcessingUsecase = Depends(
+        get_data_processing_usecase),
+):
+    """
+    주문수집 데이터 저장 V2
+    1. 사방넷에 filters에 따라 주문 데이터를 조회 후 저장
+    2. 저장된 주문 데이터를 template_code에 따라 변환 후 down_form_orders 테이블에 저장
+    3. 성공 여부를 반환
+    args:
+        request: DownFormOrdersFromReceiveOrdersFillterRequest
+    returns:
+        DownFormOrdersFromReceiveOrdersResponse
+    """
+    filters = request.filters.model_dump()
+    logger.info(f"주문수집 데이터 저장 V2 시작: {filters}")
+    try:
+        down_form_orders_dto = await get_data_processing_usecase.save_down_form_order_from_receive_orders_by_filters_v2(filters)
+        logger.info(f"주문수집 데이터 저장 V2 완료: {down_form_orders_dto.success}")
+        return DownFormOrdersFromReceiveOrdersResponse.from_dto(down_form_orders_dto)
+    except Exception as e:
+        logger.error(f"주문수집 데이터 저장 V2 실패: {str(e)}")
+        return DownFormOrdersFromReceiveOrdersResponse.from_dto(DownFormOrdersFromReceiveOrdersDto(
+            success=False,
+            mall_id=request.filters.mall_id,
+            processed_count=0, 
+            saved_count=0,
+            message=f"error: {str(e)}"
+        ))
