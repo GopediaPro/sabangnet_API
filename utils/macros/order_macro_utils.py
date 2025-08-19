@@ -6,10 +6,10 @@ from openpyxl import load_workbook
 # utils
 from utils.logs.sabangnet_logger import get_logger
 # erp
-from utils.macros.ERP.ali_erp_macro import ERPAliMacro
-from utils.macros.ERP.g_a_erp_macro import ERPGmaAucMacro
-from utils.macros.ERP.etc_site_macro import ERPEtcSiteMacro
-from utils.macros.ERP.zigzag_erp_macro import ERPZigzagMacro
+from utils.macros.ERP.ali_erp_macro_v2 import ERPAliMacroV2
+from utils.macros.ERP.g_a_erp_macro_v2 import ERPGmaAucMacroV2
+from utils.macros.ERP.etc_site_macro_v2 import ERPEtcSiteMacroV2
+from utils.macros.ERP.zigzag_erp_macro_v2 import ERPZigzagMacroV2
 from utils.macros.ERP.brandi_erp_macro import ERPBrandiMacro
 # dto
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto
@@ -45,19 +45,19 @@ class OrderMacroUtils:
         }
 
     def run_ali_macro(self, file_path: str, is_star: bool = False) -> int:
-        return ERPAliMacro(file_path, is_star).ali_erp_macro_run()
+        return ERPAliMacroV2(file_path, is_star).ali_erp_macro_run()
 
     def run_etc_site_macro(self, file_path: str, is_star: bool = False) -> int:
-        return ERPEtcSiteMacro(file_path, is_star).etc_site_macro_run()
+        return ERPEtcSiteMacroV2(file_path, is_star).etc_site_macro_run()
 
     def run_gmarket_auction_macro(self, file_path: str, is_star: bool = False) -> int:
-        return ERPGmaAucMacro(file_path, is_star).gauc_erp_macro_run()
+        return ERPGmaAucMacroV2(file_path, is_star).gauc_erp_macro_run()
 
     def run_brandi_macro(self, file_path: str, is_star: bool = False) -> int:
         return ERPBrandiMacro(file_path, is_star).brandi_erp_macro_run()
 
     def run_zigzag_macro(self, file_path: str, is_star: bool = False) -> int:
-        return ERPZigzagMacro(file_path, is_star).zigzag_erp_macro_run()
+        return ERPZigzagMacroV2(file_path, is_star).zigzag_erp_macro_run()
 
     def modify_site_column_for_star_delivery(self, file_path: str) -> str:
         """

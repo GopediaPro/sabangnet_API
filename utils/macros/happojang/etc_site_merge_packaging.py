@@ -125,7 +125,7 @@ def etc_site_merge_packaging(input_path: str) -> str:
     
     # 모든 필수 시트 생성 (데이터 유무와 무관하게 OK, BB, IY 시트 생성)
     for sheet_name in REQUIRED_SHEETS:
-        splitter.copy_to_new_sheet_simple(
+        splitter.copy_to_new_sheet(
             ex.wb,
             sheet_name, 
             rows_by_sheet.get(sheet_name, [])
@@ -278,13 +278,15 @@ class ETCSheetManager:
         
         for r in range(2, current_max_row + 1):
             # B열에서 [계정명] 추출 (VBA ExtractBracketText와 동일)
-            account = ETCOrderUtils.extract_bracket_text(self.ws[f"B{r}"].value)
+            b_value = str(self.ws[f"B{r}"].value or "")
             
-            # 각 시트의 계정 목록과 정확히 비교
+            # 각 시트의 계정 목록과 포함 비교
             for sheet_name, accounts in self.account_mapping.items():
-                if account in accounts:
-                    rows_by_sheet[sheet_name].append(r)
-                    break
+                # B열 값에서 계정명이 포함되어 있는지 확인
+                for target_account in accounts:
+                    if target_account in b_value:
+                        rows_by_sheet[sheet_name].append(r)
+                        break
                     
         return rows_by_sheet
 
