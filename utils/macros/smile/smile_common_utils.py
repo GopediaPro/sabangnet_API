@@ -377,7 +377,7 @@ class SmileCommonUtils:
                                         numeric_value = -numeric_value
                                     sum_value += numeric_value
                                     valid_values += 1
-                                    logger.debug(f"행 {row_num} {col}열: {cell_value} -> {cleaned_value} -> {numeric_value} (추가됨)")
+                                    # logger.debug(f"행 {row_num} {col}열: {cell_value} -> {cleaned_value} -> {numeric_value} (추가됨)")
                                 else:
                                     logger.debug(f"행 {row_num} {col}열: {cell_value} -> 빈 문자열 (무시)")
                             else:
@@ -410,4 +410,103 @@ class SmileCommonUtils:
             
         except Exception as e:
             logger.error(f"합계 계산 중 오류: {str(e)}")
-            raise 
+            raise
+    
+    @staticmethod
+    def transform_column_a_data(ws):
+        """
+        A열 데이터 변환
+        G(beigebagel) -> [베이지베이글]G마켓-스마일
+        A(beigebagel) -> [베이지베이글]옥션-스마일
+        G(okokmart) -> [스마일배송]G마켓-스마일
+        A(okokmart) -> [스마일배송][오케이마트]옥션-스마일
+        G(clobuff1) -> [클로버프]G마켓-스마일
+        A(clobuff1) -> [클로버프]옥션-스마일
+        
+        Args:
+            ws: 워크시트
+        """
+        try:
+            last_row = ws.max_row
+            transformed_count = 0
+            
+            # 매핑 규칙 정의
+            mapping_rules = {
+                'beigebagel': {
+                    'G': '[베이지베이글]G마켓-스마일',
+                    'A': '[베이지베이글]옥션-스마일'
+                },
+                'okokmart': {
+                    'G': '[스마일배송]G마켓-스마일',
+                    'A': '[스마일배송][오케이마트]옥션-스마일'
+                },
+                'clobuff1': {
+                    'G': '[클로버프]G마켓-스마일',
+                    'A': '[클로버프]옥션-스마일'
+                }
+            }
+            
+            logger.info("A열 데이터 변환 시작")
+            
+            for row_num in range(2, last_row + 1):  # 헤더 제외하고 2행부터
+                cell_value = ws[f'A{row_num}'].value
+                
+                if cell_value and isinstance(cell_value, str):
+                    # 패턴 매칭: G(beigebagel) 또는 A(okokmart) 형태
+                    import re
+                    pattern = r'^([AG])\(([^)]+)\)$'
+                    match = re.match(pattern, cell_value.strip())
+                    
+                    if match:
+                        site_code = match.group(1)  # G 또는 A
+                        store_code = match.group(2)  # beigebagel, okokmart, clobuff1 등
+                        
+                        # 매핑 규칙에서 찾기
+                        if store_code in mapping_rules and site_code in mapping_rules[store_code]:
+                            new_value = mapping_rules[store_code][site_code]
+                            ws[f'A{row_num}'].value = new_value
+                            transformed_count += 1
+                            logger.debug(f"행 {row_num}: {cell_value} -> {new_value}")
+                        else:
+                            logger.debug(f"행 {row_num}: 매핑 규칙 없음 - {cell_value}")
+                    else:
+                        logger.debug(f"행 {row_num}: 패턴 불일치 - {cell_value}")
+            
+            logger.info(f"A열 데이터 변환 완료: {transformed_count}개 변환됨")
+            
+        except Exception as e:
+            logger.error(f"A열 데이터 변환 중 오류: {str(e)}")
+            raise
+    
+    @staticmethod
+    def update_smile_macro_headers(ws):
+        """
+        스마일배송 매크로 헤더 업데이트
+        
+        Args:
+            ws: 워크시트
+        """
+        try:
+            logger.info("스마일배송 매크로 헤더 업데이트 시작")
+            
+            # 헤더 매핑 정보
+            header_mapping = {
+                5: "금액[배송비미포함]",   # E열
+                12: "제품명",            # L열
+                28: "SKU1번호",          # AB열
+                29: "SKU1수량",          # AC열
+                30: "SKU2번호",          # AD열
+                31: "SKU2수량",          # AE열
+                32: "SKU번호 및 수량"     # AF열
+            }
+            
+            # 헤더 업데이트
+            for col_num, header_value in header_mapping.items():
+                ws.cell(row=1, column=col_num, value=header_value)
+                logger.debug(f"컬럼 {col_num} 헤더 업데이트: {header_value}")
+            
+            logger.info("스마일배송 매크로 헤더 업데이트 완료")
+            
+        except Exception as e:
+            logger.error(f"스마일배송 매크로 헤더 업데이트 중 오류: {str(e)}")
+            raise
