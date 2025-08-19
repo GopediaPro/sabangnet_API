@@ -349,6 +349,7 @@ class TestReceiveOrderIntegration:
         
         # Mock DB 저장 결과
         mock_bulk_response = ReceiveOrdersBulkCreateResponse(
+            success=True,
             total_count=2,
             success_count=2,
             duplicated_count=0
@@ -419,6 +420,7 @@ class TestReceiveOrderIntegration:
         
         # Mock DB 저장 결과
         mock_bulk_response = ReceiveOrdersBulkCreateResponse(
+            success=True,
             total_count=1,
             success_count=1,
             duplicated_count=0
