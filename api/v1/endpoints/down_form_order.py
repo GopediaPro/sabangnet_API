@@ -410,14 +410,7 @@ async def create_down_form_orders_from_receive_orders(
         get_data_processing_usecase),
 ):
     """
-    주문수집 데이터 저장 V2
-    1. 사방넷에 filters에 따라 주문 데이터를 조회 후 저장
-    2. 저장된 주문 데이터를 template_code에 따라 변환 후 down_form_orders 테이블에 저장
-    3. 성공 여부를 반환
-    args:
-        request: DownFormOrdersFromReceiveOrdersFillterRequest
-    returns:
-        DownFormOrdersFromReceiveOrdersResponse
+    사방넷 주문수집 조회 및 매크로 실행 후 down_form_orders 테이블에 저장
     """
     filters = request.filters.model_dump()
     logger.info(f"주문수집 데이터 저장 V2 시작: {filters}")
@@ -429,7 +422,8 @@ async def create_down_form_orders_from_receive_orders(
         logger.error(f"주문수집 데이터 저장 V2 실패: {str(e)}")
         return DownFormOrdersFromReceiveOrdersResponse.from_dto(DownFormOrdersFromReceiveOrdersDto(
             success=False,
-            mall_id=request.filters.mall_id,
+            mall_id=filters.get('mall_id'),
+            dpartner_id=filters.get('dpartner_id'),
             processed_count=0, 
             saved_count=0,
             message=f"error: {str(e)}"

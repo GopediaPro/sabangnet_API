@@ -44,6 +44,16 @@ class OrderMacroUtils:
             "etc_site_merge_packaging": etc_site_merge_packaging,
         }
 
+        self.MACRO_MAP_V3 = {
+            "gmarket_erp": "gmarket_erp_macro_run",
+            "gmarket_bundle": "gmarker_bundle_macro_run",
+            "brandi_erp": "brandi_erp_macro_run",
+            "zigzag_erp": "zigzag_erp_macro_run",
+            "zigzag_bundle": "zigzag_bundle_macro_run",
+            "etc_site": "etc_site_macro_run",
+            "etc_site_bundle": "etc_site_bundle_macro_run",
+        }
+
     def run_ali_macro(self, file_path: str, is_star: bool = False) -> int:
         return ERPAliMacroV2(file_path, is_star).ali_erp_macro_run()
 

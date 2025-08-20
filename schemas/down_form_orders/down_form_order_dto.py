@@ -121,6 +121,7 @@ class DownFormOrdersInvoiceNoUpdateDto(BaseDTO):
 class DownFormOrdersFromReceiveOrdersDto(BaseDTO):
     success: Optional[bool] = Field(None, description="성공 여부")
     mall_id: Optional[str] = Field(None, description="쇼핑몰 아이디")
+    dpartner_id: Optional[str] = Field(None, description="배송구분(일반배송, 스타배송)")
     processed_count: Optional[int] = Field(None, description="처리된 데이터 수")
     saved_count: Optional[int] = Field(None, description="저장된 데이터 수")
     message: Optional[str] = Field(None, description="메시지")
