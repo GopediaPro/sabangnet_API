@@ -22,7 +22,7 @@ class SmileMacro(Base):
     # 구매결정일자 - source_field 없음
     mall_product_id: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="상품번호*")
     order_id: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="주문번호*")
-    chat_1: Mapped[str | None] = mapped_column(String(200), nullable=True, comment="주문옵션")
+    sku_value: Mapped[str | None] = mapped_column(String(200), nullable=True, comment="주문옵션")
     product_name: Mapped[str | None] = mapped_column(String(500), nullable=True, comment="상품명")
     item_name: Mapped[str | None] = mapped_column(String(500), nullable=True, comment="제품명")
     sale_cnt: Mapped[int | None] = mapped_column(Integer, nullable=True, comment="수량")
@@ -40,11 +40,11 @@ class SmileMacro(Base):
     delv_msg: Mapped[str | None] = mapped_column(Text, nullable=True, comment="배송시 요구사항")
     # (옥션)복수구매할인 - source_field 없음
     # (옥션)우수회원할인 - source_field 없음
-    sku1_num: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="SKU1번호")
+    sku1_no: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="SKU1번호")
     sku1_cnt: Mapped[str | None] = mapped_column(String(50), nullable=True, comment="SKU1수량")
-    sku2_num: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="SKU2번호")
+    sku2_no: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="SKU2번호")
     sku2_cnt: Mapped[str | None] = mapped_column(String(50), nullable=True, comment="SKU2수량")
-    sku_num: Mapped[str | None] = mapped_column(String(200), nullable=True, comment="SKU번호 및 수량")
+    sku_no: Mapped[str | None] = mapped_column(String(200), nullable=True, comment="SKU번호 및 수량")
     pay_dt: Mapped[datetime | None] = mapped_column(Date, nullable=True, comment="결제완료일")
     user_tel: Mapped[str | None] = mapped_column(String(20), nullable=True, comment="구매자 전화번호")
     user_cel: Mapped[str | None] = mapped_column(String(20), nullable=True, comment="구매자 휴대폰")
@@ -52,7 +52,7 @@ class SmileMacro(Base):
     # 발송예정일 - source_field 없음
     # 발송일자 - source_field 없음
     # 배송구분 - source_field 없음
-    delv_id: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="배송번호")
+    invoice_no: Mapped[str | None] = mapped_column(String(50), nullable=True, comment="배송번호")
     delv_status: Mapped[str | None] = mapped_column(String(50), nullable=True, comment="배송상태")
     # 배송완료일자 - source_field 없음
     # 배송지연사유 - source_field 없음

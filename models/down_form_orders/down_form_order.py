@@ -34,6 +34,7 @@ class BaseFormOrder(Base):
     model_name: Mapped[str | None] = mapped_column(Text)
     erp_model_name: Mapped[str | None] = mapped_column(Text)
     location_nm: Mapped[str | None] = mapped_column(Text)
+    sku_id: Mapped[str | None] = mapped_column(Text)
     
     # 수량 및 판매 정보
     sale_cnt: Mapped[str | None] = mapped_column(String(25))
@@ -59,6 +60,7 @@ class BaseFormOrder(Base):
     receive_tel: Mapped[str | None] = mapped_column(String(20))
     receive_addr: Mapped[str | None] = mapped_column(Text)
     receive_zipcode: Mapped[str | None] = mapped_column(String(15))
+    mall_user_id: Mapped[str | None] = mapped_column(Text)
     
     # 배송 정보
     delivery_payment_type: Mapped[str | None] = mapped_column(String(50))
@@ -66,28 +68,31 @@ class BaseFormOrder(Base):
     delivery_id: Mapped[str | None] = mapped_column(Text)
     delivery_class: Mapped[str | None] = mapped_column(Text)
     invoice_no: Mapped[str | None] = mapped_column(Text)
+    delivery_method_str: Mapped[str | None] = mapped_column(String(100)) # 배송구분 ex; 선불, 무료, 선결제
     
     # 메시지 및 기타 정보
     free_gift: Mapped[str | None] = mapped_column(Text)
     etc_msg: Mapped[str | None] = mapped_column(Text)
-    order_etc_7: Mapped[str | None] = mapped_column(Text)
+    order_etc_7: Mapped[str | None] = mapped_column(Text) 
     fld_dsp: Mapped[str | None] = mapped_column(Text)
     order_etc_6: Mapped[str | None] = mapped_column(Text)
+    order_etc_9: Mapped[str | None] = mapped_column(Text) # 주문일자 + 시간 (추정 컬럼)
     
     # 날짜 정보
-    order_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    reg_date: Mapped[str | None] = mapped_column(String(14))
+    order_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True)) #주문일자
+    reg_date: Mapped[str | None] = mapped_column(String(14)) # 수집일자
     ord_confirm_date: Mapped[str | None] = mapped_column(String(14))
-    rtn_dt: Mapped[str | None] = mapped_column(String(14))
-    chng_dt: Mapped[str | None] = mapped_column(String(14))
-    delivery_confirm_date: Mapped[str | None] = mapped_column(String(14))
-    cancel_dt: Mapped[str | None] = mapped_column(String(14))
-    hope_delv_date: Mapped[str | None] = mapped_column(String(14))
-    inv_send_dm: Mapped[str | None] = mapped_column(String(14))
+    rtn_dt: Mapped[str | None] = mapped_column(String(14)) # 반품일자
+    chng_dt: Mapped[str | None] = mapped_column(String(14)) # 변경일자
+    delivery_confirm_date: Mapped[str | None] = mapped_column(String(14)) # 배송확인일자
+    cancel_dt: Mapped[str | None] = mapped_column(String(14)) # 취소일자
+    hope_delv_date: Mapped[str | None] = mapped_column(String(14)) # 배송희망일자
+    inv_send_dm: Mapped[str | None] = mapped_column(String(14)) # 송장전송일자
     
     # 처리 상태 및 로그
     work_status: Mapped[str | None] = mapped_column(String(14))
     error_logs: Mapped[str | None] = mapped_column(JSONB, nullable=True)
+    batch_id: Mapped[int | None] = mapped_column(Integer)
 
     @classmethod
     def build_erp(cls, receive_orders_dto: ReceiveOrdersDto):
