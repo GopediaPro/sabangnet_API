@@ -8,15 +8,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from utils.logs.sabangnet_logger import get_logger
 from utils.macros.smile.smile_macro_handler import SmileMacroHandler
 from utils.macros.smile.smile_common_utils import SmileCommonUtils
+from utils.builders.smile_data_builder import SmileMacroDataBuilder
+from utils.handlers.data_type_handler import SmileDataTypeHandler
 from repository.smile_erp_data_repository import SmileErpDataRepository
 from repository.smile_settlement_data_repository import SmileSettlementDataRepository
 from repository.smile_sku_data_repository import SmileSkuDataRepository
 from repository.smile_macro_repository import SmileMacroRepository
+from repository.down_form_order_repository import DownFormOrderRepository
 from schemas.smile.smile_macro_dto import (
     SmileMacroRequestDto, 
     SmileMacroResponseDto, 
     SmileMacroStageRequestDto
 )
+from schemas.macro_batch_processing.request.batch_process_request import BatchProcessRequest
+from schemas.macro_batch_processing.batch_process_dto import BatchProcessDto
+from services.macro_batch_processing.batch_info_create_service import BatchInfoCreateService
 from minio_handler import upload_and_get_url_and_size, url_arrange
 from models.smile.smile_macro import SmileMacro
 logger = get_logger(__name__)
@@ -36,6 +42,8 @@ class SmileMacroService:
             self.settlement_repository = SmileSettlementDataRepository(session)
             self.sku_repository = SmileSkuDataRepository(session)
             self.smile_macro_repository = SmileMacroRepository(session)
+            self.down_form_order_repository = DownFormOrderRepository(session)
+            self.batch_info_create_service = BatchInfoCreateService(session)
     
     def _generate_random_alphabat(self) -> str:
         """랜덤 알파벳 생성"""
@@ -109,7 +117,7 @@ class SmileMacroService:
         
         return a_handler, g_handler
     
-    async def save_macro_handler_to_db(self, macro_handler: SmileMacroHandler) -> bool:
+    async def save_macro_handler_to_db(self, macro_handler: SmileMacroHandler) -> List[dict]:
         """
         매크로 핸들러의 데이터를 DB에 저장
         
@@ -117,84 +125,17 @@ class SmileMacroService:
             macro_handler: 매크로 핸들러
             
         Returns:
-            bool: 저장 성공 여부
+            List[dict]: 저장된 데이터 리스트
         """
         try:
             if not self.session:
                 self.logger.warning("데이터베이스 세션이 없습니다. DB 저장을 건너뜁니다.")
                 return False
             
-            # 컬럼 매핑 정보 (source_field -> target_column)
-            column_mapping = {
-                'A': 'fld_dsp',           # 아이디*
-                'B': 'expected_payout', # 정산예정금??
-                'C': 'service_fee',    # 서비스 이용료
-                'D': 'mall_order_id',  # 장바구니번호(결제번호)
-                'E': 'pay_cost',       # 금액[배송비미포함]
-                'F': 'delv_cost',      # 배송비 금액
-                'G': None,             # 구매결정일자 - source_field 없음
-                'H': 'mall_product_id', # 상품번호*
-                'I': 'order_id',       # 주문번호*
-                'J': 'chat_1',         # 주문옵션
-                'K': 'product_name',   # 상품명
-                'L': 'item_name',      # 제품명
-                'M': 'sale_cnt',       # 수량
-                'N': None,             # 추가구성 - source_field 없음
-                'O': None,             # 사은품 - source_field 없음
-                'P': 'sale_cost',      # 판매금액
-                'Q': 'mall_user_id',   # 구매자ID
-                'R': 'user_name',      # 구매자명
-                'S': 'receive_name',   # 수령인명
-                'T': 'delivery_method_str', # 배송비
-                'U': 'receive_cel',    # 수령인 휴대폰
-                'V': 'receive_tel',    # 수령인 전화번호
-                'W': 'receive_addr',   # 주소
-                'X': 'receive_zipcode', # 우편번호
-                'Y': 'delv_msg',       # 배송시 요구사항
-                'Z': None,             # (옥션)복수구매할인 - source_field 없음
-                'AA': None,            # (옥션)우수회원할인 - source_field 없음
-                'AB': 'sku1_num',      # SKU1번호
-                'AC': 'sku1_cnt',      # SKU1수량
-                'AD': 'sku2_num',      # SKU2번호
-                'AE': 'sku2_cnt',      # SKU2수량
-                'AF': 'sku_num',       # SKU번호 및 수량
-                'AG': 'pay_dt',        # 결제완료일
-                'AH': 'user_tel',      # 구매자 전화번호
-                'AI': 'user_cel',      # 구매자 휴대폰
-                'AJ': 'buy_coupon',    # 구매쿠폰적용금액
-                'AK': None,            # 발송예정일 - source_field 없음
-                'AL': None,            # 발송일자 - source_field 없음
-                'AM': None,            # 배송구분 - source_field 없음
-                'AN': 'delv_id',       # 배송번호
-                'AO': 'delv_status',   # 배송상태
-                'AP': None,            # 배송완료일자 - source_field 없음
-                'AQ': None,            # 배송지연사유 - source_field 없음
-                'AR': None,            # 배송점포 - source_field 없음
-                'AS': None,            # 상품미수령상세사유 - source_field 없음
-                'AT': None,            # 상품미수령신고사유 - source_field 없음
-                'AU': None,            # 상품미수령신고일자 - source_field 없음
-                'AV': None,            # 상품미수령이의제기일자 - source_field 없음
-                'AW': None,            # 상품미수령철회요청일자 - source_field 없음
-                'AX': None,            # 송장번호(방문수령인증키) - source_field 없음
-                'AY': None,            # 일시불할인 - source_field 없음
-                'AZ': None,            # 재배송일 - source_field 없음
-                'BA': None,            # 재배송지 우편번호 - source_field 없음
-                'BB': None,            # 재배송지 운송장번호 - source_field 없음
-                'BC': None,            # 재배송지 주소 - source_field 없음
-                'BD': None,            # 재배송택배사명 - source_field 없음
-                'BE': None,            # 정산완료일 - source_field 없음
-                'BF': 'order_dt',      # 주문일자(결제확인전)
-                'BG': 'order_method',  # 주문종류
-                'BH': None,            # 주문확인일자 - source_field 없음
-                'BI': 'delv_method_id', # 택배사명(발송방법)
-                'BJ': None,            # 판매단가 - source_field 없음 (sale_cost와 중복)
-                'BK': 'sale_method',   # 판매방식
-                'BL': 'order_etc_7',   # 판매자 관리코드
-                'BM': None,            # 판매자 상세관리코드 - source_field 없음
-                'BN': None,            # 판매자북캐시적립 - source_field 없음
-                'BO': 'sale_coupon',   # 판매자쿠폰할인
-                'BP': None,            # 판매자포인트적립 - source_field 없음
-            }
+            # 컬럼 매핑 정보를 빌더에서 가져오기
+            column_mapping = SmileMacroDataBuilder.get_column_mapping()
+            integer_fields = SmileMacroDataBuilder.get_integer_fields()
+            date_fields = SmileMacroDataBuilder.get_date_fields()
             
             # 데이터 수집
             smile_macro_data_list = []
@@ -211,53 +152,13 @@ class SmileMacroService:
                     cell_value = macro_handler.ws[f'{col_letter}{row_num}'].value
                     field_name = column_mapping[col_letter]
                     
-                    # 데이터 타입 변환
-                    if field_name in ['sale_cnt']:
-                        # 정수형 필드
-                        try:
-                            if cell_value is not None and str(cell_value).strip():
-                                row_data[field_name] = int(float(cell_value))
-                            else:
-                                row_data[field_name] = None
-                        except (ValueError, TypeError):
-                            row_data[field_name] = None
-                    elif field_name in ['expected_payout', 'service_fee', 'pay_cost', 'delv_cost', 'sale_cost', 'buy_coupon', 'sale_coupon']:
-                        # 숫자형 필드
-                        try:
-                            if cell_value is not None and str(cell_value).strip():
-                                # 문자열 정리 (쉼표, 원화 기호 제거)
-                                cleaned_value = str(cell_value).replace(',', '').replace('₩', '').replace('원', '').strip()
-                                if cleaned_value:
-                                    row_data[field_name] = float(cleaned_value)
-                                else:
-                                    row_data[field_name] = None
-                            else:
-                                row_data[field_name] = None
-                        except (ValueError, TypeError):
-                            row_data[field_name] = None
-                    elif field_name in ['pay_dt', 'order_dt']:
-                        # 날짜형 필드
-                        try:
-                            if cell_value is not None and str(cell_value).strip():
-                                from datetime import datetime
-                                # 다양한 날짜 형식 처리
-                                date_str = str(cell_value).strip()
-                                if len(date_str) == 10:  # YYYY-MM-DD
-                                    row_data[field_name] = datetime.strptime(date_str, '%Y-%m-%d').date()
-                                elif len(date_str) == 8:  # YYYYMMDD
-                                    row_data[field_name] = datetime.strptime(date_str, '%Y%m%d').date()
-                                else:
-                                    row_data[field_name] = None
-                            else:
-                                row_data[field_name] = None
-                        except (ValueError, TypeError):
-                            row_data[field_name] = None
-                    else:
-                        # 문자열 필드
-                        if cell_value is not None:
-                            row_data[field_name] = str(cell_value).strip()
-                        else:
-                            row_data[field_name] = None
+                    # 데이터 타입 변환 (핸들러 사용)
+                    field_type = SmileDataTypeHandler.get_field_type(
+                        field_name, integer_fields, date_fields
+                    )
+                    row_data[field_name] = SmileDataTypeHandler.convert_field_value(
+                        cell_value, field_name, field_type
+                    )
                 
                 smile_macro_data_list.append(row_data)
             
@@ -265,16 +166,60 @@ class SmileMacroService:
             if smile_macro_data_list:
                 await self.smile_macro_repository.create_multiple_smile_macro(smile_macro_data_list)
                 self.logger.info(f"매크로 핸들러 데이터 {len(smile_macro_data_list)}개 DB 저장 완료")
-                return True
+                return smile_macro_data_list
             else:
                 self.logger.warning("저장할 데이터가 없습니다.")
-                return False
+                return []
                 
         except Exception as e:
             self.logger.error(f"매크로 핸들러 DB 저장 중 오류: {str(e)}")
-            return False
+            return []
     
-    async def process_smile_macro_with_db(self, file_path: str, output_path: Optional[str] = None) -> SmileMacroResponseDto:
+    async def save_macro_handler_to_down_form_order(self, smile_macro_data_list: List[dict], batch_id: Optional[str] = None):
+        """
+        smile_macro 데이터를 down_form_order DB에 저장
+        
+        Args:
+            smile_macro_data_list: smile_macro 데이터 리스트
+        """
+        try:
+            if not smile_macro_data_list:
+                self.logger.warning("down_form_order에 저장할 데이터가 없습니다.")
+                return
+            
+            from schemas.smile.smile_macro_dto import SmileMacroDto
+            
+            down_form_order_data_list = []
+            
+            for macro_data in smile_macro_data_list:
+                # SmileMacroDto 생성
+                smile_macro_dto = SmileMacroDto(**macro_data)
+                
+                # down_form_order 형식으로 변환
+                down_form_data = smile_macro_dto.to_down_form_order_data()
+                
+                down_form_order_data_list.append(down_form_data)
+            
+            # down_form_order DB에 저장
+            if down_form_order_data_list:
+                if self.down_form_order_repository:
+                    # save_to_down_form_orders 메서드 활용 (기존 생성 코드 활용)
+                    saved_count = await self.down_form_order_repository.save_to_down_form_orders(
+                        down_form_order_data_list, 
+                        template_code='smile',
+                        batch_id=batch_id
+                    )
+                    self.logger.info(f"down_form_order에 {saved_count}개 데이터 저장 완료")
+                else:
+                    self.logger.warning("down_form_order_repository가 없습니다. 저장을 건너뜁니다.")
+                    
+        except Exception as e:
+            self.logger.error(f"down_form_order 저장 중 오류: {str(e)}")
+            if self.session:
+                await self.session.rollback()
+            raise e
+    
+    async def process_smile_macro_with_db(self, file_path: str, output_path: Optional[str] = None, request_obj: Optional[BatchProcessRequest] = None) -> SmileMacroResponseDto:
         """
         데이터베이스에서 데이터를 가져와서 스마일배송 매크로 처리
         
@@ -333,21 +278,42 @@ class SmileMacroService:
                     error_details="Stage 6-8 processing failed"
                 )
             
+            # 전체 칼럼 및 값 중간 점검 (서비스 레이어에서도 확인)
+            inspection_result = macro_handler.print_all_columns_and_values()
+            self.logger.info(f"서비스 레이어에서 확인한 중간 점검 결과: {inspection_result}")
+            
             # 6-8단계 처리 후 데이터 행 수 확인
             after_stage_8_rows = macro_handler.ws.max_row - 1  # 헤더 제외
             self.logger.info(f"6-8단계 처리 후 데이터 행 수: {after_stage_8_rows}")
             
-            # macro_handler에 헤더 변경
-            SmileCommonUtils.update_smile_macro_headers(macro_handler.ws)
-
             # A 컬럼을 기준으로 데이터 분리, Header 변경
             a_handler, g_handler = self._split_data_by_column_a(macro_handler)
 
             # A 데이터 값 변경
             SmileCommonUtils.transform_column_a_data(macro_handler.ws)
-            # macro_handler DB에 저장 
-            await self.save_macro_handler_to_db(macro_handler)
+            # macro_handler data를 smile_macro DB에 저장하고 데이터 반환
+            smile_macro_data_list = await self.save_macro_handler_to_db(macro_handler)
             
+            # batch_id 생성 (request_obj가 있는 경우)
+            batch_id = None
+            if request_obj:
+                # 원본 파일명 생성 (첫 번째 파일명 사용)
+                original_filename = os.path.basename(file_path)
+                # 임시로 빈 file_url과 file_size로 batch 생성 (나중에 실제 값으로 업데이트)
+                batch_id = await self.batch_info_create_service.build_and_save_batch(
+                    BatchProcessDto.build_success,
+                    original_filename,
+                    "",  # 임시 file_url
+                    0,   # 임시 file_size
+                    request_obj
+                )
+                self.logger.info(f"배치 ID 생성 완료: {batch_id}")
+            
+            # smile_macro DB의 data를 down_form_order DB에 저장 (batch_id 포함)
+            await self.save_macro_handler_to_down_form_order(smile_macro_data_list, batch_id)
+
+            # 전체 파일 저장
+        
             # A 데이터 파일 저장
             a_filename = self._generate_filename('A')
             a_output_path = os.path.join(os.path.dirname(file_path), a_filename)
@@ -370,7 +336,9 @@ class SmileMacroService:
                 message="데이터베이스 기반 스마일배송 매크로 처리가 성공적으로 완료되었습니다.",
                 output_path=a_saved_path,
                 output_path2=g_saved_path,
-                processed_rows=total_processed_rows
+                processed_rows=total_processed_rows,
+                batch_id=batch_id,
+                macro_handler=macro_handler
             )
             
         except Exception as e:
@@ -433,7 +401,7 @@ class SmileMacroService:
                 error_details=str(e)
             )
     
-    async def merge_and_process_files_with_minio(self, file_paths: List[str]) -> Dict[str, Any]:
+    async def merge_and_process_files_with_minio(self, file_paths: List[str], request_obj: BatchProcessRequest) -> Dict[str, Any]:
         """
         여러 파일을 합친 후 스마일배송 매크로 처리하고 MinIO에 업로드
         
@@ -467,7 +435,7 @@ class SmileMacroService:
             merged_file_path = ExcelHandler.merge_excel_files_smart(file_paths)
             
             # 합쳐진 파일로 매크로 처리 (동기적으로 처리)
-            result = await self.process_smile_macro_with_db(merged_file_path, None)
+            result = await self.process_smile_macro_with_db(merged_file_path, None, request_obj)
             
             if not result.success:
                 # 임시 합쳐진 파일 삭제
@@ -499,6 +467,34 @@ class SmileMacroService:
                 )
                 g_file_url = url_arrange(g_file_url)
                 
+                # batch 업데이트 (batch_id가 있는 경우)
+                if result.batch_id:
+                    try:
+                        # A 파일 정보로 batch 업데이트
+                        from repository.batch_info_repository import BatchInfoRepository
+                        batch_repository = BatchInfoRepository(self.session)
+                        
+                        # A 파일 정보로 batch 업데이트
+                        batch_dto = BatchProcessDto(
+                            batch_id=result.batch_id,
+                            file_url=a_file_url,
+                            file_size=a_file_size,
+                            file_name=a_file_name
+                        )
+                        await batch_repository.update_batch_info(batch_dto)
+                        self.logger.info(f"배치 정보 업데이트 완료: batch_id={result.batch_id}")
+                        
+                        # macro_handler 데이터를 기반으로 전체 파일을 저장하여 batch_process에 입력
+                        if result.macro_handler:
+                            await self._save_macro_handler_to_batch_process(
+                                result.macro_handler, 
+                                result.batch_id, 
+                                a_file_url, 
+                                a_file_size
+                            )
+                    except Exception as e:
+                        self.logger.error(f"배치 정보 업데이트 실패: {str(e)}")
+                
                 # 임시 파일들 정리
                 try:
                     os.remove(merged_file_path)
@@ -518,7 +514,8 @@ class SmileMacroService:
                     "file_size2": g_file_size,
                     "processed_rows": result.processed_rows,
                     "output_path": result.output_path,
-                    "output_path2": result.output_path2
+                    "output_path2": result.output_path2,
+                    "batch_id": result.batch_id
                 }
                 
             except Exception as e:
@@ -587,7 +584,7 @@ class SmileMacroService:
         """
         return SmileCommonUtils.convert_to_dataframe(data)
     
-    async def get_erp_data_from_db(self, fld_dsp: Optional[str] = None) -> pd.DataFrame:
+    async def get_erp_data_from_db(self, site: Optional[str] = None) -> pd.DataFrame:
         """
         데이터베이스에서 ERP 데이터 조회
         
@@ -602,8 +599,8 @@ class SmileMacroService:
                 self.logger.warning("데이터베이스 세션이 없습니다. 빈 DataFrame을 반환합니다.")
                 return pd.DataFrame()
             
-            if fld_dsp:
-                erp_data_list = await self.erp_repository.get_erp_data_by_fld_dsp(fld_dsp)
+            if site:
+                erp_data_list = await self.erp_repository.get_erp_data_by_fld_dsp(site)
             else:
                 erp_data_list = await self.erp_repository.get_all_erp_data()
             
@@ -612,7 +609,7 @@ class SmileMacroService:
             for erp_data in erp_data_list:
                 erp_data_dicts.append({
                     '날짜': erp_data.date.strftime('%Y-%m-%d') if erp_data.date else None,
-                    '사이트': erp_data.fld_dsp,
+                    '사이트': erp_data.site,
                     '고객성함': erp_data.customer_name,
                     '주문번호': erp_data.order_number,
                     'ERP': erp_data.erp_code
@@ -691,11 +688,12 @@ class SmileMacroService:
             
             sku_data_list = await self.sku_repository.get_all_sku_data()
             
-            # ORM 객체를 딕셔너리로 변환
+            # ORM 객체를 DataFrame으로 변환
             sku_data_dicts = []
             for sku_data in sku_data_list:
                 sku_data_dicts.append({
-                    sku_data.sku_number: sku_data.model_name
+                    'sku_number': sku_data.sku_number,
+                    'model_name': sku_data.model_name
                 })
             
             df = pd.DataFrame(sku_data_dicts)
@@ -777,3 +775,81 @@ class SmileMacroService:
             'BI': '판매자쿠폰할인',
             'BJ': '판매자포인트적립'
         } 
+
+    async def _save_macro_handler_to_batch_process(
+        self, 
+        macro_handler: SmileMacroHandler, 
+        batch_id: int, 
+        file_url: str, 
+        file_size: int
+    ):
+        """
+        macro_handler 데이터를 기반으로 전체 파일을 저장하여 batch_process에 입력
+        
+        Args:
+            macro_handler: 매크로 핸들러
+            batch_id: 배치 ID
+            file_url: 파일 URL
+            file_size: 파일 크기
+        """
+        try:
+            # macro_handler의 전체 데이터를 DataFrame으로 변환
+            import pandas as pd
+            from utils.excels.excel_handler import ExcelHandler
+            
+            # macro_handler의 워크시트를 DataFrame으로 변환
+            data = []
+            for row in range(2, macro_handler.ws.max_row + 1):  # 헤더 제외
+                row_data = []
+                for col in range(1, macro_handler.ws.max_column + 1):
+                    row_data.append(macro_handler.ws.cell(row=row, column=col).value)
+                data.append(row_data)
+            
+            # 컬럼명 가져오기
+            headers = []
+            for col in range(1, macro_handler.ws.max_column + 1):
+                headers.append(macro_handler.ws.cell(row=1, column=col).value)
+            
+            # DataFrame 생성
+            df = pd.DataFrame(data, columns=headers)
+            
+            # 임시 파일로 저장
+            import tempfile
+            temp_file = tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False)
+            temp_file.close()
+            
+            # Excel 파일로 저장
+            df.to_excel(temp_file.name, index=False)
+            
+            # MinIO에 업로드
+            template_code = "smile_macro_full"
+            file_name = f"smile_macro_full_batch_{batch_id}.xlsx"
+            full_file_url, full_minio_object_name, full_file_size = upload_and_get_url_and_size(
+                temp_file.name, template_code, file_name
+            )
+            full_file_url = url_arrange(full_file_url)
+            
+            # batch_process에 전체 파일 정보 추가
+            from repository.batch_info_repository import BatchInfoRepository
+            batch_repository = BatchInfoRepository(self.session)
+            
+            # 전체 파일 정보로 batch 업데이트
+            batch_dto = BatchProcessDto(
+                batch_id=batch_id,
+                file_url=full_file_url,
+                file_size=full_file_size,
+                file_name=file_name
+            )
+            await batch_repository.update_batch_info(batch_dto)
+            
+            # 임시 파일 삭제
+            try:
+                os.remove(temp_file.name)
+            except:
+                pass
+            
+            self.logger.info(f"전체 파일 batch_process 저장 완료: batch_id={batch_id}, file_url={full_file_url}")
+            
+        except Exception as e:
+            self.logger.error(f"전체 파일 batch_process 저장 실패: {str(e)}")
+            raise e 
