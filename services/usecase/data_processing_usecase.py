@@ -186,6 +186,7 @@ class DataProcessingUsecase:
             saved_count=saved_count,
             message=f"Successfully processed {len(receive_orders)} records and saved {saved_count} records"
         )
+
     async def save_receive_orders_to_db(self, filters: dict[str, Any]) -> ReceiveOrdersBulkCreateResponse:
         """
         사방넷 주문수집 데이터 조회 및 저장.
@@ -206,13 +207,15 @@ class DataProcessingUsecase:
             ord_ed_date=date_to,
             order_status=order_status
         )
-        xml_url = self.order_create_service.get_xml_url_from_minio(xml_file_path)
-        xml_content = self.order_create_service.get_orders_from_sabangnet(xml_url)
+        xml_url = self.order_create_service.get_xml_url_from_minio(
+            xml_file_path)
+        xml_content = self.order_create_service.get_orders_from_sabangnet(
+            xml_url)
         safe_mode = os.getenv("DEPLOY_ENV", "production") != "production"
         receive_orders_saved = await self.order_create_service.save_orders_to_db_from_xml(xml_content, safe_mode)
-        logger.info(f"[END] save_receive_orders_to_db | receive_orders_saved: {receive_orders_saved}")
+        logger.info(
+            f"[END] save_receive_orders_to_db | receive_orders_saved: {receive_orders_saved}")
         return receive_orders_saved.success
-
 
     async def save_down_form_order_from_receive_orders_by_filters_v2(
             self,
@@ -220,8 +223,8 @@ class DataProcessingUsecase:
     ) -> DownFormOrdersFromReceiveOrdersDto:
         """
         주문수집 데이터 저장 V2.
-        1. 사방넷 주문 데이터 조회 -> receive_orders 테이블에 저장.
-        2. 저장된 주문 데이터를 template_code에 따라 변환 후 down_form_orders 테이블에 저장.
+        1. 사방넷 주문수집 데이터 조회 -> receive_orders 테이블에 저장.
+        2. 저장된 주문수집 데이터 매크로 실행 -> down_form_orders 테이블에 저장.
         3. 성공 여부를 반환.
         args:
             filters: filters
@@ -230,26 +233,33 @@ class DataProcessingUsecase:
         """
         logger.info(
             f"[START] save_down_form_order_from_receive_orders_by_filters_v2 filters: {filters}")
+
+        # 몰 아이디, 배송구분 추출
+        mall_id = filters.get('mall_id')
+        dpartner_id = filters.get('dpartner_id')
+
         # 1. 주문수집 데이터 조회 및 recive_orders 테이블에 저장
         receive_orders_saved_success = await self.save_receive_orders_to_db(filters)
 
         if not receive_orders_saved_success:
             return DownFormOrdersFromReceiveOrdersDto(
                 success=False,
-                mall_id=filters.get('mall_id'),
+                mall_id=mall_id,
+                dpartner_id=dpartner_id,
                 processed_count=0,
                 saved_count=0,
                 message="No data saved to receive_orders"
             )
-        
+
         # 2. filters에 따라 receive_orders 조회
         receive_orders: list[ReceiveOrders] = await self.order_read_service.get_receive_orders_by_filters(filters)
         logger.info(f"receive_orders_len: {len(receive_orders)}")
         if not receive_orders:
             return DownFormOrdersFromReceiveOrdersDto(
                 success=False,
-                mall_id=filters.get('mall_id'),
-                processed_count=0,  
+                mall_id=mall_id,
+                dpartner_id=dpartner_id,
+                processed_count=0,
                 saved_count=0,
                 message="No data found to process"
             )
@@ -261,49 +271,38 @@ class DataProcessingUsecase:
                 receive_order)
             receive_orders_dict_list.append(receive_orders_dto.model_dump())
 
-        logger.info(f"receive_orders_dict_list len: {len(receive_orders_dict_list)}")
+        logger.info(
+            f"receive_orders_dict_list len: {len(receive_orders_dict_list)}")
 
         # 4. template_code 설정[ERP, 합포장]
-        mall_id = filters.get('mall_id')
-        if mall_id == 'ESM옥션' or mall_id == 'ESM지마켓':
-            template_code_list = ['gmarket_erp', 'gmarket_bundle']
-        elif mall_id == '브랜디':
-            template_code_list = ['brandi_erp', 'basic_bundle']
-        elif mall_id == '지그재그':
-            template_code_list = ['zigzag_erp', 'zigzag_bundle']
-        else:
-            template_code_list = ['basic_erp', 'basic_bundle']
+        template_code_mapping = {
+            'ESM옥션': ('gmarket_erp', 'gmarket_bundle'),
+            'ESM지마켓': ('gmarket_erp', 'gmarket_bundle'),
+            '브랜디': ('brandi_erp', 'basic_bundle'),
+            '지그재그': ('zigzag_erp', 'zigzag_bundle'),
+            '기타사이트': ('basic_erp', 'basic_bundle')
+        }
+        erp_template_code, bundle_template_code = template_code_mapping.get(mall_id, ('basic_erp', 'basic_bundle'))
 
-        # 5. 오케이마트, 스타배송 설정
-        dpartner_id = filters.get('dpartner_id')
+        # 5. 배송구분(일반배송, 스타배송) 설정
         if dpartner_id == '스타배송':
-            template_code_list = [f"star_{template_code_list[0]}", f"star_{template_code_list[1]}"]
-        
-        logger.info(f"template_code_list: {template_code_list}")
-
-        # 6. 템플릿 설정 조회
-        erp_template_code = await self.template_config_read_service.get_template_config_by_template_code(template_code_list[0])
-        bundle_template_code = await self.template_config_read_service.get_template_config_by_template_code(template_code_list[1])
-
-        logger.info(f"Loaded template config : {erp_template_code['template_code']} / {bundle_template_code['template_code']}")
-
-        # 7. ERP, 합포장 데이터 변환
-        erp_processed_datas = await DataProcessingUtils.process_simple_data(receive_orders_dict_list, erp_template_code)
-        bundle_processed_datas = await DataProcessingUtils.process_aggregated_data(receive_orders_dict_list, bundle_template_code)
+            erp_template_code = f"star_{erp_template_code}"
+            bundle_template_code = f"star_{bundle_template_code}"
 
         logger.info(
-            f"erp_processed_datas len: {len(erp_processed_datas)} | bundle_processed_datas len: {len(bundle_processed_datas)}")
+            f"erp_template_code: {erp_template_code} | bundle_template_code: {bundle_template_code}")
 
-        # 8. down_form_orders 저장 -> erp_form_orders 테이블에 저장, bundle_form_orders 테이블에 저장 (두 테이블 추가 예정)
-        erp_saved_count = await self.down_form_order_create_service.save_to_down_form_orders(erp_processed_datas, erp_template_code)
-        bundle_saved_count = await self.down_form_order_create_service.save_to_down_form_orders(bundle_processed_datas, bundle_template_code)
+        # 6. 매크로 실행 및 down_form_orders 테이블에 저장
+        erp_saved_count = await self.run_macro_to_down_form_order(erp_template_code, receive_orders_dict_list)
+        bundle_saved_count = await self.run_macro_to_down_form_order(bundle_template_code, receive_orders_dict_list)
         saved_count = erp_saved_count + bundle_saved_count
         logger.info(
             f"[END] save_down_form_order_from_receive_orders_by_filters_v2 | saved_count: {saved_count} | erp_saved_count: {erp_saved_count} | bundle_saved_count: {bundle_saved_count}")
 
         return DownFormOrdersFromReceiveOrdersDto(
             success=True,
-            mall_id=filters.get('mall_id'),
+            mall_id=mall_id,
+            dpartner_id=dpartner_id,
             processed_count=len(receive_orders),
             saved_count=saved_count,
             message=f"Successfully processed {len(receive_orders)} records and total saved {saved_count} records (erp records : {erp_saved_count} , bundle records : {bundle_saved_count})"
@@ -519,6 +518,54 @@ class DataProcessingUsecase:
             logger.error(f"Macro not found for template code: {template_code}")
             raise ValueError(
                 f"Macro not found for template code: {template_code}")
+
+    async def run_macro_to_down_form_order(self, template_code: str, recive_orders_data: list[ReceiveOrders]) -> int:
+        """
+        1. 템플릿 설정 조회
+        2. receive_orders 데이터 ERP, 합포장  down_form_order dto로 변경
+        3. 매크로 실행
+        4. down_form_order 테이블에 저장
+        5. 저장된 레코드 수를 반환
+        """
+        # 1. 템플릿 설정 조회
+        logger.info(
+            f"run_macro_with_db_v3 called with template_code={template_code}")
+        config: dict = await self.template_config_read_service.get_template_config_by_template_code(template_code)
+        logger.info(f"Loaded template config: {config}")
+
+        # 2. receive_orders 데이터 down_form_order dto로 변경
+        if config['is_aggregated']:
+            logger.info(
+                "Aggregated template detected. Processing aggregated data.")
+            processed_data = await DataProcessingUtils.process_aggregated_data(recive_orders_data, config)
+        else:
+            logger.info("Simple template detected. Processing simple data.")
+            processed_data = await DataProcessingUtils.process_simple_data(recive_orders_data, config)
+        logger.info(
+            f"Data processed. processed_data_count={len(processed_data)}. Sample: {processed_data[:1]}")
+
+        # 3. 매크로 실행
+        run_macro_data: list[dict[str, Any]] = []
+        macro_func = self.order_macro_utils.MACRO_MAP_V3.get(template_code)
+        if macro_func:
+            # 매크로 함수 추가 후 적용
+            # run_macro_data = macro_func(processed_data)
+            run_macro_data = processed_data
+        else:
+            logger.error(f"Macro not found for template code: {template_code}")
+            raise ValueError(
+                f"Macro not found for template code: {template_code}")
+
+        logger.info(f"{template_code} run_macro_data: {run_macro_data[:1]}")
+        # 4. down_form_orders 저장
+        try:
+            saved_count = await self.down_form_order_create_service.bulk_create_down_form_orders_with_dict(run_macro_data)
+            logger.info(
+                f"Saved {saved_count} records to down_form_order table with work_status=macro_run and template_code={template_code}")
+            return saved_count
+        except Exception as e:
+            logger.error(f"Error running {template_code} macro with db: {e}")
+            raise
 
     async def run_macro_with_db(self, template_code: str) -> int:
         """
