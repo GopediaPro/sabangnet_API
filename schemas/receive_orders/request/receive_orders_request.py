@@ -185,7 +185,7 @@ class ReceiveOrdersFillterRequest(BaseDateRangeRequest):
 
 
 class ReceiveOrdersToDownFormOrdersFillterRequst(ReceiveOrdersFillterRequest):
-    dpartner_id: Optional[str] = Field(..., description="오케이마트, 스타배송")
+    dpartner_id: Optional[str] = Field(..., description="배송구분(일반배송, 스타배송)")
 
     model_config = ConfigDict(
         json_schema_extra={
