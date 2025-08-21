@@ -20,7 +20,7 @@ class BatchProcess(Base):
     date_to: Mapped[datetime | None] = mapped_column(DateTime,comment="주문 종료 일자")
     error_message: Mapped[str | None] = mapped_column(Text,comment="배치 프로세스 오류 메시지")
     created_by: Mapped[str | None] = mapped_column(String(100),comment="배치 프로세스 생성자 ID")
-    work_status: Mapped[str | None] = mapped_column(String(14),comment="작업 상태")
+    work_status: Mapped[str | None] = mapped_column(String(100),comment="작업 상태")
     # 차후 활용 필드
     target_table: Mapped[str | None] = mapped_column(String(255),comment="처리 대상 테이블명")
     target_table_ids: Mapped[list[int] | None] = mapped_column(ARRAY(BigInteger),comment="처리 대상 테이블 레코드 ID 배열")
