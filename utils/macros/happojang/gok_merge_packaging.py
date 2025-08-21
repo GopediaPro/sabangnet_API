@@ -119,12 +119,14 @@ class GokSheetManager:
         
         # 나머지 시트는 계정별로 데이터 분리
         for r in all_rows:
-            account = GokDataProcessor.extract_bracket_content(
-                self.ws[f"B{r}"].value
-            )
+            b_value = str(self.ws[f"B{r}"].value or "")
             for sheet_name, accounts in self.account_mapping.items():
-                if sheet_name != "자동화_합포장_시트" and account in accounts:
-                    rows_by_sheet[sheet_name].append(r)
+                if sheet_name != "자동화_합포장_시트":
+                    # B열 값에서 계정명이 포함되어 있는지 확인
+                    for target_account in accounts:
+                        if target_account in b_value:
+                            rows_by_sheet[sheet_name].append(r)
+                            break
                     
         return rows_by_sheet
 
@@ -220,6 +222,7 @@ def gok_merge_packaging(file_path: str) -> str:
     # 첫 번째 시트(원본)에 자동화 로직 적용
     source_ws = ex.ws
     splitter = GokSheetManager(source_ws, ACCOUNT_MAPPING)
+    source_ws.title = "자동화_합포장_시트"
     splitter.apply_automation_logic(source_ws)
     
     # 계정별 시트 분리 및 필수 시트 생성

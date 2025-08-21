@@ -22,3 +22,4 @@ from models.hanjin.hanjin_orders import HanjinOrder
 from models.smile.smile_erp_data import SmileErpData
 from models.smile.smile_settlement_data import SmileSettlementData
 from models.smile.smile_sku_data import SmileSkuData
+from models.smile.smile_macro import SmileMacro

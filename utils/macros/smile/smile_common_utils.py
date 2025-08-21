@@ -4,6 +4,7 @@ from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
 from typing import Dict, List, Optional, Tuple, Any
 from utils.logs.sabangnet_logger import get_logger
+from utils.handlers.data_type_handler import DataTypeHandler
 
 logger = get_logger(__name__)
 
@@ -98,6 +99,65 @@ class SmileCommonUtils:
             
         except Exception as e:
             logger.error(f"열 삽입 중 오류: {str(e)}")
+            raise
+    
+    @staticmethod
+    def get_worksheet_headers(ws, max_cols: int = None) -> Dict[str, str]:
+        """
+        워크시트의 헤더 정보를 반환
+        
+        Args:
+            ws: 워크시트
+            max_cols: 확인할 최대 열 수 (None이면 모든 열 확인)
+            
+        Returns:
+            Dict[str, str]: {열_문자: 헤더_값} 형태의 딕셔너리
+        """
+        try:
+            headers = {}
+            
+            # 최대 열 수 결정
+            if max_cols is None:
+                max_cols = ws.max_column
+            
+            # 1행의 각 열에서 헤더 값 가져오기
+            for col_num in range(1, max_cols + 1):
+                col_letter = get_column_letter(col_num)
+                cell_value = ws[f'{col_letter}1'].value
+                headers[col_letter] = cell_value if cell_value is not None else ""
+            
+            logger.info(f"워크시트 헤더 정보 조회 완료 (총 {len(headers)}개 열)")
+            return headers
+            
+        except Exception as e:
+            logger.error(f"워크시트 헤더 조회 중 오류: {str(e)}")
+            raise
+    
+    @staticmethod
+    def print_worksheet_headers(ws, max_cols: int = None, show_empty: bool = False):
+        """
+        워크시트의 헤더 정보를 콘솔에 출력
+        
+        Args:
+            ws: 워크시트
+            max_cols: 확인할 최대 열 수 (None이면 모든 열 확인)
+            show_empty: 빈 헤더도 출력할지 여부
+        """
+        try:
+            headers = SmileCommonUtils.get_worksheet_headers(ws, max_cols)
+            
+            print(f"\n=== 워크시트 헤더 정보 ===")
+            print(f"총 열 수: {len(headers)}")
+            print("-" * 50)
+            
+            for col_letter, header_value in headers.items():
+                if show_empty or header_value:
+                    print(f"{col_letter}: {header_value}")
+            
+            print("-" * 50)
+            
+        except Exception as e:
+            logger.error(f"워크시트 헤더 출력 중 오류: {str(e)}")
             raise
     
     @staticmethod
@@ -309,16 +369,26 @@ class SmileCommonUtils:
         SKU 데이터를 딕셔너리로 변환
         
         Args:
-            sku_data: SKU DataFrame
+            sku_data: SKU DataFrame (sku_number, model_name 컬럼 포함)
             
         Returns:
-            Dict[str, str]: SKU 딕셔너리
+            Dict[str, str]: SKU 딕셔너리 (sku_number -> model_name)
         """
         try:
             sku_dict = {}
-            for _, row in sku_data.iterrows():
-                if pd.notna(row.iloc[0]):
-                    sku_dict[str(row.iloc[0]).strip()] = str(row.iloc[1]).strip()
+            
+            # 컬럼명이 있는 경우
+            if 'sku_number' in sku_data.columns and 'model_name' in sku_data.columns:
+                for _, row in sku_data.iterrows():
+                    sku_number = str(row['sku_number']).strip() if pd.notna(row['sku_number']) else ""
+                    model_name = str(row['model_name']).strip() if pd.notna(row['model_name']) else ""
+                    if sku_number and model_name:
+                        sku_dict[sku_number] = model_name
+            else:
+                # 기존 방식 (첫 번째, 두 번째 컬럼 사용)
+                for _, row in sku_data.iterrows():
+                    if pd.notna(row.iloc[0]):
+                        sku_dict[str(row.iloc[0]).strip()] = str(row.iloc[1]).strip()
                     
             logger.info(f"SKU 딕셔너리 생성 완료: {len(sku_dict)} 항목")
             return sku_dict
@@ -355,41 +425,14 @@ class SmileCommonUtils:
                     debug_info.append(f"{col}{row_num}={cell_value}({type(cell_value)})")
                     
                     if cell_value is not None:
-                        try:
-                            # 숫자로 변환 가능한 값만 더하기
-                            # 문자열인 경우 정리 후 변환 시도
-                            if isinstance(cell_value, str):
-                                # 공백 제거
-                                cleaned_value = cell_value.strip()
-                                # 쉼표 제거
-                                cleaned_value = cleaned_value.replace(',', '')
-                                # 원화 기호 제거
-                                cleaned_value = cleaned_value.replace('₩', '').replace('원', '')
-                                # 괄호 제거 (음수 표시용)
-                                is_negative = False
-                                if cleaned_value.startswith('(') and cleaned_value.endswith(')'):
-                                    cleaned_value = cleaned_value[1:-1]  # 괄호 제거
-                                    is_negative = True
-                                
-                                if cleaned_value:
-                                    numeric_value = float(cleaned_value)
-                                    if is_negative:
-                                        numeric_value = -numeric_value
-                                    sum_value += numeric_value
-                                    valid_values += 1
-                                    logger.debug(f"행 {row_num} {col}열: {cell_value} -> {cleaned_value} -> {numeric_value} (추가됨)")
-                                else:
-                                    logger.debug(f"행 {row_num} {col}열: {cell_value} -> 빈 문자열 (무시)")
-                            else:
-                                # 숫자 타입인 경우 직접 변환
-                                numeric_value = float(cell_value)
-                                sum_value += numeric_value
-                                valid_values += 1
-                                logger.debug(f"행 {row_num} {col}열: {cell_value} -> {numeric_value} (추가됨)")
-                        except (ValueError, TypeError) as e:
-                            # 숫자가 아닌 값은 무시
-                            logger.debug(f"행 {row_num} {col}열: {cell_value} -> 변환 실패 ({str(e)})")
-                            pass
+                        # DataTypeHandler를 사용하여 정수 변환
+                        numeric_value = DataTypeHandler.to_integer(cell_value)
+                        if numeric_value is not None:
+                            sum_value += numeric_value
+                            valid_values += 1
+                            logger.debug(f"행 {row_num} {col}열: {cell_value} -> {numeric_value} (추가됨)")
+                        else:
+                            logger.debug(f"행 {row_num} {col}열: {cell_value} -> 변환 실패 (숫자가 아님)")
                 
                 # 유효한 값이 하나라도 있으면 결과 저장
                 if valid_values > 0:
@@ -410,4 +453,98 @@ class SmileCommonUtils:
             
         except Exception as e:
             logger.error(f"합계 계산 중 오류: {str(e)}")
-            raise 
+            raise
+    
+    @staticmethod
+    def transform_column_a_data(ws):
+        """
+        A열 데이터 변환
+        G(beigebagel) -> [베이지베이글]G마켓-스마일
+        A(beigebagel) -> [베이지베이글]옥션-스마일
+        G(okokmart) -> [스마일배송]G마켓-스마일
+        A(okokmart) -> [스마일배송][오케이마트]옥션-스마일
+        G(clobuff1) -> [클로버프]G마켓-스마일
+        A(clobuff1) -> [클로버프]옥션-스마일
+        
+        Args:
+            ws: 워크시트
+        """
+        try:
+            last_row = ws.max_row
+            transformed_count = 0
+            
+            # 매핑 규칙 정의
+            mapping_rules = {
+                'beigebagel': {
+                    'G': '[베이지베이글]G마켓-스마일',
+                    'A': '[베이지베이글]옥션-스마일'
+                },
+                'okokmart': {
+                    'G': '[스마일배송]G마켓-스마일',
+                    'A': '[스마일배송][오케이마트]옥션-스마일'
+                },
+                'clobuff1': {
+                    'G': '[클로버프]G마켓-스마일',
+                    'A': '[클로버프]옥션-스마일'
+                }
+            }
+            
+            logger.info("A열 데이터 변환 시작")
+            
+            for row_num in range(2, last_row + 1):  # 헤더 제외하고 2행부터
+                cell_value = ws[f'A{row_num}'].value
+                
+                if cell_value and isinstance(cell_value, str):
+                    # 패턴 매칭: G(beigebagel) 또는 A(okokmart) 형태
+                    import re
+                    pattern = r'^([AG])\(([^)]+)\)$'
+                    match = re.match(pattern, cell_value.strip())
+                    
+                    if match:
+                        site_code = match.group(1)  # G 또는 A
+                        store_code = match.group(2)  # beigebagel, okokmart, clobuff1 등
+                        
+                        # 매핑 규칙에서 찾기
+                        if store_code in mapping_rules and site_code in mapping_rules[store_code]:
+                            new_value = mapping_rules[store_code][site_code]
+                            ws[f'A{row_num}'].value = new_value
+                            transformed_count += 1
+                            logger.debug(f"행 {row_num}: {cell_value} -> {new_value}")
+                        else:
+                            logger.debug(f"행 {row_num}: 매핑 규칙 없음 - {cell_value}")
+                    else:
+                        logger.debug(f"행 {row_num}: 패턴 불일치 - {cell_value}")
+            
+            logger.info(f"A열 데이터 변환 완료: {transformed_count}개 변환됨")
+            
+        except Exception as e:
+            logger.error(f"A열 데이터 변환 중 오류: {str(e)}")
+            raise
+    
+    @staticmethod
+    def update_smile_macro_headers(ws):
+        """
+        스마일배송 매크로 헤더 업데이트
+        
+        Args:
+            ws: 워크시트
+        """
+        try:
+            logger.info("스마일배송 매크로 헤더 업데이트 시작")
+            
+            # 헤더 매핑 정보
+            header_mapping = {
+                5: "금액[배송비미포함]",   # E열
+                12: "제품명"            # L열
+            }
+            
+            # 헤더 업데이트
+            for col_num, header_value in header_mapping.items():
+                ws.cell(row=1, column=col_num, value=header_value)
+                logger.debug(f"컬럼 {col_num} 헤더 업데이트: {header_value}")
+            
+            logger.info("스마일배송 매크로 헤더 업데이트 완료")
+            
+        except Exception as e:
+            logger.error(f"스마일배송 매크로 헤더 업데이트 중 오류: {str(e)}")
+            raise

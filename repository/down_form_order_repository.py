@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.logs.sabangnet_logger import get_logger
@@ -285,13 +285,18 @@ class DownFormOrderRepository:
         finally:
             await self.session.close()
 
-    async def save_to_down_form_orders(self, processed_data: list[dict[str, Any]], template_code: str) -> int:
+    async def save_to_down_form_orders(self, processed_data: list[dict[str, Any]], template_code: str, batch_id: Optional[int] = None) -> int:
         logger.info(
-            f"[START] save_to_down_form_orders | processed_data_count={len(processed_data)} | template_code={template_code}")
+            f"[START] save_to_down_form_orders | processed_data_count={len(processed_data)} | template_code={template_code} | batch_id={batch_id}")
         if not processed_data:
             logger.warning("No processed data to save.")
             return 0
         try:
+            # batch_id가 있는 경우 각 데이터에 추가
+            if batch_id:
+                for data in processed_data:
+                    data['batch_id'] = batch_id
+            
             objects = [BaseDownFormOrder(**row) for row in processed_data]
             self.session.add_all(objects)
             await self.session.commit()

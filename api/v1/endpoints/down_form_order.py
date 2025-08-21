@@ -5,6 +5,7 @@ from core.db import get_async_session
 # sql
 from sqlalchemy.ext.asyncio import AsyncSession
 # fastapi
+from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Depends, Query, Body, UploadFile, File, Form
 # service
 from services.usecase.data_processing_usecase import DataProcessingUsecase
@@ -13,13 +14,14 @@ from services.down_form_orders.down_form_order_create_service import DownFormOrd
 from services.down_form_orders.down_form_order_delete_service import DownFormOrderDeleteService
 from services.down_form_orders.down_form_order_update_service import DownFormOrderUpdateService
 # schema
-from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto, DownFormOrdersBulkDto
+from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto, DownFormOrdersBulkDto, DownFormOrdersFromReceiveOrdersDto
 from schemas.down_form_orders.response.down_form_orders_response import (
     DownFormOrderResponse,
     DownFormOrderBulkResponse,
     DownFormOrderPaginationResponse,
     DownFormOrderBulkCreateResponse,
     DownFormOrderPaginationWithDateRangeResponse,
+    DownFormOrdersFromReceiveOrdersResponse,
 )
 from schemas.down_form_orders.request.down_form_orders_request import (
     DownFormOrderCreateJsonRequest,
@@ -28,7 +30,10 @@ from schemas.down_form_orders.request.down_form_orders_request import (
     DownFormOrderBulkDeleteJsonRequest,
     DownFormOrderBulkCreateFilterRequest,
     DownFormOrdersPaginationWithDateRangeRequest,
+    DownFormOrdersFromReceiveOrdersFillterRequest
 )
+from schemas.integration_request import IntegrationRequest
+from schemas.integration_response import ResponseHandler, Metadata
 # utils
 from utils.response_status import RowStatus
 from utils.excels.excel_handler import ExcelHandler
@@ -126,42 +131,58 @@ async def down_form_orders_by_pagination(
     )
 
 
-@router.post("/pagination/date-range", response_model=DownFormOrderPaginationWithDateRangeResponse)
+@router.post("/pagination/date-range", response_class=JSONResponse)
 async def down_form_orders_by_pagination_with_date_range(
-    request: DownFormOrdersPaginationWithDateRangeRequest = Body(...),
+    request: IntegrationRequest[DownFormOrdersPaginationWithDateRangeRequest] = Body(...),
     down_form_order_read_service: DownFormOrderReadService = Depends(
         get_down_form_order_read_service),
 ):
-    date_from = request.filters.date_from
-    date_to = request.filters.date_to
-    template_code = request.template_code
-    page = request.page
-    page_size = request.page_size
+    try:
+        date_from = request.data.filters.date_from
+        date_to = request.data.filters.date_to
+        template_code = request.data.template_code
+        page = request.data.page
+        page_size = request.data.page_size
 
-    items, total = await down_form_order_read_service.get_down_form_orders_by_pagination_with_date_range(
-        date_from=date_from,
-        date_to=date_to,
-        page=page,
-        page_size=page_size,
-        template_code=template_code
-    )
-    dto_items: list[DownFormOrderDto] = [
-        DownFormOrderDto.model_validate(item) for item in items]
-    return DownFormOrderPaginationWithDateRangeResponse(
-        total=total,
-        page=request.page,
-        page_size=request.page_size,
-        template_code=request.template_code,
-        date_from=date_from,
-        date_to=date_to,
-        items=[
-            DownFormOrderResponse(
-                content=dto,
-                status=RowStatus.SUCCESS,
-                message="success"
-            ) for dto in dto_items
-        ]
-    )
+        items, total = await down_form_order_read_service.get_down_form_orders_by_pagination_with_date_range(
+            date_from=date_from,
+            date_to=date_to,
+            page=page,
+            page_size=page_size,
+            template_code=template_code
+        )
+        dto_items: list[DownFormOrderDto] = [
+            DownFormOrderDto.model_validate(item) for item in items]
+        response = DownFormOrderPaginationWithDateRangeResponse(
+            total=total,
+            page=request.data.page,
+            page_size=request.data.page_size,
+            template_code=request.data.template_code,
+            date_from=date_from,
+            date_to=date_to,
+            items=[
+                DownFormOrderResponse(
+                    content=dto,
+                    status=RowStatus.SUCCESS,
+                    message="success"
+                ) for dto in dto_items
+                ]
+            )
+        return ResponseHandler.ok(
+            data=response,
+            metadata=Metadata(
+                version="v1",
+                request_id=request.metadata.request_id
+            )
+        )
+    except Exception as e:
+        return ResponseHandler.internal_error(
+            message=str(e),
+            metadata=Metadata(
+                version="v1",
+                request_id=request.metadata.request_id
+            )
+        )
 
 
 @router.post("/bulk", response_model=DownFormOrderBulkResponse)
@@ -380,3 +401,30 @@ async def db_to_excel_url(
     )
 
     return {"file_url": file_url, "minio_object_name": minio_object_name}
+
+
+@router.post("/create-from-receive-orders")
+async def create_down_form_orders_from_receive_orders(
+    request: DownFormOrdersFromReceiveOrdersFillterRequest = Body(...),
+    get_data_processing_usecase: DataProcessingUsecase = Depends(
+        get_data_processing_usecase),
+):
+    """
+    사방넷 주문수집 조회 및 매크로 실행 후 down_form_orders 테이블에 저장
+    """
+    filters = request.filters.model_dump()
+    logger.info(f"주문수집 데이터 저장 V2 시작: {filters}")
+    try:
+        down_form_orders_dto = await get_data_processing_usecase.save_down_form_order_from_receive_orders_by_filters_v2(filters)
+        logger.info(f"주문수집 데이터 저장 V2 완료: {down_form_orders_dto.success}")
+        return DownFormOrdersFromReceiveOrdersResponse.from_dto(down_form_orders_dto)
+    except Exception as e:
+        logger.error(f"주문수집 데이터 저장 V2 실패: {str(e)}")
+        return DownFormOrdersFromReceiveOrdersResponse.from_dto(DownFormOrdersFromReceiveOrdersDto(
+            success=False,
+            mall_id=filters.get('mall_id'),
+            dpartner_id=filters.get('dpartner_id'),
+            processed_count=0, 
+            saved_count=0,
+            message=f"error: {str(e)}"
+        ))

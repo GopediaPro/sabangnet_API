@@ -2,6 +2,7 @@
 import asyncio
 import unicodedata
 import re
+import os
 import pandas as pd
 from datetime import datetime
 from fastapi import UploadFile
@@ -12,18 +13,21 @@ from utils.logs.sabangnet_logger import get_logger
 from utils.excels.excel_handler import ExcelHandler
 from utils.macros.order_macro_utils import OrderMacroUtils
 from utils.macros.data_processing_utils import DataProcessingUtils
+from utils.mappings.order_status_label_mapping import STATUS_LABEL_TO_CODE
 # sql
 from sqlalchemy.ext.asyncio import AsyncSession
 # model
 from models.receive_orders.receive_orders import ReceiveOrders
 from models.down_form_orders.down_form_order import BaseDownFormOrder
 # schema
+from schemas.receive_orders.response.receive_orders_response import ReceiveOrdersBulkCreateResponse
 from schemas.receive_orders.receive_orders_dto import ReceiveOrdersDto
-from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto, DownFormOrdersBulkDto
+from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto, DownFormOrdersBulkDto, DownFormOrdersFromReceiveOrdersDto
 from schemas.macro_batch_processing.batch_process_dto import BatchProcessDto
 from schemas.macro_batch_processing.request.batch_process_request import BatchProcessRequest
 # service
 from services.receive_orders.receive_order_read_service import ReceiveOrderReadService
+from services.receive_orders.receive_order_create_service import ReceiveOrderCreateService
 from services.down_form_orders.down_form_order_read_service import DownFormOrderReadService
 from services.down_form_orders.template_config_read_service import TemplateConfigReadService
 from services.down_form_orders.down_form_order_create_service import DownFormOrderCreateService
@@ -48,6 +52,7 @@ class DataProcessingUsecase:
         self.export_templates_read_service = ExportTemplatesReadService(
             session)
         self.batch_info_create_service = BatchInfoCreateService(session)
+        self.order_create_service = ReceiveOrderCreateService(session)
 
     def parse_filename(self, filename: str) -> dict[str, Any]:
         """
@@ -63,14 +68,15 @@ class DataProcessingUsecase:
             }
         """
         from utils.unicode_utils import normalize_for_comparison
-        
+
         # 유니코드 정규화 후 "스타배송" 포함 여부로만 판단
         normalized_filename = normalize_for_comparison(filename)
         is_star = '스타배송' in normalized_filename
-        
+
         # [사이트타입]-용도타입-세부사이트 추출 (구분자: - 또는 _)
-        match = re.search(r'\[([^\]]+)\]-([^-_]+?)(?:[-_]([^.]+?))?(?:\.xlsx)?$', filename)
-        
+        match = re.search(
+            r'\[([^\]]+)\]-([^-_]+?)(?:[-_]([^.]+?))?(?:\.xlsx)?$', filename)
+
         if not match:
             return {
                 'site_type': None,
@@ -78,10 +84,10 @@ class DataProcessingUsecase:
                 'sub_site': None,
                 'is_star': is_star
             }
-        
+
         return {
             'site_type': match.group(1),      # "G마켓,옥션", "기본양식", "브랜디"
-            'usage_type': match.group(2),     # "ERP용", "합포장용"  
+            'usage_type': match.group(2),     # "ERP용", "합포장용"
             'sub_site': match.group(3),       # "기타사이트", "지그재그", None
             'is_star': is_star                # 스타배송 여부
         }
@@ -179,6 +185,127 @@ class DataProcessingUsecase:
             processed_count=len(receive_orders),
             saved_count=saved_count,
             message=f"Successfully processed {len(receive_orders)} records and saved {saved_count} records"
+        )
+
+    async def save_receive_orders_to_db(self, filters: dict[str, Any]) -> ReceiveOrdersBulkCreateResponse:
+        """
+        사방넷 주문수집 데이터 조회 및 저장.
+        1. 사방넷에 filters에 따라 주문 데이터를 조회.
+        2. 조회된 주문 데이터를 receive_orders 테이블에 저장.
+        3. 성공 여부를 반환.
+        args:
+            filters: filters
+        returns:
+            receive_orders_saved_success: receive_orders_saved_success
+        """
+        logger.info(f"[START] save_receive_orders_to_db | filters: {filters}")
+        date_from = filters.get('date_from').strftime('%Y%m%d')
+        date_to = filters.get('date_to').strftime('%Y%m%d')
+        order_status = STATUS_LABEL_TO_CODE[filters.get('order_status')].value
+        xml_file_path = self.order_create_service.create_request_xml(
+            ord_st_date=date_from,
+            ord_ed_date=date_to,
+            order_status=order_status
+        )
+        xml_url = self.order_create_service.get_xml_url_from_minio(
+            xml_file_path)
+        xml_content = self.order_create_service.get_orders_from_sabangnet(
+            xml_url)
+        safe_mode = os.getenv("DEPLOY_ENV", "production") != "production"
+        receive_orders_saved = await self.order_create_service.save_orders_to_db_from_xml(xml_content, safe_mode)
+        logger.info(
+            f"[END] save_receive_orders_to_db | receive_orders_saved: {receive_orders_saved}")
+        return receive_orders_saved.success
+
+    async def save_down_form_order_from_receive_orders_by_filters_v2(
+            self,
+            filters: dict[str, Any]
+    ) -> DownFormOrdersFromReceiveOrdersDto:
+        """
+        주문수집 데이터 저장 V2.
+        1. 사방넷 주문수집 데이터 조회 -> receive_orders 테이블에 저장.
+        2. 저장된 주문수집 데이터 매크로 실행 -> down_form_orders 테이블에 저장.
+        3. 성공 여부를 반환.
+        args:
+            filters: filters
+        returns:
+            DownFormOrdersFromReceiveOrdersDto
+        """
+        logger.info(
+            f"[START] save_down_form_order_from_receive_orders_by_filters_v2 filters: {filters}")
+
+        # 몰 아이디, 배송구분 추출
+        mall_id = filters.get('mall_id')
+        dpartner_id = filters.get('dpartner_id')
+
+        # 1. 주문수집 데이터 조회 및 recive_orders 테이블에 저장
+        receive_orders_saved_success = await self.save_receive_orders_to_db(filters)
+
+        if not receive_orders_saved_success:
+            return DownFormOrdersFromReceiveOrdersDto(
+                success=False,
+                mall_id=mall_id,
+                dpartner_id=dpartner_id,
+                processed_count=0,
+                saved_count=0,
+                message="No data saved to receive_orders"
+            )
+
+        # 2. filters에 따라 receive_orders 조회
+        receive_orders: list[ReceiveOrders] = await self.order_read_service.get_receive_orders_by_filters(filters)
+        logger.info(f"receive_orders_len: {len(receive_orders)}")
+        if not receive_orders:
+            return DownFormOrdersFromReceiveOrdersDto(
+                success=False,
+                mall_id=mall_id,
+                dpartner_id=dpartner_id,
+                processed_count=0,
+                saved_count=0,
+                message="No data found to process"
+            )
+
+        # 3. receive_orders 데이터를 dto로 변환하고 그걸 다시 dict로 변환
+        receive_orders_dict_list: list[dict[str, Any]] = []
+        for receive_order in receive_orders:
+            receive_orders_dto: ReceiveOrdersDto = ReceiveOrdersDto.model_validate(
+                receive_order)
+            receive_orders_dict_list.append(receive_orders_dto.model_dump())
+
+        logger.info(
+            f"receive_orders_dict_list len: {len(receive_orders_dict_list)}")
+
+        # 4. template_code 설정[ERP, 합포장]
+        template_code_mapping = {
+            'ESM옥션': ('gmarket_erp', 'gmarket_bundle'),
+            'ESM지마켓': ('gmarket_erp', 'gmarket_bundle'),
+            '브랜디': ('brandi_erp', 'basic_bundle'),
+            '지그재그': ('zigzag_erp', 'zigzag_bundle'),
+            '기타사이트': ('basic_erp', 'basic_bundle')
+        }
+        erp_template_code, bundle_template_code = template_code_mapping.get(mall_id, ('basic_erp', 'basic_bundle'))
+
+        # 5. 배송구분(일반배송, 스타배송) 설정
+        if dpartner_id == '스타배송':
+            erp_template_code = f"star_{erp_template_code}"
+            bundle_template_code = f"star_{bundle_template_code}"
+
+        logger.info(
+            f"erp_template_code: {erp_template_code} | bundle_template_code: {bundle_template_code}")
+
+        # 6. 매크로 실행 및 down_form_orders 테이블에 저장
+        erp_saved_count = await self.run_macro_to_down_form_order(erp_template_code, receive_orders_dict_list)
+        bundle_saved_count = await self.run_macro_to_down_form_order(bundle_template_code, receive_orders_dict_list)
+        saved_count = erp_saved_count + bundle_saved_count
+        logger.info(
+            f"[END] save_down_form_order_from_receive_orders_by_filters_v2 | saved_count: {saved_count} | erp_saved_count: {erp_saved_count} | bundle_saved_count: {bundle_saved_count}")
+
+        return DownFormOrdersFromReceiveOrdersDto(
+            success=True,
+            mall_id=mall_id,
+            dpartner_id=dpartner_id,
+            processed_count=len(receive_orders),
+            saved_count=saved_count,
+            message=f"Successfully processed {len(receive_orders)} records and total saved {saved_count} records (erp records : {erp_saved_count} , bundle records : {bundle_saved_count})"
         )
 
     async def save_down_form_orders_from_receive_orders(
@@ -306,12 +433,12 @@ class DataProcessingUsecase:
         if not template_code:
             raise ValueError(
                 f"Template code not found for filename: {file.filename}")
-        
+
         # 2. 파일명 파싱하여 sub_site 정보 추출
         parsed = self.parse_filename(file.filename)
         sub_site = parsed.get('sub_site')
         logger.info(f"sub_site: {sub_site}")
-        
+
         # 3. 임시 파일 생성
         file_name, file_path = await self.process_macro_with_tempfile(template_code, file, sub_site)
         logger.info(
@@ -354,7 +481,8 @@ class DataProcessingUsecase:
         # is_star=True인 경우 B열 사이트 값에 "-스타배송" 추가
         if is_star:
             logger.info(f"스타배송 모드 활성화 - B열 사이트 값 수정 시작")
-            file_path = self.order_macro_utils.modify_site_column_for_star_delivery(file_path)
+            file_path = self.order_macro_utils.modify_site_column_for_star_delivery(
+                file_path)
             logger.info(f"스타배송 수정 완료: {file_path}")
 
         # sub_site가 있으면 해당하는 매크로명 조회, 없으면 기본 매크로명 조회
@@ -364,7 +492,8 @@ class DataProcessingUsecase:
         else:
             macro_name: Optional[str] = await self.template_config_read_service.get_macro_name_by_template_code(template_code)
             logger.info(f"macro_name from DB: {macro_name}")
-        logger.info(f"run_macro called with template_code={template_code}, macro_name: {macro_name}")
+        logger.info(
+            f"run_macro called with template_code={template_code}, macro_name: {macro_name}")
         if macro_name:
             macro_func = self.order_macro_utils.MACRO_MAP.get(macro_name)
             if macro_func is None:
@@ -389,6 +518,54 @@ class DataProcessingUsecase:
             logger.error(f"Macro not found for template code: {template_code}")
             raise ValueError(
                 f"Macro not found for template code: {template_code}")
+
+    async def run_macro_to_down_form_order(self, template_code: str, recive_orders_data: list[ReceiveOrders]) -> int:
+        """
+        1. 템플릿 설정 조회
+        2. receive_orders 데이터 ERP, 합포장  down_form_order dto로 변경
+        3. 매크로 실행
+        4. down_form_order 테이블에 저장
+        5. 저장된 레코드 수를 반환
+        """
+        # 1. 템플릿 설정 조회
+        logger.info(
+            f"run_macro_with_db_v3 called with template_code={template_code}")
+        config: dict = await self.template_config_read_service.get_template_config_by_template_code(template_code)
+        logger.info(f"Loaded template config: {config}")
+
+        # 2. receive_orders 데이터 down_form_order dto로 변경
+        if config['is_aggregated']:
+            logger.info(
+                "Aggregated template detected. Processing aggregated data.")
+            processed_data = await DataProcessingUtils.process_aggregated_data(recive_orders_data, config)
+        else:
+            logger.info("Simple template detected. Processing simple data.")
+            processed_data = await DataProcessingUtils.process_simple_data(recive_orders_data, config)
+        logger.info(
+            f"Data processed. processed_data_count={len(processed_data)}. Sample: {processed_data[:1]}")
+
+        # 3. 매크로 실행
+        run_macro_data: list[dict[str, Any]] = []
+        macro_func = self.order_macro_utils.MACRO_MAP_V3.get(template_code)
+        if macro_func:
+            # 매크로 함수 추가 후 적용
+            # run_macro_data = macro_func(processed_data)
+            run_macro_data = processed_data
+        else:
+            logger.error(f"Macro not found for template code: {template_code}")
+            raise ValueError(
+                f"Macro not found for template code: {template_code}")
+
+        logger.info(f"{template_code} run_macro_data: {run_macro_data[:1]}")
+        # 4. down_form_orders 저장
+        try:
+            saved_count = await self.down_form_order_create_service.bulk_create_down_form_orders_with_dict(run_macro_data)
+            logger.info(
+                f"Saved {saved_count} records to down_form_order table with work_status=macro_run and template_code={template_code}")
+            return saved_count
+        except Exception as e:
+            logger.error(f"Error running {template_code} macro with db: {e}")
+            raise
 
     async def run_macro_with_db(self, template_code: str) -> int:
         """
@@ -566,7 +743,8 @@ class DataProcessingUsecase:
             failed_results: list of failed results
             total_saved_count: total saved count
         """
-        logger.info(f"[START] bulk_save_down_form_orders_from_macro_run_excel | file_count={len(files)}")
+        logger.info(
+            f"[START] bulk_save_down_form_orders_from_macro_run_excel | file_count={len(files)}")
 
         successful_results: list[dict[str, Any]] = []
         failed_results: list[dict[str, Any]] = []
@@ -601,7 +779,8 @@ class DataProcessingUsecase:
             failed_results: list of failed results
             total_saved_count: total saved count
         """
-        logger.info(f"[START] bulk_get_excel_run_macro_minio_url_and_save_db | file_count={len(files)}")
+        logger.info(
+            f"[START] bulk_get_excel_run_macro_minio_url_and_save_db | file_count={len(files)}")
 
         successful_results: list[dict[str, Any]] = []
         failed_results: list[dict[str, Any]] = []
@@ -632,21 +811,22 @@ class DataProcessingUsecase:
         # 파일명 파싱
         parsed = self.parse_filename(file_name)
         logger.info(f"Parsed filename: {parsed}")
-        
+
         # site_type, usage_type, is_star를 기반으로 DB에서 직접 조회
         site_type = parsed.get('site_type')
         usage_type = parsed.get('usage_type')
         is_star = parsed.get('is_star')
-        
+
         if site_type and usage_type:
             template_code = await self.export_templates_read_service.find_template_code_by_site_usage_star(
                 site_type, usage_type, is_star
             )
-            
+
             if template_code:
-                logger.info(f"Found template_code: {template_code} for filename: {file_name}")
+                logger.info(
+                    f"Found template_code: {template_code} for filename: {file_name}")
                 return template_code
-        
+
         logger.warning(f"No template found for filename: {file_name}")
         return None
 
@@ -664,14 +844,14 @@ class DataProcessingUsecase:
             return False
         if not parsed.get('is_star') and '스타배송' in template_name:
             return False
-        
+
         # 용도타입 매칭
         usage_type = parsed.get('usage_type', '')
         if 'ERP용' in usage_type and 'ERP용' not in template_name:
             return False
         if '합포장용' in usage_type and '합포장용' not in template_name:
             return False
-        
+
         # 사이트타입 매칭
         site_type = parsed.get('site_type', '')
         if site_type:
@@ -680,11 +860,11 @@ class DataProcessingUsecase:
             for site in site_types:
                 if site in template_name:
                     return True
-            
+
             # basic_erp 특별 처리: 기본양식이면서 ERP용인 경우
             if site_type == "기본양식" and "ERP용" in usage_type and "알리 지그재그 기타사이트 ERP용" in template_name:
                 return True
-        
+
         return False
 
     async def get_excel_run_macro_minio_url(self, file: UploadFile, request_obj: BatchProcessRequest) -> dict[str, Any]:
@@ -706,18 +886,18 @@ class DataProcessingUsecase:
             raise ValueError(
                 f"Template code not found for filename: {file.filename}")
         logger.info(f"template_code: {template_code}")
-        
+
         # 2. 파일명 파싱하여 sub_site 정보 추출
         parsed = self.parse_filename(file.filename)
         sub_site = parsed.get('sub_site')
         logger.info(f"sub_site: {sub_site}")
-        
+
         # 3. 파일 처리
         try:
             file_name, file_path = await self.process_macro_with_tempfile(template_code, file, sub_site)
             logger.info(f"file_name: {file_name} | file_path: {file_path}")
 
-             # 4. 도서지역 배송비 추가
+            # 4. 도서지역 배송비 추가
             ex = ExcelHandler.from_file(file_path, sheet_index=0)
             ex.add_island_delivery(ex.wb)
             file_path = ex.save_file(file_path)

@@ -110,9 +110,9 @@ class ZIGZAGSheetSplitter:
         site_rows = defaultdict(list)
         for r in range(2, self.last_row + 1):
             text = str(self.ws[f"B{r}"].value or "")
-            if "[오케이마트]" in text:
+            if "오케이마트" in text:
                 site_rows["OK"].append(r)
-            elif "[아이예스]" in text:
+            elif "아이예스" in text:
                 site_rows["IY"].append(r)
         return site_rows
 
