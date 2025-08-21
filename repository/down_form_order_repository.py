@@ -1,5 +1,5 @@
 from typing import Any, Optional
-from datetime import date
+from datetime import date, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.logs.sabangnet_logger import get_logger
 from sqlalchemy import select, delete, func, update, text
@@ -369,3 +369,93 @@ class DownFormOrderRepository:
             raise e
         finally:
             await self.session.close()
+
+    async def get_orders_by_form_name_without_invoice_no(
+        self, 
+        form_names: list[str], 
+        limit: int = 100,
+        order_date_from: Optional[str] = None,
+        order_date_to: Optional[str] = None
+    ) -> list[BaseDownFormOrder]:
+        """
+        특정 form_name을 가진 주문 중 invoice_no가 없는 데이터를 조회합니다.
+        
+        Args:
+            form_names: 조회할 form_name 리스트
+            limit: 조회할 최대 건수 (기본값: 100)
+            order_date_from: 주문 시작 날짜 (YYYY-MM-DD)
+            order_date_to: 주문 종료 날짜 (YYYY-MM-DD)
+            
+        Returns:
+            invoice_no가 없는 주문 데이터 리스트
+        """
+        try:
+            from datetime import datetime
+            
+            query = select(BaseDownFormOrder).where(
+                BaseDownFormOrder.form_name.in_(form_names),
+                (BaseDownFormOrder.invoice_no == None) | 
+                (BaseDownFormOrder.invoice_no == '') |
+                (BaseDownFormOrder.invoice_no == 'null')
+            )
+            
+            # 날짜 범위 필터 추가
+            if order_date_from:
+                try:
+                    date_from = datetime.strptime(order_date_from, "%Y-%m-%d")
+                    query = query.where(BaseDownFormOrder.order_date >= date_from)
+                except ValueError:
+                    logger.warning(f"잘못된 날짜 형식: {order_date_from}")
+            
+            if order_date_to:
+                try:
+                    date_to = datetime.strptime(order_date_to, "%Y-%m-%d")
+                    query = query.where(BaseDownFormOrder.order_date <= date_to)
+                except ValueError:
+                    logger.warning(f"잘못된 날짜 형식: {order_date_to}")
+            
+            query = query.order_by(BaseDownFormOrder.id.desc()).limit(limit)
+            
+            result = await self.session.execute(query)
+            return result.scalars().all()
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"form_name {form_names} 중 invoice_no가 없는 주문 조회 실패: {str(e)}")
+            raise e
+        finally:
+            await self.session.close()
+
+    async def update_invoice_no_by_idx(self, idx: str, invoice_no: str, batch_id: Optional[int] = None, process_dt: Optional[datetime] = None) -> bool:
+        """
+        특정 idx의 주문에 invoice_no, batch_id, process_dt를 업데이트합니다.
+        
+        Args:
+            idx: 주문번호
+            invoice_no: 운송장번호
+            batch_id: 배치 ID (선택사항)
+            process_dt: 처리 날짜 (선택사항)
+            
+        Returns:
+            업데이트 성공 여부
+        """
+        try:
+            update_values = {"invoice_no": invoice_no}
+            
+            if batch_id is not None:
+                update_values["batch_id"] = batch_id
+            if process_dt is not None:
+                update_values["process_dt"] = process_dt
+            
+            stmt = (
+                update(BaseDownFormOrder)
+                .where(BaseDownFormOrder.idx == idx)
+                .values(**update_values)
+            )
+            await self.session.execute(stmt)
+            await self.session.commit()
+            logger.info(f"주문번호 {idx}의 invoice_no를 {invoice_no}로 업데이트 완료 (batch_id: {batch_id})")
+            return True
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"주문번호 {idx}의 invoice_no 업데이트 실패: {str(e)}")
+            raise e
