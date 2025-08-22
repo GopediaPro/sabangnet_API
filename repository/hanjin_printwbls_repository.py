@@ -293,3 +293,86 @@ class HanjinPrintwblsRepository:
             raise
         finally:
             await self.session.close()
+
+    async def create_from_api_response(
+        self, 
+        idx: str, 
+        prt_add: str, 
+        zip_cod: str, 
+        snd_zip: str, 
+        api_response_data: dict
+    ) -> HanjinPrintwbls:
+        """
+        API 응답 데이터를 기반으로 새로운 hanjin_printwbls 레코드를 생성합니다.
+        
+        Args:
+            idx: 주문번호
+            prt_add: 배송지 주소
+            zip_cod: 배송지 우편번호
+            snd_zip: 출발지 우편번호
+            api_response_data: API 응답 데이터
+            
+        Returns:
+            생성된 HanjinPrintwbls 객체
+        """
+        try:
+            # 기본 데이터 설정
+            record_data = {
+                'idx': idx,
+                'prt_add': prt_add,
+                'zip_cod': zip_cod,
+                'snd_zip': snd_zip,
+            }
+            
+            # API 응답 데이터 추가
+            if 'msg_key' in api_response_data:
+                record_data['msg_key'] = api_response_data['msg_key']
+            if 'result_code' in api_response_data:
+                record_data['result_code'] = api_response_data['result_code']
+            if 'result_message' in api_response_data:
+                record_data['result_message'] = api_response_data['result_message']
+            if 's_tml_nam' in api_response_data:
+                record_data['s_tml_nam'] = api_response_data['s_tml_nam']
+            if 's_tml_cod' in api_response_data:
+                record_data['s_tml_cod'] = api_response_data['s_tml_cod']
+            if 'tml_nam' in api_response_data:
+                record_data['tml_nam'] = api_response_data['tml_nam']
+            if 'tml_cod' in api_response_data:
+                record_data['tml_cod'] = api_response_data['tml_cod']
+            if 'cen_nam' in api_response_data:
+                record_data['cen_nam'] = api_response_data['cen_nam']
+            if 'cen_cod' in api_response_data:
+                record_data['cen_cod'] = api_response_data['cen_cod']
+            if 'pd_tim' in api_response_data:
+                record_data['pd_tim'] = api_response_data['pd_tim']
+            if 'dom_rgn' in api_response_data:
+                record_data['dom_rgn'] = api_response_data['dom_rgn']
+            if 'hub_cod' in api_response_data:
+                record_data['hub_cod'] = api_response_data['hub_cod']
+            if 'dom_mid' in api_response_data:
+                record_data['dom_mid'] = api_response_data['dom_mid']
+            if 'es_cod' in api_response_data:
+                record_data['es_cod'] = api_response_data['es_cod']
+            if 'grp_rnk' in api_response_data:
+                record_data['grp_rnk'] = api_response_data['grp_rnk']
+            if 'es_nam' in api_response_data:
+                record_data['es_nam'] = api_response_data['es_nam']
+            if 'wbl_num' in api_response_data:
+                record_data['wbl_num'] = api_response_data['wbl_num']
+            
+            # HanjinPrintwbls 객체 생성
+            printwbls_record = HanjinPrintwbls(**record_data)
+            
+            self.session.add(printwbls_record)
+            await self.session.commit()
+            await self.session.refresh(printwbls_record)
+            
+            logger.info(f"API 응답 기반 hanjin_printwbls 레코드 생성 성공: idx={idx}, msg_key={printwbls_record.msg_key}")
+            return printwbls_record
+            
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"API 응답 기반 hanjin_printwbls 레코드 생성 실패: {str(e)}")
+            raise
+        finally:
+            await self.session.close()
