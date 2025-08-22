@@ -238,18 +238,19 @@ class DataProcessingUsecase:
         mall_id = filters.get('mall_id')
         dpartner_id = filters.get('dpartner_id')
 
-        # 1. 주문수집 데이터 조회 및 recive_orders 테이블에 저장
-        receive_orders_saved_success = await self.save_receive_orders_to_db(filters)
+        # (임시 주석처리)
+        # 1. 주문수집 데이터 조회 및 receive_orders 테이블에 저장
+        # receive_orders_saved_success = await self.save_receive_orders_to_db(filters)
 
-        if not receive_orders_saved_success:
-            return DownFormOrdersFromReceiveOrdersDto(
-                success=False,
-                mall_id=mall_id,
-                dpartner_id=dpartner_id,
-                processed_count=0,
-                saved_count=0,
-                message="No data saved to receive_orders"
-            )
+        # if not receive_orders_saved_success:
+        #     return DownFormOrdersFromReceiveOrdersDto(
+        #         success=False,
+        #         mall_id=mall_id,
+        #         dpartner_id=dpartner_id,
+        #         processed_count=0,
+        #         saved_count=0,
+        #         message="No data saved to receive_orders"
+        #     )
 
         # 2. filters에 따라 receive_orders 조회
         receive_orders: list[ReceiveOrders] = await self.order_read_service.get_receive_orders_by_filters(filters)
@@ -264,15 +265,12 @@ class DataProcessingUsecase:
                 message="No data found to process"
             )
 
-        # 3. receive_orders 데이터를 dto로 변환하고 그걸 다시 dict로 변환
-        receive_orders_dict_list: list[dict[str, Any]] = []
+        # 3. receive_orders 데이터를 dto로 변환
+        receive_orders_dto_list: list[dict[str, Any]] = []
         for receive_order in receive_orders:
             receive_orders_dto: ReceiveOrdersDto = ReceiveOrdersDto.model_validate(
                 receive_order)
-            receive_orders_dict_list.append(receive_orders_dto.model_dump())
-
-        logger.info(
-            f"receive_orders_dict_list len: {len(receive_orders_dict_list)}")
+            receive_orders_dto_list.append(receive_orders_dto.model_dump())
 
         # 4. template_code 설정[ERP, 합포장]
         template_code_mapping = {
@@ -282,10 +280,13 @@ class DataProcessingUsecase:
             '지그재그': ('zigzag_erp', 'zigzag_bundle'),
             '기타사이트': ('basic_erp', 'basic_bundle')
         }
-        erp_template_code, bundle_template_code = template_code_mapping.get(mall_id, ('basic_erp', 'basic_bundle'))
+        erp_template_code, bundle_template_code = template_code_mapping.get(
+            mall_id, ('basic_erp', 'basic_bundle'))
 
+        is_star = False
         # 5. 배송구분(일반배송, 스타배송) 설정
         if dpartner_id == '스타배송':
+            is_star = True
             erp_template_code = f"star_{erp_template_code}"
             bundle_template_code = f"star_{bundle_template_code}"
 
@@ -293,8 +294,10 @@ class DataProcessingUsecase:
             f"erp_template_code: {erp_template_code} | bundle_template_code: {bundle_template_code}")
 
         # 6. 매크로 실행 및 down_form_orders 테이블에 저장
-        erp_saved_count = await self.run_macro_to_down_form_order(erp_template_code, receive_orders_dict_list)
-        bundle_saved_count = await self.run_macro_to_down_form_order(bundle_template_code, receive_orders_dict_list)
+        # ERP 매크로 실행
+        erp_saved_count = await self.run_macro_to_down_form_order(erp_template_code, receive_orders_dto_list, is_star)
+        # 합포장 매크로 실행
+        bundle_saved_count = await self.run_macro_to_down_form_order(bundle_template_code, receive_orders_dto_list, is_star)
         saved_count = erp_saved_count + bundle_saved_count
         logger.info(
             f"[END] save_down_form_order_from_receive_orders_by_filters_v2 | saved_count: {saved_count} | erp_saved_count: {erp_saved_count} | bundle_saved_count: {bundle_saved_count}")
@@ -519,7 +522,7 @@ class DataProcessingUsecase:
             raise ValueError(
                 f"Macro not found for template code: {template_code}")
 
-    async def run_macro_to_down_form_order(self, template_code: str, recive_orders_data: list[ReceiveOrders]) -> int:
+    async def run_macro_to_down_form_order(self, template_code: str, receive_orders_data: list[ReceiveOrders], is_star: bool = False) -> int:
         """
         1. 템플릿 설정 조회
         2. receive_orders 데이터 ERP, 합포장  down_form_order dto로 변경
@@ -537,10 +540,10 @@ class DataProcessingUsecase:
         if config['is_aggregated']:
             logger.info(
                 "Aggregated template detected. Processing aggregated data.")
-            processed_data = await DataProcessingUtils.process_aggregated_data(recive_orders_data, config)
+            processed_data = await DataProcessingUtils.process_aggregated_data(receive_orders_data, config)
         else:
             logger.info("Simple template detected. Processing simple data.")
-            processed_data = await DataProcessingUtils.process_simple_data(recive_orders_data, config)
+            processed_data = await DataProcessingUtils.process_simple_data(receive_orders_data, config)
         logger.info(
             f"Data processed. processed_data_count={len(processed_data)}. Sample: {processed_data[:1]}")
 
@@ -549,8 +552,10 @@ class DataProcessingUsecase:
         macro_func = self.order_macro_utils.MACRO_MAP_V3.get(template_code)
         if macro_func:
             # 매크로 함수 추가 후 적용
-            # run_macro_data = macro_func(processed_data)
-            run_macro_data = processed_data
+            if isinstance(macro_func, str):
+                run_macro_data = processed_data
+            else:
+                run_macro_data = macro_func(processed_data, is_star)
         else:
             logger.error(f"Macro not found for template code: {template_code}")
             raise ValueError(
@@ -676,7 +681,7 @@ class DataProcessingUsecase:
             # 2. 파일명 파싱하여 sub_site 정보 추출
             parsed = self.parse_filename(original_filename)
             sub_site = parsed.get('sub_site')
-            is_star = parsed.get('is_star')
+            is_star = parsed.get('is_ star')
             logger.info(f"sub_site: {sub_site} | is_star: {is_star}")
 
             # 3. 임시 파일 생성 및 매크로 실행
