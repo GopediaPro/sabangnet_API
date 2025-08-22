@@ -35,8 +35,8 @@ class ReceiveOrders(Base):
 
     # 수취인 정보
     receive_name: Mapped[str | None] = mapped_column(String(100))
-    receive_tel: Mapped[str | None] = mapped_column(String(20))
-    receive_cel: Mapped[str | None] = mapped_column(String(20))
+    receive_tel: Mapped[str | None] = mapped_column(String(25))
+    receive_cel: Mapped[str | None] = mapped_column(String(25))
     receive_email: Mapped[str | None] = mapped_column(String(200))
     receive_zipcode: Mapped[str | None] = mapped_column(String(10))
     receive_addr: Mapped[str | None] = mapped_column(Text)

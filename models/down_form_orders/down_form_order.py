@@ -56,8 +56,8 @@ class BaseFormOrder(Base):
     
     # 수취인 정보
     receive_name: Mapped[str | None] = mapped_column(String(100))
-    receive_cel: Mapped[str | None] = mapped_column(String(20))
-    receive_tel: Mapped[str | None] = mapped_column(String(20))
+    receive_cel: Mapped[str | None] = mapped_column(String(25))
+    receive_tel: Mapped[str | None] = mapped_column(String(25))
     receive_addr: Mapped[str | None] = mapped_column(Text)
     receive_zipcode: Mapped[str | None] = mapped_column(String(15))
     mall_user_id: Mapped[str | None] = mapped_column(Text)
