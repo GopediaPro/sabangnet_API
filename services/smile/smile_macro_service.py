@@ -2,7 +2,7 @@ import pandas as pd
 import os
 import random
 import string
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from typing import Optional, List, Dict, Any, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.logs.sabangnet_logger import get_logger
@@ -20,8 +20,11 @@ from schemas.smile.smile_macro_dto import (
     SmileMacroResponseDto, 
     SmileMacroStageRequestDto
 )
+from schemas.smile.request.smile_macro_v2_request import SmileMacroV2Request
+from schemas.smile.response.smile_macro_v2_response import SmileMacroV2Response
 from schemas.macro_batch_processing.request.batch_process_request import BatchProcessRequest
 from schemas.macro_batch_processing.batch_process_dto import BatchProcessDto
+from schemas.receive_orders.request.receive_orders_request import BaseDateRangeRequest
 from services.macro_batch_processing.batch_info_create_service import BatchInfoCreateService
 from minio_handler import upload_and_get_url_and_size, url_arrange
 from models.smile.smile_macro import SmileMacro
@@ -173,6 +176,74 @@ class SmileMacroService:
                 
         except Exception as e:
             self.logger.error(f"매크로 핸들러 DB 저장 중 오류: {str(e)}")
+            return []
+
+    async def save_macro_handler_to_db_v2(self, macro_handler: SmileMacroHandler, batch_id: int) -> List[dict]:
+        """
+        매크로 핸들러의 데이터를 DB에 저장 (v2) - batch_id 포함
+        
+        Args:
+            macro_handler: 매크로 핸들러
+            batch_id: 배치 ID
+            
+        Returns:
+            List[dict]: 저장된 데이터 리스트
+        """
+        try:
+            if not self.session:
+                self.logger.warning("데이터베이스 세션이 없습니다. DB 저장을 건너뜁니다.")
+                return []
+            
+            # 컬럼 매핑 정보를 빌더에서 가져오기
+            column_mapping = SmileMacroDataBuilder.get_column_mapping()
+            integer_fields = SmileMacroDataBuilder.get_integer_fields()
+            date_fields = SmileMacroDataBuilder.get_date_fields()
+            
+            # 데이터 수집
+            smile_macro_data_list = []
+            
+            # 헤더 제외하고 2행부터 처리
+            for row_num in range(2, macro_handler.ws.max_row + 1):
+                row_data = {}
+                
+                # 각 컬럼을 순회하며 데이터 수집
+                for col_letter in column_mapping.keys():
+                    if column_mapping[col_letter] is None:
+                        continue  # source_field가 없는 컬럼은 건너뛰기
+                    
+                    cell_value = macro_handler.ws[f'{col_letter}{row_num}'].value
+                    field_name = column_mapping[col_letter]
+                    
+                    # 데이터 타입 변환 (핸들러 사용)
+                    field_type = SmileDataTypeHandler.get_field_type(
+                        field_name, integer_fields, date_fields
+                    )
+                    row_data[field_name] = SmileDataTypeHandler.convert_field_value(
+                        cell_value, field_name, field_type
+                    )
+                
+                # batch_id 추가
+                row_data['batch_id'] = batch_id
+                
+                # reg_date에 현재 한국 시간 추가 (YYYYMMDDHHMMSS 형식)
+                from datetime import timezone
+                korea_tz = timezone(timedelta(hours=9))  # 한국 시간대 (UTC+9)
+                current_time = datetime.now(korea_tz)
+                row_data['reg_date'] = current_time.strftime('%Y%m%d%H%M%S')
+                
+                smile_macro_data_list.append(row_data)
+            
+            # DB에 저장
+            if smile_macro_data_list:
+                await self.smile_macro_repository.create_multiple_smile_macro(smile_macro_data_list)
+                self.logger.info(f"매크로 핸들러 데이터 {len(smile_macro_data_list)}개 DB 저장 완료 (batch_id: {batch_id})")
+                return smile_macro_data_list
+            else:
+                self.logger.warning("저장할 데이터가 없습니다.")
+                return []
+                
+        except Exception as e:
+            self.logger.error(f"매크로 핸들러 DB 저장 (v2) 중 오류: {str(e)}")
             return []
     
     async def save_macro_handler_to_down_form_order(self, smile_macro_data_list: List[dict], batch_id: Optional[str] = None):
@@ -401,6 +472,173 @@ class SmileMacroService:
                 error_details=str(e)
             )
     
+    async def process_smile_macro_with_db_v2(
+        self,
+        file_paths: List[str],
+        order_date_from: date,
+        order_date_to: date,
+        request_id: Optional[str] = None
+    ) -> SmileMacroV2Response:
+        """
+        스마일 매크로 처리 (v2) - batch_id를 down_form_orders와 smile_macro에 추가
+        
+        Args:
+            file_paths: 처리할 엑셀 파일 경로 리스트
+            order_date_from: 주문 시작 일자
+            order_date_to: 주문 종료 일자
+            request_id: 요청 ID (batch_process 생성용)
+            
+        Returns:
+            SmileMacroV2Response: 처리 결과
+        """
+        try:
+            if not file_paths:
+                raise ValueError("처리할 파일이 없습니다.")
+            
+            # 파일 존재 확인
+            for file_path in file_paths:
+                if not os.path.exists(file_path):
+                    raise FileNotFoundError(f"파일을 찾을 수 없습니다: {file_path}")
+            
+            # 파일 합치기
+            from utils.excels.excel_handler import ExcelHandler
+            merged_file_path = ExcelHandler.merge_excel_files_smart(file_paths)
+            
+            # 배치 프로세스 생성 (order_date_from/to를 date_from/to로 저장)
+            batch_id = None
+            if request_id:
+                from schemas.macro_batch_processing.batch_process_dto import BatchProcessDto
+                from schemas.macro_batch_processing.request.batch_process_request import BatchProcessRequest
+                
+                # BatchProcessRequest 생성 (order_date_from/to를 date_from/to로 매핑)
+                batch_request = BatchProcessRequest(
+                    created_by="system",
+                    filters=BaseDateRangeRequest(
+                        date_from=order_date_from,
+                        date_to=order_date_to
+                    )
+                )
+                
+                # 원본 파일명 생성 (첫 번째 파일명 사용)
+                original_filename = os.path.basename(file_paths[0])
+                
+                # 배치 생성
+                batch_id = await self.batch_info_create_service.build_and_save_batch(
+                    BatchProcessDto.build_success,
+                    original_filename,
+                    "",  # 임시 file_url
+                    0,   # 임시 file_size
+                    batch_request
+                )
+                self.logger.info(f"배치 ID 생성 완료: {batch_id}")
+            
+            # 기존 process_smile_macro_with_db의 프로세스들을 직접 활용
+            # 파일 존재 확인
+            if not os.path.exists(merged_file_path):
+                raise FileNotFoundError(f"파일을 찾을 수 없습니다: {merged_file_path}")
+            
+            # 데이터베이스에서 데이터 조회
+            erp_df = await self.get_erp_data_from_db()
+            settlement_df = await self.get_settlement_data_from_db()
+            sku_df = await self.get_sku_data_from_db()
+            
+            # 매크로 핸들러 초기화 (데이터베이스 리포지토리 전달)
+            macro_handler = SmileMacroHandler.from_file(
+                merged_file_path, 
+                erp_repository=self.erp_repository,
+                settlement_repository=self.settlement_repository
+            )
+            
+            # 매크로 핸들러 데이터 행 수 확인
+            initial_rows = macro_handler.ws.max_row - 1  # 헤더 제외
+            self.logger.info(f"매크로 핸들러 초기화 완료, 초기 데이터 행 수: {initial_rows}")
+            
+            # 1-5단계 처리 (async)
+            stage_1_5_success = await macro_handler.process_stage_1_to_5(erp_df, settlement_df)
+            if not stage_1_5_success:
+                raise Exception("1-5단계 처리 중 오류가 발생했습니다.")
+            
+            # 1-5단계 처리 후 데이터 행 수 확인
+            after_stage_5_rows = macro_handler.ws.max_row - 1  # 헤더 제외
+            self.logger.info(f"1-5단계 처리 후 데이터 행 수: {after_stage_5_rows}")
+            
+            # 6-8단계 처리
+            stage_6_8_success = macro_handler.process_stage_6_to_8(sku_df)
+            if not stage_6_8_success:
+                raise Exception("6-8단계 처리 중 오류가 발생했습니다.")
+            
+            # 전체 칼럼 및 값 중간 점검 (서비스 레이어에서도 확인)
+            inspection_result = macro_handler.print_all_columns_and_values()
+            self.logger.info(f"서비스 레이어에서 확인한 중간 점검 결과: {inspection_result}")
+            
+            # 6-8단계 처리 후 데이터 행 수 확인
+            after_stage_8_rows = macro_handler.ws.max_row - 1  # 헤더 제외
+            self.logger.info(f"6-8단계 처리 후 데이터 행 수: {after_stage_8_rows}")
+            
+            # A 컬럼을 기준으로 데이터 분리, Header 변경
+            a_handler, g_handler = self._split_data_by_column_a(macro_handler)
+
+            # A 데이터 값 변경
+            SmileCommonUtils.transform_column_a_data(macro_handler.ws)
+            
+            # v2용 DB 저장 (batch_id 포함)
+            smile_macro_data_list = await self.save_macro_handler_to_db_v2(macro_handler, batch_id)
+            
+            # smile_macro DB의 data를 down_form_order DB에 저장 (batch_id 포함)
+            await self.save_macro_handler_to_down_form_order(smile_macro_data_list, batch_id)
+
+            # A 데이터 파일 저장
+            a_filename = self._generate_filename('A')
+            a_output_path = os.path.join(os.path.dirname(merged_file_path), a_filename)
+            a_saved_path = a_handler.save_file(a_output_path)
+            
+            # G 데이터 파일 저장
+            g_filename = self._generate_filename('G')
+            g_output_path = os.path.join(os.path.dirname(merged_file_path), g_filename)
+            g_saved_path = g_handler.save_file(g_output_path)
+            
+            # 처리된 행 수 계산
+            a_processed_rows = a_handler.ws.max_row - 1  # 헤더 제외
+            g_processed_rows = g_handler.ws.max_row - 1  # 헤더 제외
+            total_processed_rows = a_processed_rows + g_processed_rows
+            
+            self.logger.info(f"데이터베이스 기반 스마일배송 매크로 처리 완료: A파일={a_saved_path}({a_processed_rows}행), G파일={g_saved_path}({g_processed_rows}행)")
+            
+            # down_form_orders 테이블에 batch_id 업데이트
+            if batch_id:
+                await self._update_down_form_orders_batch_id(order_date_from, order_date_to, batch_id)
+            
+            # 처리된 파일들을 MinIO에 업로드
+            a_file_url, g_file_url, full_file_url = await self._upload_files_to_minio(
+                a_saved_path, g_saved_path, macro_handler, batch_id
+            )
+            
+            # batch_process에 파일 정보 업데이트
+            if batch_id and a_file_url:
+                await self._update_batch_process_files(batch_id, a_file_url, full_file_url)
+            
+            # 임시 파일들 정리
+            try:
+                os.remove(merged_file_path)
+                os.remove(a_saved_path)
+                os.remove(g_saved_path)
+            except:
+                pass
+            
+            return SmileMacroV2Response(
+                batch_id=batch_id or 0,
+                processed_count=total_processed_rows,
+                a_file_url=a_file_url,
+                g_file_url=g_file_url,
+                full_file_url=full_file_url,
+                bundle_url=None,  # 나중에 번들 관련 코드 추가 예정
+                message="스마일 매크로 처리 완료"
+            )
+            
+        except Exception as e:
+            self.logger.error(f"스마일 매크로 처리 (v2) 중 오류: {str(e)}")
+            raise e
+
     async def merge_and_process_files_with_minio(self, file_paths: List[str], request_obj: BatchProcessRequest) -> Dict[str, Any]:
         """
         여러 파일을 합친 후 스마일배송 매크로 처리하고 MinIO에 업로드
@@ -853,3 +1091,89 @@ class SmileMacroService:
         except Exception as e:
             self.logger.error(f"전체 파일 batch_process 저장 실패: {str(e)}")
             raise e 
+
+    async def _update_smile_macro_batch_id(self, old_batch_id: int, new_batch_id: int):
+        """smile_macro 테이블의 batch_id 업데이트"""
+        try:
+            if self.smile_macro_repository:
+                await self.smile_macro_repository.update_batch_id(old_batch_id, new_batch_id)
+                self.logger.info(f"smile_macro batch_id 업데이트 완료: {old_batch_id} -> {new_batch_id}")
+            else:
+                self.logger.warning("smile_macro_repository가 없습니다. batch_id 업데이트를 건너뜁니다.")
+        except Exception as e:
+            self.logger.error(f"smile_macro batch_id 업데이트 실패: {str(e)}")
+            raise e
+
+    async def _update_down_form_orders_batch_id(self, order_date_from: date, order_date_to: date, batch_id: int):
+        """down_form_orders 테이블의 batch_id 업데이트"""
+        try:
+            if self.down_form_order_repository:
+                await self.down_form_order_repository.update_batch_id_by_date_range(
+                    order_date_from, order_date_to, batch_id
+                )
+                self.logger.info(f"down_form_orders batch_id 업데이트 완료: {batch_id}")
+            else:
+                self.logger.warning("down_form_order_repository가 없습니다. batch_id 업데이트를 건너뜁니다.")
+        except Exception as e:
+            self.logger.error(f"down_form_orders batch_id 업데이트 실패: {str(e)}")
+            raise e
+
+    async def _upload_files_to_minio(
+        self, 
+        a_output_path: str, 
+        g_output_path: str, 
+        macro_handler: Any, 
+        batch_id: int
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """파일들을 MinIO에 업로드"""
+        try:
+            template_code = "smile_macro"
+            
+            # A 파일 업로드
+            a_file_name = os.path.basename(a_output_path)
+            a_file_url, a_minio_object_name, a_file_size = upload_and_get_url_and_size(
+                a_output_path, template_code, a_file_name
+            )
+            a_file_url = url_arrange(a_file_url)
+            
+            # G 파일 업로드
+            g_file_name = os.path.basename(g_output_path)
+            g_file_url, g_minio_object_name, g_file_size = upload_and_get_url_and_size(
+                g_output_path, template_code, g_file_name
+            )
+            g_file_url = url_arrange(g_file_url)
+            
+            # 전체 파일 업로드 (macro_handler 데이터 기반)
+            full_file_url = None
+            if macro_handler:
+                await self._save_macro_handler_to_batch_process(
+                    macro_handler, batch_id, a_file_url, a_file_size
+                )
+                # 전체 파일 URL은 별도로 생성
+                full_file_url = a_file_url  # 임시로 A 파일 URL 사용
+            
+            return a_file_url, g_file_url, full_file_url
+            
+        except Exception as e:
+            self.logger.error(f"MinIO 업로드 실패: {str(e)}")
+            raise e
+
+    async def _update_batch_process_files(self, batch_id: int, a_file_url: str, full_file_url: str):
+        """batch_process에 파일 정보 업데이트"""
+        try:
+            from repository.batch_info_repository import BatchInfoRepository
+            batch_repository = BatchInfoRepository(self.session)
+            
+            # A 파일 정보로 batch 업데이트
+            batch_dto = BatchProcessDto(
+                batch_id=batch_id,
+                file_url=a_file_url,
+                file_size=0,  # 실제 파일 크기는 별도 계산 필요
+                file_name=os.path.basename(a_file_url)
+            )
+            await batch_repository.update_batch_info(batch_dto)
+            self.logger.info(f"배치 정보 업데이트 완료: batch_id={batch_id}")
+            
+        except Exception as e:
+            self.logger.error(f"배치 정보 업데이트 실패: {str(e)}")
+            raise e
