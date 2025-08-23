@@ -97,8 +97,20 @@ async def db_to_excel_url(
         
         logger.info(f"조회된 레코드 수: {len(down_form_orders)}")
         
-        # DownFormOrderDto로 변환
-        dto_items = [DownFormOrderDto.model_validate(item) for item in down_form_orders]
+        # DownFormOrderDto로 변환 (NaN 값 처리)
+        dto_items = []
+        for item in down_form_orders:
+            # ORM 객체를 dict로 변환
+            item_dict = item.__dict__.copy()
+            # _sa_instance_state 제거 (SQLAlchemy 내부 속성)
+            item_dict.pop('_sa_instance_state', None)
+            
+            # NaN 값을 None으로 변환
+            for key, value in item_dict.items():
+                if pd.isna(value):
+                    item_dict[key] = None
+            
+            dto_items.append(DownFormOrderDto.model_validate(item_dict))
         
         # DataFrame 생성
         data_dict = [dto.model_dump() for dto in dto_items]
