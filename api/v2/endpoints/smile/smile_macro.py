@@ -24,7 +24,7 @@ def get_smile_macro_service(session: AsyncSession = Depends(get_async_session)) 
 @router.post("/smile-excel-macro-multiple-v2")
 @smile_excel_import_handler()
 async def smile_excel_macro_multiple_v2(
-    request: IntegrationRequest[SmileMacroV2Request] = Body(...),
+    request: str = Form(..., description="요청 데이터 (JSON 문자열)"),
     files: List[UploadFile] = File(..., description="처리할 엑셀 파일들"),
     session: AsyncSession = Depends(get_async_session)
 ):
@@ -40,7 +40,8 @@ async def smile_excel_macro_multiple_v2(
     6. batch_process에 파일 정보 업데이트
     
     Args:
-        request: IntegrationRequest<SmileMacroV2Request>
+        request: JSON 문자열 형태의 IntegrationRequest<SmileMacroV2Request>
+            예시: {"data":{"order_date_from":"2025-08-23","order_date_to":"2025-08-23"},"metadata":{"request_id":"lyckabc"}}
             - data.order_date_from: 주문 시작 일자
             - data.order_date_to: 주문 종료 일자
             - metadata.request_id: 요청 ID (batch_process 생성용)
@@ -51,10 +52,13 @@ async def smile_excel_macro_multiple_v2(
         SmileMacroV2Response: 처리 결과 (batch_id, 파일 URL 포함)
     """
     try:
+        # JSON 문자열을 파싱하여 IntegrationRequest 객체 생성
+        request_obj = IntegrationRequest[SmileMacroV2Request](**json.loads(request))
+        
         # 요청 데이터 추출
-        order_date_from = request.data.order_date_from
-        order_date_to = request.data.order_date_to
-        request_id = request.metadata.request_id if request.metadata else None
+        order_date_from = request_obj.data.order_date_from
+        order_date_to = request_obj.data.order_date_to
+        request_id = request_obj.metadata.request_id if request_obj.metadata else None
         
         # 파일들 저장
         temp_file_paths = []
@@ -77,7 +81,7 @@ async def smile_excel_macro_multiple_v2(
             # 메타데이터 생성
             metadata = Metadata(
                 version="2.0",
-                request_id=request.metadata.request_id if request.metadata else None
+                request_id=request_obj.metadata.request_id if request_obj.metadata else None
             )
             
             logger.info("스마일 매크로 처리 (v2) 완료")
@@ -93,10 +97,17 @@ async def smile_excel_macro_multiple_v2(
     except Exception as e:
         logger.error(f"smile_excel_macro_multiple_v2 실패: {str(e)}")
         
-        # 에러 메타데이터 생성
+        # 에러 메타데이터 생성 (request_obj가 정의되지 않았을 수 있으므로 안전하게 처리)
+        request_id = None
+        try:
+            if 'request_obj' in locals():
+                request_id = request_obj.metadata.request_id if request_obj.metadata else None
+        except:
+            pass
+            
         metadata = Metadata(
             version="2.0",
-            request_id=request.metadata.request_id if request.metadata else None
+            request_id=request_id
         )
         
         # ResponseHandler를 사용하여 에러 응답 생성
