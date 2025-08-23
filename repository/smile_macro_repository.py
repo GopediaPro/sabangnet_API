@@ -140,3 +140,34 @@ class SmileMacroRepository:
             await self.session.rollback()
             logger.error(f"스마일배송 매크로 데이터 삭제 중 오류: {str(e)}")
             raise
+
+    async def update_batch_id(self, old_batch_id: int, new_batch_id: int) -> int:
+        """
+        batch_id 업데이트
+        
+        Args:
+            old_batch_id: 기존 batch_id
+            new_batch_id: 새로운 batch_id
+            
+        Returns:
+            int: 업데이트된 레코드 수
+        """
+        try:
+            from sqlalchemy import update
+            
+            stmt = update(SmileMacro).where(
+                SmileMacro.batch_id == old_batch_id
+            ).values(batch_id=new_batch_id)
+            
+            result = await self.session.execute(stmt)
+            await self.session.commit()
+            
+            updated_count = result.rowcount
+            logger.info(f"smile_macro batch_id 업데이트 완료: {old_batch_id} -> {new_batch_id}, 업데이트된 레코드 수: {updated_count}")
+            
+            return updated_count
+            
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"smile_macro batch_id 업데이트 중 오류: {str(e)}")
+            raise
