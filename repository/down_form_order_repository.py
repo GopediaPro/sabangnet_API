@@ -1,8 +1,9 @@
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 from datetime import date, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.logs.sabangnet_logger import get_logger
 from sqlalchemy import select, delete, func, update, text
+from sqlalchemy.dialects.postgresql import insert
 from models.down_form_orders.down_form_order import BaseDownFormOrder
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto, DownFormOrdersInvoiceNoUpdateDto
 
@@ -459,3 +460,121 @@ class DownFormOrderRepository:
             await self.session.rollback()
             logger.error(f"주문번호 {idx}의 invoice_no 업데이트 실패: {str(e)}")
             raise e
+
+    async def get_down_form_orders_by_date_range(
+        self, 
+        date_from: date, 
+        date_to: date,
+        skip: int = None,
+        limit: int = None
+    ) -> list[BaseDownFormOrder]:
+        """
+        날짜 범위로 down_form_orders 조회
+        
+        Args:
+            date_from: 시작 날짜
+            date_to: 종료 날짜 
+            skip: 건너뛸 건수
+            limit: 조회할 건수
+            
+        Returns:
+            조회된 주문 데이터 리스트
+        """
+        try:
+            # order_date가 있는 경우 order_date 기준, 없으면 created_at 기준
+            query = select(BaseDownFormOrder).where(
+                func.coalesce(BaseDownFormOrder.order_date, BaseDownFormOrder.created_at) >= date_from,
+                func.coalesce(BaseDownFormOrder.order_date, BaseDownFormOrder.created_at) <= date_to
+            ).order_by(BaseDownFormOrder.id.desc())
+            
+            if skip is not None:
+                query = query.offset(skip)
+            if limit is not None:
+                query = query.limit(limit)
+                
+            result = await self.session.execute(query)
+            return result.scalars().all()
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"날짜 범위 조회 실패: {str(e)}")
+            raise e
+        finally:
+            await self.session.close()
+
+    async def bulk_upsert(self, dto_items: list[DownFormOrderDto]) -> Tuple[int, int]:
+        """
+        idx 기준으로 대량 upsert 처리
+        
+        Args:
+            dto_items: upsert할 DTO 리스트
+            
+        Returns:
+            (inserted_count, updated_count) 튜플
+        """
+        try:
+            if not dto_items:
+                return 0, 0
+                
+            # DTO를 딕셔너리로 변환
+            data_to_upsert = []
+            for dto in dto_items:
+                data_dict = dto.model_dump()
+                # None 값들을 필터링
+                data_dict = {k: v for k, v in data_dict.items() if v is not None}
+                # 자동 생성 필드 제거
+                data_dict.pop('id', None)
+                data_dict.pop('created_at', None) 
+                data_dict.pop('updated_at', None)
+                data_to_upsert.append(data_dict)
+            
+            if not data_to_upsert:
+                return 0, 0
+            
+            # PostgreSQL의 INSERT ... ON CONFLICT 사용
+            stmt = insert(BaseDownFormOrder).values(data_to_upsert)
+            
+            # idx가 중복될 경우 모든 컬럼 업데이트 (id, created_at 제외)
+            update_dict = {}
+            for key in data_to_upsert[0].keys():
+                if key not in ['id', 'created_at', 'idx']:
+                    update_dict[key] = stmt.excluded[key]
+            
+            # updated_at은 현재 시간으로 설정
+            update_dict['updated_at'] = func.now()
+            
+            upsert_stmt = stmt.on_conflict_do_update(
+                index_elements=['idx'],
+                set_=update_dict
+            )
+            
+            # 결과를 반환하도록 수정
+            result_stmt = upsert_stmt.returning(
+                BaseDownFormOrder.id,
+                BaseDownFormOrder.created_at,
+                BaseDownFormOrder.updated_at
+            )
+            
+            result = await self.session.execute(result_stmt)
+            rows = result.fetchall()
+            
+            await self.session.commit()
+            
+            # 삽입/업데이트 구분 (created_at == updated_at이면 삽입, 다르면 업데이트)
+            inserted_count = 0
+            updated_count = 0
+            
+            for row in rows:
+                if row.created_at == row.updated_at:
+                    inserted_count += 1
+                else:
+                    updated_count += 1
+                    
+            logger.info(f"Upsert 완료 - 삽입: {inserted_count}, 업데이트: {updated_count}")
+            return inserted_count, updated_count
+            
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Upsert 실패: {str(e)}")
+            raise e
+        finally:
+            await self.session.close()

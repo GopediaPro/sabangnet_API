@@ -29,6 +29,7 @@ from api.v1.endpoints.smile.smile_excel_import import router as smile_excel_impo
 
 # v2 API imports
 from api.v2.endpoints.hanjin.delivery import router as hanjin_v2_router
+from api.v2.endpoints.down_form_order import router as down_form_order_v2_router
 
 from utils.logs.sabangnet_logger import get_logger, HTTPLoggingMiddleware
 from api.v1.endpoints.mall_certification_handling.mall_certification_handling import router as mall_certification_handling_router
@@ -84,6 +85,7 @@ master_router.include_router(smile_excel_import_router)
 
 # v2 API 라우터 등록
 master_router_v2.include_router(hanjin_v2_router)
+master_router_v2.include_router(down_form_order_v2_router)
 
 app.include_router(master_router)
 app.include_router(master_router_v2)
