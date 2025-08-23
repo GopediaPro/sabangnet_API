@@ -217,6 +217,10 @@ async def get_excel_to_db(
                 for key, value in row_dict.items():
                     if pd.isna(value):
                         row_dict[key] = None
+                    # Timezone-naive pandas Timestamp을 timezone-aware datetime으로 변환
+                    elif isinstance(value, pd.Timestamp) and value.tz is None:
+                        # UTC 타임존으로 localize
+                        row_dict[key] = value.tz_localize('UTC')
                 
                 dto = DownFormOrderDto.model_validate(row_dict)
                 dto_items.append(dto)
