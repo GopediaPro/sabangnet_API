@@ -116,8 +116,13 @@ async def db_to_excel_url(
         data_dict = [dto.model_dump() for dto in dto_items]
         df = pd.DataFrame(data_dict)
         
-        # Excel 파일 생성
+        # datetime 컬럼의 timezone 정보 제거
+        for col in df.columns:
+            if df[col].dtype == 'datetime64[ns, UTC]' or 'datetime' in str(df[col].dtype):
+                if hasattr(df[col].dtype, 'tz') and df[col].dtype.tz is not None:
+                    df[col] = df[col].dt.tz_localize(None)
         
+        # Excel 파일 생성
         with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp_file:
             df.to_excel(tmp_file.name, index=False, engine='openpyxl')
             temp_file_path = tmp_file.name
