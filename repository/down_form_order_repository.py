@@ -459,3 +459,38 @@ class DownFormOrderRepository:
             await self.session.rollback()
             logger.error(f"주문번호 {idx}의 invoice_no 업데이트 실패: {str(e)}")
             raise e
+
+    async def update_batch_id_by_date_range(self, order_date_from: date, order_date_to: date, batch_id: int) -> int:
+        """
+        주문 날짜 범위로 batch_id 업데이트
+        
+        Args:
+            order_date_from: 주문 시작 일자
+            order_date_to: 주문 종료 일자
+            batch_id: 업데이트할 batch_id
+            
+        Returns:
+            int: 업데이트된 레코드 수
+        """
+        try:
+            stmt = (
+                update(BaseDownFormOrder)
+                .where(
+                    BaseDownFormOrder.order_date >= order_date_from,
+                    BaseDownFormOrder.order_date <= order_date_to
+                )
+                .values(batch_id=batch_id)
+            )
+            
+            result = await self.session.execute(stmt)
+            await self.session.commit()
+            
+            updated_count = result.rowcount
+            logger.info(f"down_form_orders batch_id 업데이트 완료: {order_date_from} ~ {order_date_to}, batch_id: {batch_id}, 업데이트된 레코드 수: {updated_count}")
+            
+            return updated_count
+            
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"down_form_orders batch_id 업데이트 실패: {str(e)}")
+            raise e
