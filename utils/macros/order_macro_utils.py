@@ -12,11 +12,12 @@ from utils.macros.ERP.etc_site_macro_v2 import ERPEtcSiteMacroV2
 from utils.macros.ERP.zigzag_erp_macro_v2 import ERPZigzagMacroV2
 from utils.macros.ERP.brandi_erp_macro import ERPBrandiMacro
 
-# erp v3
+# v3
 from utils.macros.ERP.v3.g_a_erp_macro_v3 import gauc_erp_macro_run
 from utils.macros.ERP.v3.etc_site_macro_v3 import etc_site_macro_run
 from utils.macros.ERP.v3.zigzag_erp_macrp_v3 import zigzag_erp_macro_run
 from utils.macros.ERP.v3.brandi_erp_macro_v3 import brandi_erp_macro_run
+from utils.macros.happojang.bundle_utils_v3 import BundleUtilsV3
 # dto
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto
 # bundle
@@ -52,12 +53,12 @@ class OrderMacroUtils:
 
         self.MACRO_MAP_V3 = {
             "gmarket_erp": gauc_erp_macro_run,
-            "gmarket_bundle": "gmarker_bundle_macro_run",
+            "gmarket_bundle": self.run_gmarket_bundle_macro,
             "brandi_erp": brandi_erp_macro_run,
             "zigzag_erp": zigzag_erp_macro_run,
-            "zigzag_bundle": "zigzag_bundle_macro_run",
+            "zigzag_bundle": self.run_zigzag_bundle_macro,
             "basic_erp": etc_site_macro_run,
-            "basic_bundle": "basic_bundle_macro_run",
+            "basic_bundle": self.run_basic_bundle_macro,
         }
     
 
@@ -75,6 +76,19 @@ class OrderMacroUtils:
 
     def run_zigzag_macro(self, file_path: str, is_star: bool = False) -> int:
         return ERPZigzagMacroV2(file_path, is_star).zigzag_erp_macro_run()
+
+    def run_gmarket_bundle_macro(self, row_datas: list[dict], is_star: bool = False) -> int:
+        erp_macro_run_data = gauc_erp_macro_run(row_datas, is_star)
+        return BundleUtilsV3(erp_macro_run_data).run_bundle_macro()
+    
+    def run_zigzag_bundle_macro(self, row_datas: list[dict], is_star: bool = False) -> int:
+        erp_macro_run_data = zigzag_erp_macro_run(row_datas, is_star)
+        return BundleUtilsV3(erp_macro_run_data).run_bundle_macro()
+
+    def run_basic_bundle_macro(self, row_datas: list[dict], is_star: bool = False) -> int:
+        erp_macro_run_data = etc_site_macro_run(row_datas, is_star)
+        return BundleUtilsV3(erp_macro_run_data).run_bundle_macro()
+
 
     def modify_site_column_for_star_delivery(self, file_path: str) -> str:
         """
