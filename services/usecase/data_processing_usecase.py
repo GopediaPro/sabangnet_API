@@ -25,6 +25,7 @@ from schemas.receive_orders.receive_orders_dto import ReceiveOrdersDto
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto, DownFormOrdersBulkDto, DownFormOrdersFromReceiveOrdersDto
 from schemas.macro_batch_processing.batch_process_dto import BatchProcessDto
 from schemas.macro_batch_processing.request.batch_process_request import BatchProcessRequest
+from schemas.integration_response import ResponseHandler, Metadata
 # service
 from services.receive_orders.receive_order_read_service import ReceiveOrderReadService
 from services.receive_orders.receive_order_create_service import ReceiveOrderCreateService
@@ -243,26 +244,26 @@ class DataProcessingUsecase:
         # receive_orders_saved_success = await self.save_receive_orders_to_db(filters)
 
         # if not receive_orders_saved_success:
-        #     return DownFormOrdersFromReceiveOrdersDto(
-        #         success=False,
-        #         mall_id=mall_id,
-        #         dpartner_id=dpartner_id,
-        #         processed_count=0,
-        #         saved_count=0,
-        #         message="No data saved to receive_orders"
+        #     logger.error(f"No receive_orders data saved to receive_orders")
+        #     return ResponseHandler.not_found(
+        #         message="No receive_orders data saved to receive_orders",
+        #         metadata=Metadata(
+        #             version="v2",
+        #             request_id=filters.get('request_id')
+        #         )
         #     )
 
         # 2. filters에 따라 receive_orders 조회
         receive_orders: list[ReceiveOrders] = await self.order_read_service.get_receive_orders_by_filters(filters)
         logger.info(f"receive_orders_len: {len(receive_orders)}")
         if not receive_orders:
-            return DownFormOrdersFromReceiveOrdersDto(
-                success=False,
-                mall_id=mall_id,
-                dpartner_id=dpartner_id,
-                processed_count=0,
-                saved_count=0,
-                message="No data found to process"
+            logger.error(f"No receive_orders data found to process")
+            return ResponseHandler.not_found(
+                message="No receive_orders data found to process",
+                metadata=Metadata(
+                    version="v2",
+                    request_id=filters.get('request_id')
+                )
             )
 
         # 3. receive_orders 데이터를 dto로 변환
@@ -536,26 +537,13 @@ class DataProcessingUsecase:
         config: dict = await self.template_config_read_service.get_template_config_by_template_code(template_code)
         logger.info(f"Loaded template config: {config}")
 
-        # 2. receive_orders 데이터 down_form_order dto로 변경
-        if config['is_aggregated']:
-            logger.info(
-                "Aggregated template detected. Processing aggregated data.")
-            processed_data = await DataProcessingUtils.process_aggregated_data(receive_orders_data, config)
-        else:
-            logger.info("Simple template detected. Processing simple data.")
-            processed_data = await DataProcessingUtils.process_simple_data(receive_orders_data, config)
-        logger.info(
-            f"Data processed. processed_data_count={len(processed_data)}. Sample: {processed_data[:1]}")
-
+        # 2. 데이터 1대1 매핑 변환 (DB_to_DB 에서는 합포장, ERP 구분없이 사용)
+        processed_data = await DataProcessingUtils.process_simple_data(receive_orders_data, config)
         # 3. 매크로 실행
         run_macro_data: list[dict[str, Any]] = []
         macro_func = self.order_macro_utils.MACRO_MAP_V3.get(template_code)
         if macro_func:
-            # 매크로 함수 추가 후 적용
-            if isinstance(macro_func, str):
-                run_macro_data = processed_data
-            else:
-                run_macro_data = macro_func(processed_data, is_star)
+            run_macro_data = macro_func(processed_data, is_star)
         else:
             logger.error(f"Macro not found for template code: {template_code}")
             raise ValueError(
