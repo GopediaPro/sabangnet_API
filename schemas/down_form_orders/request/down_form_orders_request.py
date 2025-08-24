@@ -114,3 +114,8 @@ class DownFormOrdersPaginationWithDateRangeRequest(BaseModel):
 class DownFormOrdersFromReceiveOrdersFillterRequest(BaseModel):
     filters: Optional[ReceiveOrdersToDownFormOrdersFillterRequst] = Field(
         ..., description="필터 정보")
+
+
+class DbToExcelRequest(BaseModel):
+    ord_st_date: date = Field(..., description="시작 날짜")
+    ord_ed_date: date = Field(..., description="종료 날짜")
