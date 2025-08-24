@@ -23,11 +23,16 @@ from services.down_form_orders.down_form_order_read_service import (
 from services.down_form_orders.down_form_order_update_service import (
     DownFormOrderUpdateService,
 )
+from services.down_form_orders.down_form_order_conversion_service import (
+    DownFormOrderConversionService,
+)
 
 # schema
 from schemas.integration_request import IntegrationRequest
 from schemas.integration_response import ResponseHandler, Metadata
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto
+from schemas.down_form_orders.request.down_form_orders_request import DbToExcelRequest
+from schemas.down_form_orders.response.down_form_orders_response import DbToExcelResponse, ExcelToDbResponse
 
 # utils
 from utils.excels.excel_handler import ExcelHandler
@@ -63,26 +68,13 @@ def get_data_processing_usecase(
     return DataProcessingUsecase(session)
 
 
-# Request DTOs
-from pydantic import BaseModel, Field
+def get_down_form_order_conversion_service(
+    session: AsyncSession = Depends(get_async_session),
+) -> DownFormOrderConversionService:
+    return DownFormOrderConversionService(session)
 
 
-class DbToExcelRequest(BaseModel):
-    ord_st_date: date = Field(..., description="시작 날짜")
-    ord_ed_date: date = Field(..., description="종료 날짜")
 
-
-class DbToExcelResponse(BaseModel):
-    excel_url: str = Field(..., description="Excel 파일 URL")
-    record_count: int = Field(..., description="레코드 수")
-    file_size: int = Field(..., description="파일 크기 (bytes)")
-
-
-class ExcelToDbResponse(BaseModel):
-    processed_count: int = Field(..., description="처리된 레코드 수")
-    inserted_count: int = Field(..., description="삽입된 레코드 수")
-    updated_count: int = Field(..., description="업데이트된 레코드 수")
-    failed_count: int = Field(0, description="실패한 레코드 수")
 
 
 @router.post("/db-to-excel-url", response_class=JSONResponse)
@@ -93,6 +85,9 @@ async def db_to_excel_url(
     ),
     data_processing_usecase: DataProcessingUsecase = Depends(
         get_data_processing_usecase
+    ),
+    down_form_order_conversion_service: DownFormOrderConversionService = Depends(
+        get_down_form_order_conversion_service
     ),
 ):
     """
@@ -119,46 +114,12 @@ async def db_to_excel_url(
 
         logger.info(f"조회된 레코드 수: {len(down_form_orders)}")
 
-        # DownFormOrderDto로 변환 (NaN 값 처리)
-        dto_items = []
-        for item in down_form_orders:
-            # ORM 객체를 dict로 변환
-            item_dict = item.__dict__.copy()
-            # _sa_instance_state 제거 (SQLAlchemy 내부 속성)
-            item_dict.pop("_sa_instance_state", None)
+        # DownFormOrderDto로 변환 및 DataFrame 생성
+        dto_items = down_form_order_conversion_service.convert_orm_to_dto_list(down_form_orders)
+        df = down_form_order_conversion_service.convert_dto_list_to_dataframe(dto_items)
 
-            # NaN 값을 None으로 변환
-            for key, value in item_dict.items():
-                if pd.isna(value):
-                    item_dict[key] = None
-
-            dto_items.append(DownFormOrderDto.model_validate(item_dict))
-
-        # DataFrame 생성
-        data_dict = [dto.model_dump() for dto in dto_items]
-        df = pd.DataFrame(data_dict)
-
-        # ✅ (추가) sale_cnt를 문자열로 강제: "3.0" -> "3", 공백/NaN -> None (엑셀에 빈칸)
-        if "sale_cnt" in df.columns:
-
-            def _sale_cnt_to_str(v):
-                if v is None or (isinstance(v, float) and pd.isna(v)):
-                    return None
-                s = str(v).strip()
-                if s == "":
-                    return None
-                try:
-                    return str(int(float(s)))  # "3.0" / Decimal("3") 등도 "3"
-                except Exception:
-                    return s  # 숫자화 불가 시 원 문자열 유지
-
-            df["sale_cnt"] = df["sale_cnt"].map(_sale_cnt_to_str)
-
-        # ✅ (개선) tz-aware datetime 컬럼의 timezone 정보 제거
-        # pandas의 dtype 체크 유틸로 확실하게 처리
-        for col in df.columns:
-            if pd.api.types.is_datetime64tz_dtype(df[col]):
-                df[col] = df[col].dt.tz_localize(None)
+        # 특정 column form 에 맞춰 column transform
+        df = down_form_order_conversion_service.transform_column_by_form(df)
 
         # Excel 파일 생성
         with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp_file:
