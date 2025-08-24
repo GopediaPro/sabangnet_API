@@ -274,7 +274,8 @@ class SmileMacroService:
                 
                 # 통합된 변환 메서드 사용
                 down_form_data = smile_macro_dto.to_down_form_order_data(form_type=template_code)
-                
+                # etc_cost 에 pay_cost 값 넣기
+                down_form_order_data_list['etc_cost'] = down_form_data['pay_cost']
                 down_form_order_data_list.append(down_form_data)
             
             # down_form_order DB에 저장
