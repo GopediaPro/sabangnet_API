@@ -31,7 +31,7 @@ class GAERPMacroV3:
         # 금액 계산
         df['etc_cost'] = df['expected_payout'].fillna(
             0) + df['service_fee'].fillna(0) + df['delv_cost'].fillna(0)
-        df['etc_cost'] = df['etc_cost'].astype(str)
+        df['etc_cost'] = df['etc_cost'].astype(int).astype(str)
         
         # 스타배송 평균 배송비 적용
         if self.is_star:
