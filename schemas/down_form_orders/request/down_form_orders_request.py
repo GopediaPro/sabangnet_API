@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Optional
 from pydantic import BaseModel, Field, ConfigDict
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto
@@ -117,5 +117,6 @@ class DownFormOrdersFromReceiveOrdersFillterRequest(BaseModel):
 
 
 class DbToExcelRequest(BaseModel):
-    ord_st_date: date = Field(..., description="시작 날짜")
-    ord_ed_date: date = Field(..., description="종료 날짜")
+    ord_st_date: datetime = Field(..., description="주문 수집 시작 날짜 및 시간")
+    ord_ed_date: datetime = Field(..., description="주문 수집 종료 날짜 및 시간")
+    form_names: list[str] = Field(None, description="양식 이름 목록")
