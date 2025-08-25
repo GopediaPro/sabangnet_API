@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.down_form_orders.down_form_order import BaseDownFormOrder
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto
+from services.template_mapping_service import TemplateMappingService
 
 
 class DownFormOrderConversionService:
@@ -80,3 +81,50 @@ class DownFormOrderConversionService:
             return str(int(float(s)))  # "3.0" / Decimal("3") 등도 "3"
         except Exception:
             return s  # 숫자화 불가 시 원 문자열 유지
+
+    async def transform_column_by_form_names(self, df: pd.DataFrame, form_names: list[str]) -> pd.DataFrame:
+        """
+        form_names에 따라 동적으로 컬럼을 변환
+        
+        Args:
+            df: 원본 DataFrame
+            form_names: template_code 리스트
+            
+        Returns:
+            pd.DataFrame: 변환된 DataFrame
+        """
+        if not form_names:
+            return df
+        
+        # TemplateMappingService를 사용하여 동적 매핑 적용
+        template_mapping_service = TemplateMappingService(self.session)
+        template_mappings = await template_mapping_service.get_template_mappings_by_form_names(form_names)
+        
+        if template_mappings:
+            df = template_mapping_service.apply_template_mappings(df, template_mappings)
+        
+        return df
+
+    async def get_template_description(self, template_code: str) -> str:
+        """
+        template_code로부터 export_templates 테이블의 description 조회
+        
+        Args:
+            template_code: 템플릿 코드
+            
+        Returns:
+            str: 템플릿 설명 또는 기본값
+        """
+        from repository.export_templates_repository import ExportTemplateRepository
+        
+        export_template_repository = ExportTemplateRepository(self.session)
+        
+        # 모든 템플릿 조회 후 template_code로 필터링
+        all_templates = await export_template_repository.get_export_templates()
+        
+        for template in all_templates:
+            if template.template_code == template_code:
+                return template.description or template.template_name or template_code
+        
+        # 매칭되는 템플릿이 없으면 template_code 반환
+        return template_code
