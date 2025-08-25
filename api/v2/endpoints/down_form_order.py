@@ -1,9 +1,10 @@
 # std
 from typing import Optional
-from datetime import date
+from datetime import date, datetime
 import pandas as pd
 import tempfile
 import os
+import zipfile
 
 # core
 from core.db import get_async_session
@@ -98,11 +99,12 @@ async def db_to_excel_url(
 
         ord_st_date = request.data.ord_st_date
         ord_ed_date = request.data.ord_ed_date
+        form_names = request.data.form_names
 
-        # 날짜 범위로 데이터 조회
+        # 날짜, 양식 이름으로 데이터 조회
         down_form_orders = (
             await down_form_order_read_service.get_down_form_orders_by_date_range(
-                date_from=ord_st_date, date_to=ord_ed_date
+                date_from=ord_st_date, date_to=ord_ed_date, form_names=form_names
             )
         )
 
@@ -118,39 +120,71 @@ async def db_to_excel_url(
         dto_items = down_form_order_conversion_service.convert_orm_to_dto_list(down_form_orders)
         df = down_form_order_conversion_service.convert_dto_list_to_dataframe(dto_items)
 
-        # 특정 column form 에 맞춰 column transform
-        df = down_form_order_conversion_service.transform_column_by_form(df)
-
-        # Excel 파일 생성
-        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp_file:
-            df.to_excel(tmp_file.name, index=False, engine="openpyxl")
-            temp_file_path = tmp_file.name
+        # form_names 개수만큼 각각의 Excel 파일 생성
+        excel_files = []
+        total_record_count = 0
+        
+        for form_name in form_names:
+            # 각 form_name에 대해 별도의 DataFrame 생성
+            form_df = df.copy()
+            
+            # 특정 form_name에 맞춰 column transform
+            form_df = await down_form_order_conversion_service.transform_column_by_form_names(form_df, [form_name])
+            
+            # export_templates에서 description 가져오기
+            template_description = await down_form_order_conversion_service.get_template_description(form_name)
+            date_now = datetime.now().strftime("%Y%m%d")
+            excel_file_name = f"{date_now}_주문서확인처리_{template_description}_매크로완료.xlsx"
+            
+            # Excel 파일 생성
+            with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp_file:
+                form_df.to_excel(tmp_file.name, index=False, engine="openpyxl")
+                excel_files.append({
+                    'temp_path': tmp_file.name,
+                    'file_name': excel_file_name
+                })
+            
+            total_record_count += len(form_df)
 
         try:
-            # MinIO에 업로드
-            file_name = f"down_form_orders_{ord_st_date}_{ord_ed_date}.xlsx"
+            # ZIP 파일 생성
+            ord_st_date_str = ord_st_date.strftime("%Y%m%d")
+            ord_ed_date_str = ord_ed_date.strftime("%Y%m%d")
+            zip_file_name = f"down_form_orders_{ord_st_date_str}_{ord_ed_date_str}.zip"
+            zip_temp_path = None
+            with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as zip_tmp_file:
+                with zipfile.ZipFile(zip_tmp_file.name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    for excel_file in excel_files:
+                        zipf.write(excel_file['temp_path'], excel_file['file_name'])
+                
+                zip_temp_path = zip_tmp_file.name
+
+            # MinIO에 ZIP 파일 업로드
             file_url, minio_object_name, file_size = upload_and_get_url_and_size(
-                temp_file_path, "down_form_orders", file_name
+                zip_temp_path, "down_form_orders", zip_file_name
             )
             file_url = url_arrange(file_url)
 
             logger.info(
-                f"[db_to_excel_url] 완료 - URL: {file_url}, 레코드 수: {len(down_form_orders)}"
+                f"[db_to_excel_url] 완료 - URL: {file_url}, 총 레코드 수: {total_record_count}, 파일 수: {len(excel_files)}"
             )
 
             return ResponseHandler.ok(
                 data=DbToExcelResponse(
                     excel_url=file_url,
-                    record_count=len(down_form_orders),
+                    record_count=total_record_count,
                     file_size=file_size,
                 ),
                 metadata=Metadata(version="v2", request_id=request.metadata.request_id),
             )
 
         finally:
-            # 임시 파일 삭제
-            if os.path.exists(temp_file_path):
-                os.remove(temp_file_path)
+            # 임시 파일들 삭제
+            for excel_file in excel_files:
+                if os.path.exists(excel_file['temp_path']):
+                    os.remove(excel_file['temp_path'])
+            if zip_temp_path and os.path.exists(zip_temp_path):
+                os.remove(zip_temp_path)
 
     except Exception as e:
         logger.error(f"[db_to_excel_url] 오류: {str(e)}", exc_info=True)
