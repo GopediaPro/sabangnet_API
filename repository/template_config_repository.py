@@ -56,7 +56,8 @@ class TemplateConfigRepository:
         ]
 
     def _merge_columns(self, default_columns: list[dict], input_columns: list[dict]) -> list[dict]:
-        columns_by_target = {col["target_column"]: col for col in default_columns}
+        columns_by_target = {col["target_column"]
+            : col for col in default_columns}
         for col in input_columns:
             columns_by_target[col["target_column"]] = col
         return list(sorted(columns_by_target.values(), key=lambda x: x["column_order"]))
@@ -76,9 +77,10 @@ class TemplateConfigRepository:
             **{k: v for k, v in input_meta.items() if k != "id"},
             "column_mappings": input_columns
         }
-    
+
     async def get_macro_name_by_template_code(self, template_code: str) -> Optional[str]:
-        query = select(MacroInfo.macro_name).where(MacroInfo.form_name == template_code)
+        query = select(MacroInfo.macro_name).where(
+            MacroInfo.form_name == template_code)
         result = await self.session.execute(query)
         return result.scalars().first()
 
@@ -96,21 +98,21 @@ class TemplateConfigRepository:
         try:
             all_result = await self.session.execute(all_macros_query)
             all_macros = all_result.scalars().all()
-            
+
             # 유틸리티 함수를 사용하여 매칭되는 매크로 찾기
             matching_macro = find_matching_item(
                 all_macros,
                 form_name=template_code,
                 sub_site=sub_site
             )
-            
+
             return matching_macro.macro_name if matching_macro else None
-            
+
         except Exception as e:
             await self.session.rollback()
             raise e
 
-    async def get_all_template_code_name(self) -> list[str]:
-        query = select(MacroInfo.form_name)
+    async def get_sub_site_true_template_code(self, template_code: str):
+        query = select(MacroInfo.sub_site).where(MacroInfo.form_name == template_code)
         result = await self.session.execute(query)
-        return result.scalars().all()
+        return result.scalars().first()

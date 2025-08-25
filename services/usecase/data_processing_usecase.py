@@ -489,8 +489,12 @@ class DataProcessingUsecase:
                 file_path)
             logger.info(f"스타배송 수정 완료: {file_path}")
 
-        # sub_site가 있으면 해당하는 매크로명 조회, 없으면 기본 매크로명 조회
-        if sub_site:
+        # 템플릿 코드로 sub_site 여부 조회
+        sub_site_true_template_code = await self.template_config_read_service.get_sub_site_true_template_code(template_code)
+
+        # sub_site가 있으면 해당하는 매크로명 조회, 없으면 기본 매크로명 조회 
+        #if is_star in ['알리', '지그재그', '기타사이트']:
+        if sub_site_true_template_code:
             macro_name: Optional[str] = await self.template_config_read_service.get_macro_name_by_template_code_with_sub_site(template_code, sub_site)
             logger.info(f"macro_name from DB with sub_site: {macro_name}")
         else:
@@ -669,7 +673,7 @@ class DataProcessingUsecase:
             # 2. 파일명 파싱하여 sub_site 정보 추출
             parsed = self.parse_filename(original_filename)
             sub_site = parsed.get('sub_site')
-            is_star = parsed.get('is_ star')
+            is_star = parsed.get('is_star')
             logger.info(f"sub_site: {sub_site} | is_star: {is_star}")
 
             # 3. 임시 파일 생성 및 매크로 실행
