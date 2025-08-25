@@ -463,8 +463,9 @@ class DownFormOrderRepository:
 
     async def get_down_form_orders_by_date_range(
         self, 
-        date_from: date, 
-        date_to: date,
+        date_from: datetime, 
+        date_to: datetime,
+        form_names: list[str] = None,
         skip: int = None,
         limit: int = None
     ) -> list[BaseDownFormOrder]:
@@ -481,11 +482,21 @@ class DownFormOrderRepository:
             조회된 주문 데이터 리스트
         """
         try:
-            # order_date가 있는 경우 order_date 기준, 없으면 created_at 기준
-            query = select(BaseDownFormOrder).where(
-                func.coalesce(BaseDownFormOrder.order_date, BaseDownFormOrder.created_at) >= date_from,
-                func.coalesce(BaseDownFormOrder.order_date, BaseDownFormOrder.created_at) <= date_to
-            ).order_by(BaseDownFormOrder.id.desc())
+            # datetime을 "YYYYMMDDHHMMSS" 형태의 문자열로 변환
+            date_from_str = date_from.strftime("%Y%m%d%H%M%S")
+            date_to_str = date_to.strftime("%Y%m%d%H%M%S")
+            
+            # reg_date는 VARCHAR(14) 형태의 문자열이므로 문자열 비교
+            conditions = [
+                BaseDownFormOrder.reg_date >= date_from_str,
+                BaseDownFormOrder.reg_date <= date_to_str
+            ]
+            
+            # form_name이 제공된 경우 필터링 조건에 추가
+            if form_names:
+                conditions.append(BaseDownFormOrder.form_name.in_(form_names))
+            
+            query = select(BaseDownFormOrder).where(*conditions).order_by(BaseDownFormOrder.id.desc())
             
             if skip is not None:
                 query = query.offset(skip)
@@ -533,10 +544,10 @@ class DownFormOrderRepository:
             # PostgreSQL의 INSERT ... ON CONFLICT 사용
             stmt = insert(BaseDownFormOrder).values(data_to_upsert)
             
-            # idx가 중복될 경우 모든 컬럼 업데이트 (id, created_at 제외)
+            # order_id & form_name이 모두 중복이 없을 경우 컬럼 업데이트 (id, created_at 제외)
             update_dict = {}
             for key in data_to_upsert[0].keys():
-                if key not in ['id', 'created_at', 'idx']:
+                if key not in ['id', 'created_at', 'order_id', 'form_name']:
                     update_dict[key] = stmt.excluded[key]
             
             # updated_at은 현재 시간으로 설정
