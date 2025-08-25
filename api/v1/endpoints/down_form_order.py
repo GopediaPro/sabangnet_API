@@ -405,26 +405,32 @@ async def db_to_excel_url(
 
 @router.post("/create-from-receive-orders")
 async def create_down_form_orders_from_receive_orders(
-    request: DownFormOrdersFromReceiveOrdersFillterRequest = Body(...),
+    request: IntegrationRequest[DownFormOrdersFromReceiveOrdersFillterRequest] = Body(...),
     get_data_processing_usecase: DataProcessingUsecase = Depends(
         get_data_processing_usecase),
 ):
     """
     사방넷 주문수집 조회 및 매크로 실행 후 down_form_orders 테이블에 저장
     """
-    filters = request.filters.model_dump()
+    filters = request.data.filters.model_dump()
     logger.info(f"주문수집 데이터 저장 V2 시작: {filters}")
     try:
         down_form_orders_dto = await get_data_processing_usecase.save_down_form_order_from_receive_orders_by_filters_v2(filters)
         logger.info(f"주문수집 데이터 저장 V2 완료: {down_form_orders_dto.success}")
-        return DownFormOrdersFromReceiveOrdersResponse.from_dto(down_form_orders_dto)
+        response = DownFormOrdersFromReceiveOrdersResponse.from_dto(down_form_orders_dto)
+        return ResponseHandler.created(
+            data=response,
+            metadata=Metadata(
+                version="v2",
+                request_id=request.metadata.request_id
+            )
+        )
     except Exception as e:
         logger.error(f"주문수집 데이터 저장 V2 실패: {str(e)}")
-        return DownFormOrdersFromReceiveOrdersResponse.from_dto(DownFormOrdersFromReceiveOrdersDto(
-            success=False,
-            mall_id=filters.get('mall_id'),
-            dpartner_id=filters.get('dpartner_id'),
-            processed_count=0, 
-            saved_count=0,
-            message=f"error: {str(e)}"
-        ))
+        return ResponseHandler.bad_request(
+            message=str(e),
+            metadata=Metadata(
+                version="v2",
+                request_id=request.metadata.request_id
+            )
+        )

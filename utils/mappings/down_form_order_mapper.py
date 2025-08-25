@@ -374,17 +374,15 @@ def eval_formula(transform_config: dict, row: dict) -> Any:
 
         if 'convert_name' in formula:
             formula = formula.replace('convert_name(', '').replace(')', '')
-        elif '개' in formula:
-            # 상품명 처리
-            target = ''
-            for item in formula.split('+'):
-                if item.replace(' ', '').isdigit():
-                    target += f'"{item}"'
-                else:
-                    target += item
-            formula = target
-
-        return eval(formula, {"__builtins__": {}}, {})
+        elif 'sum' in formula:
+            formula = formula.replace('sum(', '').replace(')', '')
+        
+        safe_functions = {
+            'int': int,
+            'str': str
+        }
+       
+        return eval(formula, {"__builtins__": {}}, safe_functions)
     except Exception as e:
         logger.error(f"수식 계산 실패: {source}, 에러: {e}")
         return None
