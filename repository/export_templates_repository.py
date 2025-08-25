@@ -64,3 +64,30 @@ class ExportTemplateRepository:
             await self.session.rollback()
             logger.error(f"Error in find_template_code_by_site_usage_star: {e}")
             raise e
+        finally:
+            await self.session.close()
+
+    async def get_template_ids_by_codes(self, template_codes: list[str]) -> list[int]:
+        """
+        template_code 리스트로 template_id 리스트 조회
+        
+        Args:
+            template_codes: 조회할 template_code 리스트
+            
+        Returns:
+            template_id 리스트
+        """
+        query = select(ExportTemplates.id).where(
+            ExportTemplates.template_code.in_(template_codes),
+            ExportTemplates.is_active == True
+        )
+        
+        try:
+            result = await self.session.execute(query)
+            return [row[0] for row in result.fetchall()]
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Template IDs 조회 실패: {str(e)}")
+            raise e
+        finally:
+            await self.session.close()
