@@ -438,7 +438,7 @@ class ETCSheetManager:
             ws[f"F{row}"].alignment = Alignment(horizontal='left')
 
         # 11. 배경·테두리 제거, A열 순번 설정
-        self.set_row_number(ws)  # 자체 정의한 메서드 사용
+        ex.set_row_number(ws)  # 자체 정의한 메서드 사용
         ex.clear_fills_from_second_row()
         ex.clear_borders()
 

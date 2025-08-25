@@ -221,7 +221,7 @@ class ExcelHandler:
 
     def set_row_number(self, ws, start_row=2, end_row=None):
         """
-        A열 순번 자동 생성 (=ROW()-1)
+        A열 순번 자동 생성 (row - 1)
         예시:
             set_row_number(ws)
         """
@@ -231,7 +231,7 @@ class ExcelHandler:
             ws = self.ws
         for row in range(start_row, end_row + 1):
             ws[f'A{row}'].number_format = 'General'
-            ws[f"A{row}"].value = "=ROW()-1"
+            ws[f"A{row}"].value = row -1
 
     def convert_formula_to_value(self):
         """
