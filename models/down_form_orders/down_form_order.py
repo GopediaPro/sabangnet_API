@@ -19,7 +19,7 @@ class BaseFormOrder(Base):
     process_dt: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     form_name: Mapped[str | None] = mapped_column(String(30))
     seq: Mapped[int | None] = mapped_column(Integer)
-    idx: Mapped[str] = mapped_column(String(50), nullable=False)  # 사방넷주문번호
+    idx: Mapped[str] = mapped_column(Text, nullable=False)  # 사방넷주문번호
     # idx: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)  # 사방넷주문번호
     order_id: Mapped[str | None] = mapped_column(String(100))
     mall_order_id: Mapped[str | None] = mapped_column(Text)
@@ -27,8 +27,8 @@ class BaseFormOrder(Base):
     # 상품 정보
     product_id: Mapped[str | None] = mapped_column(Text)
     product_name: Mapped[str | None] = mapped_column(Text)
-    mall_product_id: Mapped[str | None] = mapped_column(String(50))
-    item_name: Mapped[str | None] = mapped_column(String(100))
+    mall_product_id: Mapped[str | None] = mapped_column(Text)
+    item_name: Mapped[str | None] = mapped_column(Text)
     sku_value: Mapped[str | None] = mapped_column(Text)
     sku_alias: Mapped[str | None] = mapped_column(Text)
     sku_no: Mapped[str | None] = mapped_column(Text)
@@ -172,7 +172,7 @@ class BaseFormOrder(Base):
 class BaseDownFormOrder(BaseFormOrder):
     __tablename__ = "down_form_orders"
 
-    # __table_args__ = (UniqueConstraint("order_id", name="uq_down_form_orders_order_id"),)  다른 쇼핑몰의 주문번호가 같을 수 있어서.
+    # __table_args__ = (UniqueConstraint("idx", name="uq_down_form_orders_idx"),) 다른 쇼핑몰의 주문번호가 같을 수 있어서.
 
     @classmethod
     def build_happo(
