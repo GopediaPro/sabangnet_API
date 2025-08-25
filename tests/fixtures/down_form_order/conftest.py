@@ -157,7 +157,7 @@ def sample_down_form_order_request_data():
                 "form_name": "테스트폼1",
                 "order_id": "ORDER001",
                 "product_name": "테스트상품1",
-                "sale_cnt": 2,
+                "sale_cnt": "2",
                 "pay_cost": 10000,
                 "total_cost": 20000
             },
@@ -166,7 +166,7 @@ def sample_down_form_order_request_data():
                 "form_name": "테스트폼2",
                 "order_id": "ORDER002",
                 "product_name": "테스트상품2",
-                "sale_cnt": 1,
+                "sale_cnt": "1",
                 "pay_cost": 15000,
                 "total_cost": 15000
             }
@@ -185,7 +185,7 @@ def sample_down_form_order_update_request_data():
                 "form_name": "수정된폼1",
                 "order_id": "ORDER001",
                 "product_name": "수정된상품1",
-                "sale_cnt": 3,
+                "sale_cnt": "3",
                 "pay_cost": 12000,
                 "total_cost": 36000
             },
@@ -195,7 +195,7 @@ def sample_down_form_order_update_request_data():
                 "form_name": "수정된폼2",
                 "order_id": "ORDER002",
                 "product_name": "수정된상품2",
-                "sale_cnt": 2,
+                "sale_cnt": "2",
                 "pay_cost": 18000,
                 "total_cost": 36000
             }
