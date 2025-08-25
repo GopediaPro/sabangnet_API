@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.down_form_orders.down_form_order import BaseDownFormOrder
@@ -86,8 +86,9 @@ class DownFormOrderReadService:
     
     async def get_down_form_orders_by_date_range(
         self, 
-        date_from: date, 
-        date_to: date,
+        date_from: datetime, 
+        date_to: datetime,
+        form_names: list[str] = None,
         skip: int = None,
         limit: int = None
     ) -> list[BaseDownFormOrder]:
@@ -104,5 +105,5 @@ class DownFormOrderReadService:
             조회된 주문 데이터 리스트
         """
         return await self.down_form_order_repository.get_down_form_orders_by_date_range(
-            date_from, date_to, skip, limit
+            date_from, date_to, form_names, skip, limit
         )
