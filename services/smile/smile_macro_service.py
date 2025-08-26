@@ -547,13 +547,10 @@ class SmileMacroService:
                     )
                 )
                 
-                # 원본 파일명 생성 (첫 번째 파일명 사용)
-                original_filename = os.path.basename(file_paths[0])
-                
-                # 배치 생성
+                # 배치 생성 (파일명은 나중에 업데이트)
                 batch_id = await self.batch_info_create_service.build_and_save_batch(
                     BatchProcessDto.build_success,
-                    original_filename,
+                    "",  # 임시 original_filename
                     "",  # 임시 file_url
                     0,   # 임시 file_size
                     batch_request_erp
@@ -561,7 +558,7 @@ class SmileMacroService:
                 # 배치 생성
                 batch_id_bundle = await self.batch_info_create_service.build_and_save_batch(
                     BatchProcessDto.build_success,
-                    original_filename,
+                    "",  # 임시 original_filename
                     "",  # 임시 file_url
                     0,   # 임시 file_size
                     batch_request_bundle
@@ -1207,7 +1204,8 @@ class SmileMacroService:
                 batch_id=batch_id,
                 file_url=file_url,
                 file_size=file_size,
-                file_name=os.path.basename(minio_object_name)
+                file_name=os.path.basename(minio_object_name),
+                original_filename=os.path.basename(minio_object_name)
             )
             await batch_repository.update_batch_info(batch_dto)
             self.logger.info(f"배치 정보 업데이트 완료: batch_id={batch_id}")
