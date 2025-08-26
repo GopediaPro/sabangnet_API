@@ -56,6 +56,8 @@ class BatchInfoRepository:
                 update_data['file_size'] = batch_dto.file_size
             if batch_dto.file_name is not None:
                 update_data['file_name'] = batch_dto.file_name
+            if batch_dto.original_filename is not None:
+                update_data['original_filename'] = batch_dto.original_filename
             
             if not update_data:
                 return True  # 업데이트할 데이터가 없으면 성공으로 처리
