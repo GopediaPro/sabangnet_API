@@ -143,9 +143,11 @@ class SmileMacroHandler:
             
             # 특별히 AN 칼럼 값도 별도로 출력
             try:
-                an_cell_value = self.ws['AN'].value
-                if isinstance(an_cell_value, tuple):
-                    an_cell_value = str(an_cell_value)
+                an_cell = self.ws['AN']
+                if isinstance(an_cell, tuple):
+                    an_cell_value = str(an_cell)
+                else:
+                    an_cell_value = an_cell.value
                 self.logger.info(f"=== AN 칼럼 값: {an_cell_value} ===")
             except Exception as e:
                 self.logger.warning(f"AN 칼럼 값 출력 중 오류: {str(e)}")
