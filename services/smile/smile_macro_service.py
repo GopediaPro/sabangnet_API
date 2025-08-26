@@ -4,6 +4,7 @@ import random
 import string
 from datetime import datetime, date, timedelta
 from typing import Optional, List, Dict, Any, Tuple
+from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.logs.sabangnet_logger import get_logger
 from utils.macros.smile.smile_macro_handler import SmileMacroHandler
@@ -274,8 +275,26 @@ class SmileMacroService:
                 
                 # 통합된 변환 메서드 사용
                 down_form_data = smile_macro_dto.to_down_form_order_data(form_type=template_code)
-                # etc_cost 에 pay_cost 값 넣기
-                down_form_order_data_list['etc_cost'] = down_form_data['pay_cost']
+                # etc_cost 에 pay_cost 값 넣기 (정수로 변환 후 문자열로 저장)
+                if 'pay_cost' in down_form_data:
+                    pay_cost_value = down_form_data['pay_cost']
+                    if pay_cost_value is not None:
+                        try:
+                            # Decimal이나 float인 경우 정수로 변환 후 문자열로 저장
+                            if isinstance(pay_cost_value, (Decimal, float)):
+                                down_form_data['etc_cost'] = str(int(pay_cost_value))
+                            else:
+                                # 문자열인 경우 먼저 float로 변환 후 정수로 변환
+                                if isinstance(pay_cost_value, str):
+                                    down_form_data['etc_cost'] = str(int(float(pay_cost_value)))
+                                else:
+                                    down_form_data['etc_cost'] = str(int(pay_cost_value))
+                        except (ValueError, TypeError):
+                            # 변환 실패 시 None으로 설정
+                            self.logger.warning(f"pay_cost 값을 정수로 변환할 수 없습니다: {pay_cost_value}")
+                            down_form_data['etc_cost'] = None
+                    else:
+                        down_form_data['etc_cost'] = None
                 down_form_order_data_list.append(down_form_data)
             
             # down_form_order DB에 저장
