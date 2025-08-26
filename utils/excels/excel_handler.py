@@ -1068,20 +1068,20 @@ class ExcelHandler:
         black_font = Font(color="000000", bold=False, size=9)
         
         island_dict = [
-            {"site_name": "GSSHOP", "fid_dsp": "GSSHOP", "cost": 3000, "add_dsp": None},
-            {"site_name": "텐바이텐", "fid_dsp": "텐바이텐", "add_dsp": "[3000원 연락해야함, 어드민 조회필요(외부몰/자체몰)]"},
-            {"site_name": "쿠팡", "fid_dsp": "쿠팡", "cost": 3000, "add_dsp": None},
-            {"site_name": "무신사", "fid_dsp": "무신사", "cost": 3000, "add_dsp": None},
-            {"site_name": "NS홈쇼핑", "fid_dsp": "NS홈쇼핑", "cost": 3000, "add_dsp": None},
-            {"site_name": "CJ온스타일", "fid_dsp": "CJ온스타일", "cost": 3000, "add_dsp": None},
-            {"site_name": "오늘의집", "fid_dsp": "오늘의집", "cost": 3000, "add_dsp": None},
-            {"site_name": "브랜디", "fid_dsp": "브랜디", "add_dsp": "[3000원 연락해야함]"},
-            {"site_name": "에이블리", "fid_dsp": "에이블리", "cost": 3000, "add_dsp": None},
-            {"site_name": "보리보리", "fid_dsp": "보리보리", "add_dsp": "[3000원 연락해야함]"},
-            {"site_name": "지그재그", "fid_dsp": "지그재그", "cost": 3000, "add_dsp": None},
-            {"site_name": "카카오톡선물하기", "fid_dsp": "카카오선물하기", "add_dsp": "[3000원 연락해야함]"},
-            {"site_name": "11번가", "fid_dsp": "11번가", "cost": 5000, "add_dsp": None},
-            {"site_name": "홈&쇼핑", "fid_dsp": "홈&쇼핑", "add_dsp": "[3000원 연락해야함]"},
+            {"site_name": "GSSHOP", "fld_dsp": "GSSHOP", "cost": 3000, "add_dsp": None},
+            {"site_name": "텐바이텐", "fld_dsp": "텐바이텐", "add_dsp": "[3000원 연락해야함, 어드민 조회필요(외부몰/자체몰)]"},
+            {"site_name": "쿠팡", "fld_dsp": "쿠팡", "cost": 3000, "add_dsp": None},
+            {"site_name": "무신사", "fld_dsp": "무신사", "cost": 3000, "add_dsp": None},
+            {"site_name": "NS홈쇼핑", "fld_dsp": "NS홈쇼핑", "cost": 3000, "add_dsp": None},
+            {"site_name": "CJ온스타일", "fld_dsp": "CJ온스타일", "cost": 3000, "add_dsp": None},
+            {"site_name": "오늘의집", "fld_dsp": "오늘의집", "cost": 3000, "add_dsp": None},
+            {"site_name": "브랜디", "fld_dsp": "브랜디", "add_dsp": "[3000원 연락해야함]"},
+            {"site_name": "에이블리", "fld_dsp": "에이블리", "cost": 3000, "add_dsp": None},
+            {"site_name": "보리보리", "fld_dsp": "보리보리", "add_dsp": "[3000원 연락해야함]"},
+            {"site_name": "지그재그", "fld_dsp": "지그재그", "cost": 3000, "add_dsp": None},
+            {"site_name": "카카오톡선물하기", "fld_dsp": "카카오선물하기", "add_dsp": "[3000원 연락해야함]"},
+            {"site_name": "11번가", "fld_dsp": "11번가", "cost": 5000, "add_dsp": None},
+            {"site_name": "홈&쇼핑", "fld_dsp": "홈&쇼핑", "add_dsp": "[3000원 연락해야함]"},
         ]
         
         if wb is None:
@@ -1097,7 +1097,7 @@ class ExcelHandler:
                 
                 # 매칭되는 사이트 찾기
                 matched_island = next(
-                    (island for island in island_dict if island["fid_dsp"] in site_name), 
+                    (island for island in island_dict if island["fld_dsp"] in site_name), 
                     None
                 )
                 
