@@ -491,10 +491,12 @@ class DownFormOrderRepository:
                 BaseDownFormOrder.reg_date >= date_from_str,
                 BaseDownFormOrder.reg_date <= date_to_str
             ]
-            
             # form_name이 제공된 경우 필터링 조건에 추가
             if form_names:
-                conditions.append(BaseDownFormOrder.form_name.in_(form_names))
+                if 'integ_sites' in form_names:
+                    pass
+                else:
+                    conditions.append(BaseDownFormOrder.form_name.in_(form_names))
             
             query = select(BaseDownFormOrder).where(*conditions).order_by(BaseDownFormOrder.id.desc())
             
