@@ -3,9 +3,9 @@ from typing import Dict, List, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from repository.export_templates_repository import ExportTemplateRepository
 from repository.template_column_mapping_repository import TemplateColumnMappingRepository
-import logging
+from utils.logs.sabangnet_logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class TemplateMappingService:
@@ -68,7 +68,7 @@ class TemplateMappingService:
         # 첫 번째 템플릿의 매핑을 기준으로 변환 (여러 템플릿이 있을 경우)
         first_template_id = list(template_mappings.keys())[0]
         mappings = template_mappings[first_template_id]
-        
+        # logger.info(f"template_mappings: {template_mappings}")
         # column_order로 정렬
         mappings.sort(key=lambda x: x['column_order'])
         
@@ -79,13 +79,28 @@ class TemplateMappingService:
         for mapping in mappings:
             target_column = mapping['target_column']
             source_field = mapping['source_field']
-            
+            # logger.info(f"first_template_id: {first_template_id}")
+            # logger.info(f"df.columns: {df.columns}")
+            # logger.info(f"source_field: {source_field}")
             if source_field:
                 # 직접 매핑
-                if source_field in df.columns:
-                    df[target_column] = df[source_field]
+                if (first_template_id == 27):
+                    if (source_field == 'cost'):
+                        # form_name에 'smile'이 포함된 경우 pay_cost 사용, 그 외에는 etc_cost 사용
+                        df[target_column] = df.apply(
+                            lambda row: row['pay_cost'] if 'smile' in str(row['form_name']).lower() else row['etc_cost'], 
+                            axis=1
+                        )
+                        # logger.info(f"source_field=cost: {source_field}")
+                        # logger.info(f"df[target_column]: {target_column}")
+                    else:
+                        df[target_column] = df[source_field]
+                        # logger.info(f"source_field: {source_field}")
+                        # logger.info(f"df[target_column]: {target_column}")
                 else:
-                    df[target_column] = ''
+                    df[target_column] = df[source_field]
+            else:
+                df[target_column] = ''
 
             
             new_columns.append(target_column)
