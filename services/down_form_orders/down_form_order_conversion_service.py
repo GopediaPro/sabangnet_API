@@ -1,6 +1,8 @@
 import pandas as pd
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
+from utils.logs.sabangnet_logger import get_logger
+logger = get_logger(__name__)
 
 from models.down_form_orders.down_form_order import BaseDownFormOrder
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto
@@ -34,6 +36,7 @@ class DownFormOrderConversionService:
                     item_dict[key] = None
 
             dto_items.append(DownFormOrderDto.model_validate(item_dict))
+        logger.info(f"dto_items: 개수 ({len(dto_items)})")
         
         return dto_items
 
@@ -51,9 +54,11 @@ class DownFormOrderConversionService:
         data_dict = [dto.model_dump() for dto in dto_items]
         df = pd.DataFrame(data_dict)
 
-        # sale_cnt를 문자열로 강제: "3.0" -> "3", 공백/NaN -> None (엑셀에 빈칸)
-        if "sale_cnt" in df.columns:
-            df["sale_cnt"] = df["sale_cnt"].map(self._sale_cnt_to_str)
+        # sale_cnt, expected_payout, service_fee를 문자열로 강제: "3.0" -> "3", 공백/NaN -> None (엑셀에 빈칸)
+        numeric_columns = ["sale_cnt", "expected_payout", "service_fee", "pay_cost", "etc_cost"]
+        for col in numeric_columns:
+            if col in df.columns:
+                df[col] = df[col].map(self._numeric_to_str)
 
         # tz-aware datetime 컬럼의 timezone 정보 제거
         for col in df.columns:
@@ -62,9 +67,9 @@ class DownFormOrderConversionService:
         
         return df
 
-    def _sale_cnt_to_str(self, v):
+    def _numeric_to_str(self, v):
         """
-        sale_cnt 값을 문자열로 변환하는 헬퍼 메서드
+        숫자 값을 문자열로 변환하는 헬퍼 메서드 (sale_cnt, expected_payout, service_fee 등)
         
         Args:
             v: 변환할 값
