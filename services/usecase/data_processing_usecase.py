@@ -25,6 +25,7 @@ from schemas.receive_orders.receive_orders_dto import ReceiveOrdersDto
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto, DownFormOrdersBulkDto, DownFormOrdersFromReceiveOrdersDto
 from schemas.macro_batch_processing.batch_process_dto import BatchProcessDto
 from schemas.macro_batch_processing.request.batch_process_request import BatchProcessRequest
+from schemas.integration_response import ResponseHandler, Metadata
 # service
 from services.receive_orders.receive_order_read_service import ReceiveOrderReadService
 from services.receive_orders.receive_order_create_service import ReceiveOrderCreateService
@@ -73,9 +74,9 @@ class DataProcessingUsecase:
         normalized_filename = normalize_for_comparison(filename)
         is_star = '스타배송' in normalized_filename
 
-        # [사이트타입]-용도타입-세부사이트 추출 (구분자: - 또는 _)
+        # [사이트타입] 또는 (사이트타입)-용도타입-세부사이트 추출 (구분자: - 또는 _)
         match = re.search(
-            r'\[([^\]]+)\]-([^-_]+?)(?:[-_]([^.]+?))?(?:\.xlsx)?$', filename)
+            r'[\[\(]([^\]\)]+)[\]\)]-([^-_]+?)(?:[-_]([^.]+?))?(?:\.xlsx)?$', filename)
 
         if not match:
             return {
@@ -238,41 +239,39 @@ class DataProcessingUsecase:
         mall_id = filters.get('mall_id')
         dpartner_id = filters.get('dpartner_id')
 
-        # 1. 주문수집 데이터 조회 및 recive_orders 테이블에 저장
-        receive_orders_saved_success = await self.save_receive_orders_to_db(filters)
+        # (임시 주석처리)
+        # 1. 주문수집 데이터 조회 및 receive_orders 테이블에 저장
+        # receive_orders_saved_success = await self.save_receive_orders_to_db(filters)
 
-        if not receive_orders_saved_success:
-            return DownFormOrdersFromReceiveOrdersDto(
-                success=False,
-                mall_id=mall_id,
-                dpartner_id=dpartner_id,
-                processed_count=0,
-                saved_count=0,
-                message="No data saved to receive_orders"
-            )
+        # if not receive_orders_saved_success:
+        #     logger.error(f"No receive_orders data saved to receive_orders")
+        #     return ResponseHandler.not_found(
+        #         message="No receive_orders data saved to receive_orders",
+        #         metadata=Metadata(
+        #             version="v2",
+        #             request_id=filters.get('request_id')
+        #         )
+        #     )
 
         # 2. filters에 따라 receive_orders 조회
         receive_orders: list[ReceiveOrders] = await self.order_read_service.get_receive_orders_by_filters(filters)
         logger.info(f"receive_orders_len: {len(receive_orders)}")
         if not receive_orders:
-            return DownFormOrdersFromReceiveOrdersDto(
-                success=False,
-                mall_id=mall_id,
-                dpartner_id=dpartner_id,
-                processed_count=0,
-                saved_count=0,
-                message="No data found to process"
+            logger.error(f"No receive_orders data found to process")
+            return ResponseHandler.not_found(
+                message="No receive_orders data found to process",
+                metadata=Metadata(
+                    version="v2",
+                    request_id=filters.get('request_id')
+                )
             )
 
-        # 3. receive_orders 데이터를 dto로 변환하고 그걸 다시 dict로 변환
-        receive_orders_dict_list: list[dict[str, Any]] = []
+        # 3. receive_orders 데이터를 dto로 변환
+        receive_orders_dto_list: list[dict[str, Any]] = []
         for receive_order in receive_orders:
             receive_orders_dto: ReceiveOrdersDto = ReceiveOrdersDto.model_validate(
                 receive_order)
-            receive_orders_dict_list.append(receive_orders_dto.model_dump())
-
-        logger.info(
-            f"receive_orders_dict_list len: {len(receive_orders_dict_list)}")
+            receive_orders_dto_list.append(receive_orders_dto.model_dump())
 
         # 4. template_code 설정[ERP, 합포장]
         template_code_mapping = {
@@ -282,10 +281,13 @@ class DataProcessingUsecase:
             '지그재그': ('zigzag_erp', 'zigzag_bundle'),
             '기타사이트': ('basic_erp', 'basic_bundle')
         }
-        erp_template_code, bundle_template_code = template_code_mapping.get(mall_id, ('basic_erp', 'basic_bundle'))
+        erp_template_code, bundle_template_code = template_code_mapping.get(
+            mall_id, ('basic_erp', 'basic_bundle'))
 
+        is_star = False
         # 5. 배송구분(일반배송, 스타배송) 설정
         if dpartner_id == '스타배송':
+            is_star = True
             erp_template_code = f"star_{erp_template_code}"
             bundle_template_code = f"star_{bundle_template_code}"
 
@@ -293,8 +295,10 @@ class DataProcessingUsecase:
             f"erp_template_code: {erp_template_code} | bundle_template_code: {bundle_template_code}")
 
         # 6. 매크로 실행 및 down_form_orders 테이블에 저장
-        erp_saved_count = await self.run_macro_to_down_form_order(erp_template_code, receive_orders_dict_list)
-        bundle_saved_count = await self.run_macro_to_down_form_order(bundle_template_code, receive_orders_dict_list)
+        # ERP 매크로 실행
+        erp_saved_count = await self.run_macro_to_down_form_order(erp_template_code, receive_orders_dto_list, is_star)
+        # 합포장 매크로 실행
+        bundle_saved_count = await self.run_macro_to_down_form_order(bundle_template_code, receive_orders_dto_list, is_star)
         saved_count = erp_saved_count + bundle_saved_count
         logger.info(
             f"[END] save_down_form_order_from_receive_orders_by_filters_v2 | saved_count: {saved_count} | erp_saved_count: {erp_saved_count} | bundle_saved_count: {bundle_saved_count}")
@@ -485,8 +489,12 @@ class DataProcessingUsecase:
                 file_path)
             logger.info(f"스타배송 수정 완료: {file_path}")
 
-        # sub_site가 있으면 해당하는 매크로명 조회, 없으면 기본 매크로명 조회
-        if sub_site:
+        # 템플릿 코드로 sub_site 여부 조회
+        sub_site_true_template_code = await self.template_config_read_service.get_sub_site_true_template_code(template_code)
+
+        # sub_site가 있으면 해당하는 매크로명 조회, 없으면 기본 매크로명 조회 
+        #if is_star in ['알리', '지그재그', '기타사이트']:
+        if sub_site_true_template_code:
             macro_name: Optional[str] = await self.template_config_read_service.get_macro_name_by_template_code_with_sub_site(template_code, sub_site)
             logger.info(f"macro_name from DB with sub_site: {macro_name}")
         else:
@@ -519,7 +527,7 @@ class DataProcessingUsecase:
             raise ValueError(
                 f"Macro not found for template code: {template_code}")
 
-    async def run_macro_to_down_form_order(self, template_code: str, recive_orders_data: list[ReceiveOrders]) -> int:
+    async def run_macro_to_down_form_order(self, template_code: str, receive_orders_data: list[ReceiveOrders], is_star: bool = False) -> int:
         """
         1. 템플릿 설정 조회
         2. receive_orders 데이터 ERP, 합포장  down_form_order dto로 변경
@@ -533,24 +541,13 @@ class DataProcessingUsecase:
         config: dict = await self.template_config_read_service.get_template_config_by_template_code(template_code)
         logger.info(f"Loaded template config: {config}")
 
-        # 2. receive_orders 데이터 down_form_order dto로 변경
-        if config['is_aggregated']:
-            logger.info(
-                "Aggregated template detected. Processing aggregated data.")
-            processed_data = await DataProcessingUtils.process_aggregated_data(recive_orders_data, config)
-        else:
-            logger.info("Simple template detected. Processing simple data.")
-            processed_data = await DataProcessingUtils.process_simple_data(recive_orders_data, config)
-        logger.info(
-            f"Data processed. processed_data_count={len(processed_data)}. Sample: {processed_data[:1]}")
-
+        # 2. 데이터 1대1 매핑 변환 (DB_to_DB 에서는 합포장, ERP 구분없이 사용)
+        processed_data = await DataProcessingUtils.process_simple_data(receive_orders_data, config)
         # 3. 매크로 실행
         run_macro_data: list[dict[str, Any]] = []
         macro_func = self.order_macro_utils.MACRO_MAP_V3.get(template_code)
         if macro_func:
-            # 매크로 함수 추가 후 적용
-            # run_macro_data = macro_func(processed_data)
-            run_macro_data = processed_data
+            run_macro_data = macro_func(processed_data, is_star)
         else:
             logger.error(f"Macro not found for template code: {template_code}")
             raise ValueError(

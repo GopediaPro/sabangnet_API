@@ -27,6 +27,10 @@ from api.v1.endpoints.hanjin.delivery import router as hanjin_router
 from api.v1.endpoints.smile.smile_macro import router as smile_macro_router
 from api.v1.endpoints.smile.smile_excel_import import router as smile_excel_import_router
 
+# v2 API imports
+from api.v2.endpoints.hanjin.delivery import router as hanjin_v2_router
+from api.v2.endpoints.smile.smile_macro import router as smile_macro_v2_router
+
 from utils.logs.sabangnet_logger import get_logger, HTTPLoggingMiddleware
 from api.v1.endpoints.mall_certification_handling.mall_certification_handling import router as mall_certification_handling_router
 
@@ -46,6 +50,12 @@ async def lifespan(app: FastAPI):
 master_router = APIRouter(
     prefix="/api/v1",
     tags=["api"],
+)
+
+# v2 API 라우터
+master_router_v2 = APIRouter(
+    prefix="/api/v2",
+    tags=["api-v2"],
 )
 
 
@@ -73,7 +83,12 @@ master_router.include_router(hanjin_router)
 master_router.include_router(smile_macro_router)
 master_router.include_router(smile_excel_import_router)
 
+# v2 API 라우터 등록
+master_router_v2.include_router(hanjin_v2_router)
+master_router_v2.include_router(smile_macro_v2_router)
+
 app.include_router(master_router)
+app.include_router(master_router_v2)
 
 # HTTP 로깅 미들웨어 추가 (CORS보다 먼저)
 app.add_middleware(HTTPLoggingMiddleware)

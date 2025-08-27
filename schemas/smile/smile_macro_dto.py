@@ -51,23 +51,29 @@ class SmileMacroDto(BaseModel):
     sale_method: Optional[str] = Field(None, description="판매방식")
     order_etc_7: Optional[str] = Field(None, description="판매자 관리코드")
     sale_coupon: Optional[int] = Field(None, description="판매자쿠폰할인")
+    batch_id: Optional[int] = Field(None, description="배치 ID")
+    reg_date: Optional[str] = Field(None, description="수집일자")
     
     model_config = ConfigDict(
         from_attributes=True,
         populate_by_name=True
     )
     
-    def to_down_form_order_data(self) -> Dict[str, Any]:
+    def to_down_form_order_data(self, form_type: str = 'smile_erp') -> Dict[str, Any]:
         """
         SmileMacro 데이터를 down_form_order 형식으로 변환하는 builder 메서드
         
+        Args:
+            form_type: 폼 타입 ('smile_erp' 또는 'smile_bundle')
+            
         Returns:
             Dict[str, Any]: down_form_order에 저장할 데이터 딕셔너리
         """
         from utils.builders.smile_data_builder import SmileMacroDataBuilder
         from utils.handlers.data_type_handler import SmileDataTypeHandler
         
-        common_fields = [
+        # 통합된 필드 목록 (smile_erp가 smile_bundle을 모두 포함)
+        fields = [
             'fld_dsp', 'receive_name', 'pay_cost', 'order_id', 'item_name', 
             'sale_cnt', 'receive_cel', 'receive_tel', 'receive_addr', 
             'receive_zipcode', 'delivery_method_str', 'mall_product_id', 
@@ -79,9 +85,9 @@ class SmileMacroDto(BaseModel):
         # 필드 타입 매핑 가져오기
         field_types = SmileMacroDataBuilder.get_down_form_order_field_types()
         
-        # 공통 필드 데이터 추출 (타입에 맞게 변환)
+        # 필드 데이터 추출 (타입에 맞게 변환)
         mapped_data = {}
-        for field in common_fields:
+        for field in fields:
             value = getattr(self, field, None)
             if value is not None:
                 field_type = field_types.get(field, 'str')  # 기본값은 문자열
@@ -89,14 +95,16 @@ class SmileMacroDto(BaseModel):
                     value, field, field_type
                 )
         
-        # form_name 추가
-        mapped_data['form_name'] = 'smile'
-        # idx 값 추가
-        mapped_data['idx'] = mapped_data['order_id']
-        # process_dt 값 추가 (datetime 객체로 설정)
+        # form_type에 따른 설정
+        if form_type == 'smile_bundle':
+            mapped_data['form_name'] = 'smile_bundle'
+        else:
+            mapped_data['form_name'] = 'smile'
+        
+        # 공통 설정
         mapped_data['process_dt'] = datetime.now()
-        # product_id 값 추가
-        mapped_data['product_id'] = mapped_data['mall_product_id']
+        mapped_data['idx'] = mapped_data.get('order_id', '')
+        mapped_data['product_id'] = mapped_data.get('mall_product_id', '')
         
         return mapped_data
     

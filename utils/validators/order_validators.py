@@ -49,12 +49,12 @@ def is_valid_order_status(order_status: str, allow_new_order: bool = False) -> b
     """
     만약 001, 002, 003을 사용하고 싶다면 allow_new_order를 True로 설정하세요.
     """
-    if order_status in ["001", "002", "003"]:
+    if order_status in ["001", "002"]:
         if not allow_new_order:
             raise OrderStatusException(f"허용되지 않는 주문 상태입니다. ({order_status})")
         else:
             return True
-    elif order_status in ["004", "006", "007", "008", "009", "010", "011", "012", "021", "022", "023", "024", "025", "026", "999"]:
+    elif order_status in ["003", "004", "006", "007", "008", "009", "010", "011", "012", "021", "022", "023", "024", "025", "026", "999"]:
         return True
     else:
         raise OrderStatusException(f"주문 상태 형식이 올바르지 않습니다. ({order_status})")

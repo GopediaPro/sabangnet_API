@@ -33,3 +33,6 @@ class TemplateConfigReadService:
             macro_name: macro name
         """
         return await self.template_config_repository.get_macro_name_by_template_code_with_sub_site(template_code, sub_site)
+    
+    async def get_sub_site_true_template_code(self, template_code: str):
+        return await self.template_config_repository.get_sub_site_true_template_code(template_code)

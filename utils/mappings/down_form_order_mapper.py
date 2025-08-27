@@ -70,7 +70,7 @@ FIELD_TYPE_MAPPING = {
 
     # 정수 필드 (Integer)
     'seq': 'int',
-    
+
     # 문자열 필드 (String) - sale_cnt는 문자열로 저장하되 계산시에만 정수로 변환
     'sale_cnt': 'str',
 
@@ -95,91 +95,111 @@ FIELD_TYPE_MAPPING = {
     'error_logs': 'jsonb',
 }
 
+
 def convert_field_to_db_type(field_name: str, value: Any) -> Any:
     """
     데이터베이스 스키마에 맞게 필드 값을 변환하는 공통 메서드
-    
+
     Args:
         field_name: 필드명
         value: 변환할 값
-        
+
     Returns:
         변환된 값
     """
     if value is None:
         return None
-    
     field_type = FIELD_TYPE_MAPPING.get(field_name)
     if not field_type:
         # 매핑되지 않은 필드는 원본 값 반환
         return value
-    
+
     try:
         if field_type == 'str':
             str_value = str(value)
-            
+
             # String 필드들의 길이 제한 적용
             if field_name == 'delivery_payment_type' and len(str_value) > 10:
-                logger.warning(f"delivery_payment_type value too long: {str_value}, truncating to 10 characters")
+                logger.warning(
+                    f"delivery_payment_type value too long: {str_value}, truncating to 10 characters")
                 return str_value[:10]
             elif field_name == 'form_name' and len(str_value) > 30:
-                logger.warning(f"form_name value too long: {str_value}, truncating to 30 characters")
+                logger.warning(
+                    f"form_name value too long: {str_value}, truncating to 30 characters")
                 return str_value[:30]
             elif field_name == 'order_id' and len(str_value) > 100:
-                logger.warning(f"order_id value too long: {str_value}, truncating to 100 characters")
+                logger.warning(
+                    f"order_id value too long: {str_value}, truncating to 100 characters")
                 return str_value[:100]
             elif field_name == 'mall_product_id' and len(str_value) > 50:
-                logger.warning(f"mall_product_id value too long: {str_value}, truncating to 50 characters")
+                logger.warning(
+                    f"mall_product_id value too long: {str_value}, truncating to 50 characters")
                 return str_value[:50]
             elif field_name == 'item_name' and len(str_value) > 100:
-                logger.warning(f"item_name value too long: {str_value}, truncating to 100 characters")
+                logger.warning(
+                    f"item_name value too long: {str_value}, truncating to 100 characters")
                 return str_value[:100]
             elif field_name == 'receive_name' and len(str_value) > 100:
-                logger.warning(f"receive_name value too long: {str_value}, truncating to 100 characters")
+                logger.warning(
+                    f"receive_name value too long: {str_value}, truncating to 100 characters")
                 return str_value[:100]
             elif field_name == 'receive_cel' and len(str_value) > 20:
-                logger.warning(f"receive_cel value too long: {str_value}, truncating to 20 characters")
+                logger.warning(
+                    f"receive_cel value too long: {str_value}, truncating to 20 characters")
                 return str_value[:20]
             elif field_name == 'receive_tel' and len(str_value) > 20:
-                logger.warning(f"receive_tel value too long: {str_value}, truncating to 20 characters")
+                logger.warning(
+                    f"receive_tel value too long: {str_value}, truncating to 20 characters")
                 return str_value[:20]
             elif field_name == 'receive_zipcode' and len(str_value) > 15:
-                logger.warning(f"receive_zipcode value too long: {str_value}, truncating to 15 characters")
+                logger.warning(
+                    f"receive_zipcode value too long: {str_value}, truncating to 15 characters")
                 return str_value[:15]
             elif field_name == 'price_formula' and len(str_value) > 50:
-                logger.warning(f"price_formula value too long: {str_value}, truncating to 50 characters")
+                logger.warning(
+                    f"price_formula value too long: {str_value}, truncating to 50 characters")
                 return str_value[:50]
             elif field_name == 'work_status' and len(str_value) > 14:
-                logger.warning(f"work_status value too long: {str_value}, truncating to 14 characters")
+                logger.warning(
+                    f"work_status value too long: {str_value}, truncating to 14 characters")
                 return str_value[:14]
             elif field_name == 'idx' and len(str_value) > 50:
-                logger.warning(f"idx value too long: {str_value}, truncating to 50 characters")
+                logger.warning(
+                    f"idx value too long: {str_value}, truncating to 50 characters")
                 return str_value[:50]
             elif field_name == 'reg_date' and len(str_value) > 14:
-                logger.warning(f"reg_date value too long: {str_value}, truncating to 14 characters")
+                logger.warning(
+                    f"reg_date value too long: {str_value}, truncating to 14 characters")
                 return str_value[:14]
             elif field_name == 'ord_confirm_date' and len(str_value) > 14:
-                logger.warning(f"ord_confirm_date value too long: {str_value}, truncating to 14 characters")
+                logger.warning(
+                    f"ord_confirm_date value too long: {str_value}, truncating to 14 characters")
                 return str_value[:14]
             elif field_name == 'rtn_dt' and len(str_value) > 14:
-                logger.warning(f"rtn_dt value too long: {str_value}, truncating to 14 characters")
+                logger.warning(
+                    f"rtn_dt value too long: {str_value}, truncating to 14 characters")
                 return str_value[:14]
             elif field_name == 'chng_dt' and len(str_value) > 14:
-                logger.warning(f"chng_dt value too long: {str_value}, truncating to 14 characters")
+                logger.warning(
+                    f"chng_dt value too long: {str_value}, truncating to 14 characters")
                 return str_value[:14]
             elif field_name == 'delivery_confirm_date' and len(str_value) > 14:
-                logger.warning(f"delivery_confirm_date value too long: {str_value}, truncating to 14 characters")
+                logger.warning(
+                    f"delivery_confirm_date value too long: {str_value}, truncating to 14 characters")
                 return str_value[:14]
             elif field_name == 'cancel_dt' and len(str_value) > 14:
-                logger.warning(f"cancel_dt value too long: {str_value}, truncating to 14 characters")
+                logger.warning(
+                    f"cancel_dt value too long: {str_value}, truncating to 14 characters")
                 return str_value[:14]
             elif field_name == 'hope_delv_date' and len(str_value) > 14:
-                logger.warning(f"hope_delv_date value too long: {str_value}, truncating to 14 characters")
+                logger.warning(
+                    f"hope_delv_date value too long: {str_value}, truncating to 14 characters")
                 return str_value[:14]
             elif field_name == 'inv_send_dm' and len(str_value) > 14:
-                logger.warning(f"inv_send_dm value too long: {str_value}, truncating to 14 characters")
+                logger.warning(
+                    f"inv_send_dm value too long: {str_value}, truncating to 14 characters")
                 return str_value[:14]
-            
+
             return str_value
         elif field_type == 'int':
             if isinstance(value, str) and value.strip() == '':
@@ -206,8 +226,10 @@ def convert_field_to_db_type(field_name: str, value: Any) -> Any:
         else:
             return value
     except (ValueError, TypeError) as e:
-        logger.warning(f"Field {field_name} conversion failed: {value} -> {field_type}, error: {e}")
+        logger.warning(
+            f"Field {field_name} conversion failed: {value} -> {field_type}, error: {e}")
         return value
+
 
 def convert_row_to_db_types(row: dict[str, Any]) -> dict[str, Any]:
     """
@@ -223,6 +245,7 @@ def convert_row_to_db_types(row: dict[str, Any]) -> dict[str, Any]:
     for field_name, value in row.items():
         converted_row[field_name] = convert_field_to_db_type(field_name, value)
     return converted_row
+
 
 def _mask_personal_info(value: str, mask_type: str) -> str:
     if not value or str(value).strip() == '':
@@ -257,6 +280,7 @@ def _mask_personal_info(value: str, mask_type: str) -> str:
         return '*' * len(value)
     return value
 
+
 def map_raw_to_down_form(raw_row: dict[str, Any], config: dict) -> dict[str, Any]:
     """
     단일 row를 down_form_orders 스키마에 맞게 변환
@@ -289,6 +313,7 @@ def map_raw_to_down_form(raw_row: dict[str, Any], config: dict) -> dict[str, Any
 
     return mapped
 
+
 def map_aggregated_to_down_form(group_rows: list[dict[str, Any]], config: dict) -> dict[str, Any]:
     """
     집계 row를 down_form_orders 스키마에 맞게 변환
@@ -304,7 +329,8 @@ def map_aggregated_to_down_form(group_rows: list[dict[str, Any]], config: dict) 
         elif agg_type == 'first':
             mapped[field] = group_rows[0].get(field)
         elif agg_type == 'concat':
-            mapped[field] = ','.join(str(row.get(field, '')) for row in group_rows)
+            mapped[field] = ','.join(str(row.get(field, ''))
+                                     for row in group_rows)
         else:  # none
             mapped[field] = group_rows[0].get(field)
 
@@ -313,15 +339,69 @@ def map_aggregated_to_down_form(group_rows: list[dict[str, Any]], config: dict) 
 
     return mapped
 
+
 def eval_formula(transform_config: dict, row: dict) -> Any:
-    # 실제 수식 파싱/계산 로직 필요 (예: "sku_alias + ' ' + sale_cnt + '개'")
-    # 예시: 단순 파이썬 eval 사용 (보안상 실제 서비스에서는 안전하게 구현 필요)
+    """
+    source 수식을 계산하여 반환 (eval 사용 대신 새로운 방법을 찾아야 함)
+    """
     try:
         source = transform_config.get('source')
-        if source:
-            return eval(source, {}, row)
-    except Exception:
+        if not source or source.startswith('='):
+            return None
+
+        # None 값을 변환
+        processed_row = {}
+        for key, value in row.items():
+            if value is None:
+                # 숫자 연산이 필요한 필드는 0으로, 문자열은 공백으로
+                if is_numeric_field(key):
+                    processed_row[key] = 0
+                else:
+                    processed_row[key] = ""
+            else:
+                processed_row[key] = value
+
+        # 변수 치환
+        formula = source
+        for key, value in processed_row.items():
+            if key in formula:
+                if isinstance(value, str):
+                    # 문자열 값은 따옴표로 감싸기
+                    formula = formula.replace(key, f'"{value}"')
+                else:
+                    # 숫자 값은 그대로 치환
+                    formula = formula.replace(key, str(value))
+
+        if 'convert_name' in formula:
+            formula = formula.replace('convert_name(', '').replace(')', '')
+        elif 'sum' in formula:
+            formula = formula.replace('sum(', '').replace(')', '')
+        
+        safe_functions = {
+            'int': int,
+            'str': str
+        }
+       
+        return eval(formula, {"__builtins__": {}}, safe_functions)
+    except Exception as e:
+        logger.error(f"수식 계산 실패: {source}, 에러: {e}")
         return None
+
+
+def is_numeric_field(field_name: str) -> bool:
+    """
+    필드가 숫자 연산에 사용되는지 확인
+    """
+    # 숫자 연산에 사용되는 필드들
+    numeric_fields = {
+        'pay_cost', 'delv_cost', 'total_cost', 'expected_payout',
+        'mall_won_cost', 'sale_cnt', 'service_fee', 'sum_p_ea',
+        'sum_expected_payout', 'sum_pay_cost', 'sum_delv_cost',
+        'sum_total_cost', 'etc_cost', 'price_formula'
+    }
+
+    return field_name in numeric_fields
+
 
 def map_excel_to_down_form(df: pd.DataFrame, config: dict) -> list[dict[str, Any]]:
     """
@@ -329,13 +409,15 @@ def map_excel_to_down_form(df: pd.DataFrame, config: dict) -> list[dict[str, Any
     """
     column_mappings = config.get('column_mappings', [])
     # target_column(엑셀 컬럼명) -> source_field(DB 필드명) 매핑 dict
-    col_map = {col['target_column']: col['source_field'] for col in column_mappings}
+    col_map = {col['target_column']: col['source_field']
+               for col in column_mappings}
     logger.info(f"col_map: {col_map}")
     raw_data = []
     # 엑셀 데이터 → DB 저장용 dict 변환
     is_test_env = os.getenv("DEPLOY_ENV", "production") != "production"
     for _, row in df.iterrows():
-        mapped_row = {col_map.get(col, col): row[col] for col in df.columns if col in col_map}
+        mapped_row = {col_map.get(col, col): row[col]
+                      for col in df.columns if col in col_map}
 
         # 데이터베이스 스키마에 맞게 타입 변환
         mapped_row = convert_row_to_db_types(mapped_row)
@@ -344,6 +426,7 @@ def map_excel_to_down_form(df: pd.DataFrame, config: dict) -> list[dict[str, Any
         if is_test_env:
             for field, mask_type in MASKING_RULES.items():
                 if field in mapped_row and mapped_row[field]:
-                    mapped_row[field] = _mask_personal_info(mapped_row[field], mask_type)
+                    mapped_row[field] = _mask_personal_info(
+                        mapped_row[field], mask_type)
         raw_data.append(mapped_row)
     return raw_data

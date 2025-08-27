@@ -88,3 +88,28 @@ class ProcessPrintwblsWithApiResponse(BaseModel):
     api_response: Optional[ApiResponseInfo] = Field(None, description="API 응답 정보")
     updated_records: Optional[List[UpdatedRecord]] = Field(None, description="업데이트된 레코드 목록")
     error: Optional[str] = Field(None, description="오류 메시지")
+
+class CreateAndProcessPrintwblsRequest(BaseModel):
+    """down_form_orders에서 printwbls 생성 및 처리 요청"""
+    limit: Optional[int] = Field(100, description="처리할 최대 건수 (기본값: 100)")
+    order_date_from: Optional[str] = Field(None, description="주문 시작 날짜 (YYYY-MM-DD)")
+    order_date_to: Optional[str] = Field(None, description="주문 종료 날짜 (YYYY-MM-DD)")
+
+class ProcessDetail(BaseModel):
+    """처리 상세 정보"""
+    idx: str = Field(..., description="주문번호")
+    success: bool = Field(..., description="처리 성공 여부")
+    invoice_no: Optional[str] = Field(None, description="운송장번호")
+    error_message: Optional[str] = Field(None, description="에러 메시지")
+
+class CreateAndProcessPrintwblsResponse(BaseModel):
+    """down_form_orders에서 printwbls 생성 및 처리 응답"""
+    total_processed: int = Field(..., description="총 처리 건수")
+    success_count: int = Field(..., description="성공 건수")
+    failed_count: int = Field(..., description="실패 건수")
+    created_printwbls_count: int = Field(..., description="생성된 printwbls 건수")
+    updated_down_form_orders_count: int = Field(..., description="업데이트된 down_form_orders 건수")
+    details: List[ProcessDetail] = Field(..., description="처리 상세 정보")
+    message: Optional[str] = Field(None, description="처리 결과 메시지")
+    error: Optional[str] = Field(None, description="오류 메시지")
+    batch_id: Optional[int] = Field(None, description="배치 프로세스 ID")

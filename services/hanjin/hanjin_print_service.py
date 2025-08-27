@@ -19,7 +19,10 @@ from schemas.hanjin.hanjin_printWbls_dto import (
     PrintWblsResponse,
     ProcessPrintwblsWithApiResponse,
     CreatePrintwblsFromDownFormOrdersResponse,
+    CreateAndProcessPrintwblsResponse,
+    ProcessDetail,
 )
+from utils.dataframes import create_hanjin_print_records_dataframe
 
 
 logger = get_logger(__name__)
@@ -246,4 +249,276 @@ class HanjinPrintService(HanjinWblsAdapter):
             
         except Exception as e:
             logger.error(f"hanjin_printwbls API 처리 실패: {str(e)}")
+            raise
+
+    async def create_and_process_printwbls_from_down_form_orders(
+        self, 
+        limit: int = 100,
+        order_date_from: Optional[str] = None,
+        order_date_to: Optional[str] = None,
+        request_id: Optional[str] = None
+    ) -> CreateAndProcessPrintwblsResponse:
+        """
+        down_form_orders 테이블에서 gmarket_bundle, basic_bundle 데이터를 조회하여
+        PrintWblsRequest를 생성하고 한진 API를 호출한 후,
+        응답으로 hanjin_printwbls 테이블에 생성하고 down_form_orders 테이블에 invoice_no를 업데이트합니다.
+        
+        Args:
+            limit: 처리할 최대 건수 (기본값: 100)
+            order_date_from: 주문 시작 날짜 (YYYY-MM-DD)
+            order_date_to: 주문 종료 날짜 (YYYY-MM-DD)
+            request_id: 요청 ID (batch_process 생성용)
+            
+        Returns:
+            처리 결과 정보
+        """
+        if not self.session:
+            logger.warning("데이터베이스 세션이 없어 처리를 건너뜁니다.")
+            return CreateAndProcessPrintwblsResponse(
+                total_processed=0,
+                success_count=0,
+                failed_count=0,
+                created_printwbls_count=0,
+                updated_down_form_orders_count=0,
+                details=[],
+                error="데이터베이스 세션이 없습니다."
+            )
+        
+        try:
+            # down_form_orders 리포지토리 생성
+            down_form_repo = DownFormOrderRepository(self.session)
+            
+            # gmarket_bundle, basic_bundle, brandi_erp이고 invoice_no가 없는 주문 데이터 조회
+            orders_without_invoice: list[BaseDownFormOrder] = await down_form_repo.get_orders_by_form_name_without_invoice_no(
+                form_names=['gmarket_bundle', 'basic_bundle', 'brandi_erp'], 
+                limit=limit,
+                order_date_from=order_date_from,
+                order_date_to=order_date_to
+            )
+            
+            if not orders_without_invoice:
+                logger.info("gmarket_bundle, basic_bundle, brandi_erp 중 invoice_no가 없는 주문 데이터가 없습니다.")
+                return CreateAndProcessPrintwblsResponse(
+                    total_processed=0,
+                    success_count=0,
+                    failed_count=0,
+                    created_printwbls_count=0,
+                    updated_down_form_orders_count=0,
+                    details=[],
+                    message="gmarket_bundle, basic_bundle, brandi_erp 중 invoice_no가 없는 주문 데이터가 없습니다."
+                )
+            
+            # batch_process 생성
+            batch_id = None
+            if request_id:
+                try:
+                    from repository.batch_info_repository import BatchInfoRepository
+                    from schemas.macro_batch_processing.batch_process_dto import BatchProcessDto
+                    from datetime import datetime
+                    
+                    batch_repo = BatchInfoRepository(self.session)
+                    
+                    # date_from, date_to 변환
+                    date_from = None
+                    date_to = None
+                    if order_date_from:
+                        try:
+                            date_from = datetime.strptime(order_date_from, "%Y-%m-%d")
+                        except ValueError:
+                            logger.warning(f"잘못된 날짜 형식: {order_date_from}")
+                    
+                    if order_date_to:
+                        try:
+                            date_to = datetime.strptime(order_date_to, "%Y-%m-%d")
+                        except ValueError:
+                            logger.warning(f"잘못된 날짜 형식: {order_date_to}")
+                    
+                    batch_dto = BatchProcessDto(
+                        original_filename=f"hanjin_printwbls_{request_id}",
+                        created_by=request_id,
+                        date_from=date_from,
+                        date_to=date_to,
+                        work_status="hanjin_printwbls_from_down_form_orders_processing"
+                    )
+                    
+                    batch_process = await batch_repo.save_batch_info(batch_dto)
+                    batch_id = batch_process.batch_id
+                    logger.info(f"batch_process 생성 완료: batch_id={batch_id}")
+                    
+                except Exception as e:
+                    logger.error(f"batch_process 생성 실패: {str(e)}")
+            
+            # 현재 날짜로 YYMMDD 형식 생성
+            current_date = datetime.now().strftime("%y%m%d")
+            
+            # API 요청 데이터 준비
+            address_list = []
+            for i, order in enumerate(orders_without_invoice, 1):
+                # msg_key 생성: YYMMDD + random num(XX) + 요청개수순서(1,2,3,4,5,...)
+                random_num = random.randint(10, 99)
+                msg_key = f"{current_date}{random_num:02d}{i:02d}"
+                
+                address_item = {
+                    "csr_num": self.hanjin_csr_num,
+                    "address": order.receive_addr,
+                    "snd_zip": "08609",  # 고정값
+                    "rcv_zip": order.receive_zipcode,
+                    "msg_key": msg_key
+                }
+                address_list.append(address_item)
+            
+            # PrintWblsRequest 객체 생성
+            print_request = PrintWblsRequest(
+                address_list=[AddressItem(**item) for item in address_list]
+            )
+            
+            # 한진 API 호출
+            api_response = await self.generate_print_wbls_with_env_vars_from_api(print_request)
+            
+            # hanjin_printwbls 리포지토리 생성
+            printwbls_repo = HanjinPrintwblsRepository(self.session)
+            
+            # 응답 처리 및 DB 업데이트
+            created_printwbls_count = 0
+            updated_down_form_orders_count = 0
+            details = []
+            created_records = []  # 파일 생성용
+            
+            if api_response.address_list:
+                for i, address_result in enumerate(api_response.address_list):
+                    if i < len(orders_without_invoice):
+                        order = orders_without_invoice[i]
+                        
+                        try:
+                            # API 응답 데이터를 딕셔너리로 변환
+                            response_data = address_result.model_dump()
+                            
+                            # hanjin_printwbls 테이블에 새 레코드 생성
+                            created_record = await printwbls_repo.create_from_api_response(
+                                idx=order.idx,
+                                prt_add=order.receive_addr,
+                                zip_cod=order.receive_zipcode,
+                                snd_zip="08609",
+                                api_response_data=response_data
+                            )
+                            created_printwbls_count += 1
+                            created_records.append(created_record)
+                            
+                            # down_form_orders 테이블에 invoice_no, batch_id, process_dt 업데이트 (합포장용, brandi_erp용)
+                            if address_result.wbl_num:
+                                process_dt = datetime.now()
+                                await down_form_repo.update_invoice_no_by_idx(
+                                    idx=order.idx,
+                                    invoice_no=address_result.wbl_num,
+                                    batch_id=batch_id,
+                                    process_dt=process_dt
+                                )
+                                updated_down_form_orders_count += 1
+                                # 주문번호안에 "/"가 있으면 "/"를 기준으로 split 해서 각 idx에 대해서 업데이트 (ERP용)
+                                if "/" in order.idx:
+                                    idx_list = order.idx.split("/")
+                                    for idx in idx_list:
+                                        await down_form_repo.update_invoice_no_by_idx(
+                                            idx=idx,
+                                            invoice_no=address_result.wbl_num,
+                                            batch_id=batch_id,
+                                            process_dt=process_dt
+                                        )
+                                        # ERP 업로드 완료 출력
+                                        logger.info(f"ERP 업로드 완료: {idx}")
+                            
+                            # 성공 상세 정보 추가
+                            details.append(ProcessDetail(
+                                idx=order.idx,
+                                success=True,
+                                invoice_no=address_result.wbl_num,
+                                error_message=None
+                            ))
+                            
+                        except Exception as e:
+                            logger.error(f"주문번호 {order.idx} 처리 실패: {str(e)}")
+                            details.append(ProcessDetail(
+                                idx=order.idx,
+                                success=False,
+                                invoice_no=None,
+                                error_message=str(e)
+                            ))
+            
+            # 파일 생성 및 MinIO 업로드
+            if created_records and batch_id:
+                try:
+                    import pandas as pd
+                    import tempfile
+                    import os
+                    from minio_handler import upload_file_to_minio, get_minio_file_url, url_arrange
+                    
+                    # DataFrame 생성
+                    df = create_hanjin_print_records_dataframe(created_records, batch_id)
+                    
+                    # 임시 파일 생성
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.xlsx', delete=False) as tmp_file:
+                        df.to_excel(tmp_file.name, index=False)
+                        tmp_file_path = tmp_file.name
+                    
+                    try:
+                        # MinIO 업로드
+                        file_name = f"hanjin_printwbls_batch_{batch_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+                        uploaded_object = upload_file_to_minio(tmp_file_path, file_name)
+                        file_url = get_minio_file_url(uploaded_object)
+                        file_url_arranged = url_arrange(file_url)
+                        
+                        # 파일 크기 계산
+                        file_size = os.path.getsize(tmp_file_path)
+                        
+                        # batch_process 업데이트
+                        batch_repo = BatchInfoRepository(self.session)
+                        update_dto = BatchProcessDto(
+                            batch_id=batch_id,
+                            file_name=file_name,
+                            file_url=file_url_arranged,
+                            file_size=file_size,
+                            work_status="invoice_no_updated"
+                        )
+                        await batch_repo.update_batch_info(update_dto)
+                        
+                        logger.info(f"파일 생성 및 MinIO 업로드 완료: {file_url}")
+                        
+                    finally:
+                        # 임시 파일 삭제
+                        if os.path.exists(tmp_file_path):
+                            os.unlink(tmp_file_path)
+                            
+                except Exception as e:
+                    logger.error(f"파일 생성 및 MinIO 업로드 실패: {str(e)}")
+                    # batch_process 상태를 error로 업데이트
+                    if batch_id:
+                        try:
+                            batch_repo = BatchInfoRepository(self.session)
+                            update_dto = BatchProcessDto(
+                                batch_id=batch_id,
+                                work_status="error",
+                                error_message=f"파일 생성 실패: {str(e)}"
+                            )
+                            await batch_repo.update_batch_info(update_dto)
+                        except Exception as update_error:
+                            logger.error(f"batch_process 상태 업데이트 실패: {str(update_error)}")
+            
+            success_count = len([d for d in details if d.success])
+            failed_count = len([d for d in details if not d.success])
+            
+            logger.info(f"create_and_process_printwbls_from_down_form_orders 완료: "
+                       f"총 {len(orders_without_invoice)}건, 성공 {success_count}건, 실패 {failed_count}건, batch_id={batch_id}")
+            
+            return CreateAndProcessPrintwblsResponse(
+                total_processed=len(orders_without_invoice),
+                success_count=success_count,
+                failed_count=failed_count,
+                created_printwbls_count=created_printwbls_count,
+                updated_down_form_orders_count=updated_down_form_orders_count,
+                details=details,
+                batch_id=batch_id
+            )
+            
+        except Exception as e:
+            logger.error(f"create_and_process_printwbls_from_down_form_orders 실패: {str(e)}")
             raise

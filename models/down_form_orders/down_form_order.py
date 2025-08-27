@@ -17,7 +17,7 @@ class BaseFormOrder(Base):
     process_dt: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     form_name: Mapped[str | None] = mapped_column(String(30))
     seq: Mapped[int | None] = mapped_column(Integer)
-    idx: Mapped[str] = mapped_column(String(50), nullable=False)  # 사방넷주문번호
+    idx: Mapped[str] = mapped_column(Text, nullable=False)  # 사방넷주문번호
     # idx: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)  # 사방넷주문번호
     order_id: Mapped[str | None] = mapped_column(String(100))
     mall_order_id: Mapped[str | None] = mapped_column(Text)
@@ -25,8 +25,8 @@ class BaseFormOrder(Base):
     # 상품 정보
     product_id: Mapped[str | None] = mapped_column(Text)
     product_name: Mapped[str | None] = mapped_column(Text)
-    mall_product_id: Mapped[str | None] = mapped_column(String(50))
-    item_name: Mapped[str | None] = mapped_column(String(100))
+    mall_product_id: Mapped[str | None] = mapped_column(Text)
+    item_name: Mapped[str | None] = mapped_column(Text)
     sku_value: Mapped[str | None] = mapped_column(Text)
     sku_alias: Mapped[str | None] = mapped_column(Text)
     sku_no: Mapped[str | None] = mapped_column(Text)
@@ -56,8 +56,8 @@ class BaseFormOrder(Base):
     
     # 수취인 정보
     receive_name: Mapped[str | None] = mapped_column(String(100))
-    receive_cel: Mapped[str | None] = mapped_column(String(20))
-    receive_tel: Mapped[str | None] = mapped_column(String(20))
+    receive_cel: Mapped[str | None] = mapped_column(String(25))
+    receive_tel: Mapped[str | None] = mapped_column(String(25))
     receive_addr: Mapped[str | None] = mapped_column(Text)
     receive_zipcode: Mapped[str | None] = mapped_column(String(15))
     mall_user_id: Mapped[str | None] = mapped_column(Text)

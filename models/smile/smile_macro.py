@@ -72,6 +72,7 @@ class SmileMacro(Base):
     # 정산완료일 - source_field 없음
     order_dt: Mapped[datetime | None] = mapped_column(Date, nullable=True, comment="주문일자(결제확인전)")
     order_method: Mapped[str | None] = mapped_column(String(50), nullable=True, comment="주문종류")
+    reg_date: Mapped[str | None] = mapped_column(String(14), nullable=True, comment="수집일자")
     # 주문확인일자 - source_field 없음
     delv_method_id: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="택배사명(발송방법)")
     # 판매단가 - source_field 없음 (sale_cost와 중복)
@@ -81,5 +82,8 @@ class SmileMacro(Base):
     # 판매자북캐시적립 - source_field 없음
     sale_coupon: Mapped[float | None] = mapped_column(Numeric(15, 2), nullable=True, comment="판매자쿠폰할인")
     # 판매자포인트적립 - source_field 없음
+    
+    # batch 관련
+    batch_id: Mapped[int | None] = mapped_column(Integer, nullable=True, comment="배치 프로세스 ID")
     
 
