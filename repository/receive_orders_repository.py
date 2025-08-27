@@ -232,11 +232,13 @@ class ReceiveOrdersRepository:
             await self.session.close()
 
 
-    def _parse_date(self, val):
+    def _parse_date_to_string(self, val):
+        """날짜를 reg_date 필드에 맞는 문자열 형식으로 변환 (YYYYMMDD 형식)"""
         if isinstance(val, date):
-            return val
+            return val.strftime("%Y%m%d")
         if isinstance(val, str):
-            return datetime.strptime(val, "%Y-%m-%d").date()
+            # YYYY-MM-DD 형식을 YYYYMMDD 형식으로 변환
+            return datetime.strptime(val, "%Y-%m-%d").strftime("%Y%m%d")
         return val
 
 
@@ -245,9 +247,13 @@ class ReceiveOrdersRepository:
         conditions = []
         if filters:
             if 'date_from' in filters and filters['date_from']:
-                conditions.append(ReceiveOrders.order_date >= self._parse_date(filters['date_from']))
+                # reg_date는 String 타입이므로 문자열 비교 사용
+                date_from_str = self._parse_date_to_string(filters['date_from'])
+                conditions.append(ReceiveOrders.reg_date >= date_from_str)
             if 'date_to' in filters and filters['date_to']:
-                conditions.append(ReceiveOrders.order_date <= self._parse_date(filters['date_to']))
+                # reg_date는 String 타입이므로 문자열 비교 사용
+                date_to_str = self._parse_date_to_string(filters['date_to'])
+                conditions.append(ReceiveOrders.reg_date <= date_to_str)
             if 'mall_id' in filters and filters['mall_id']:
                 conditions.append(ReceiveOrders.mall_id == filters['mall_id'])
             if 'order_status' in filters and filters['order_status']:
