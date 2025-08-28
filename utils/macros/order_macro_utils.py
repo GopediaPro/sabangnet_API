@@ -10,7 +10,7 @@ from utils.macros.ERP.ali_erp_macro_v2 import ERPAliMacroV2
 from utils.macros.ERP.g_a_erp_macro_v2 import ERPGmaAucMacroV2
 from utils.macros.ERP.etc_site_macro_v2 import ERPEtcSiteMacroV2
 from utils.macros.ERP.zigzag_erp_macro_v2 import ERPZigzagMacroV2
-from utils.macros.ERP.brandi_erp_macro import ERPBrandiMacro
+from utils.macros.ERP.v1.brandi_erp_macro import ERPBrandiMacro
 
 # v3
 from utils.macros.ERP.v3.g_a_erp_macro_v3 import gauc_erp_macro_run
