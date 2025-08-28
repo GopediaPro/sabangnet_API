@@ -245,26 +245,14 @@ class DataProcessingUsecase:
 
         # if not receive_orders_saved_success:
         #     logger.error(f"No receive_orders data saved to receive_orders")
-        #     return ResponseHandler.not_found(
-        #         message="No receive_orders data saved to receive_orders",
-        #         metadata=Metadata(
-        #             version="v2",
-        #             request_id=filters.get('request_id')
-        #         )
-        #     )
+        #     raise ValueError("No receive_orders data saved to receive_orders")
 
         # 2. filters에 따라 receive_orders 조회
         receive_orders: list[ReceiveOrders] = await self.order_read_service.get_receive_orders_by_filters(filters)
         logger.info(f"receive_orders_len: {len(receive_orders)}")
         if not receive_orders:
             logger.error(f"No receive_orders data found to process")
-            return ResponseHandler.not_found(
-                message="No receive_orders data found to process",
-                metadata=Metadata(
-                    version="v2",
-                    request_id=filters.get('request_id')
-                )
-            )
+            raise ValueError("No receive_orders data found to process")
 
         # 3. receive_orders 데이터를 dto로 변환
         receive_orders_dto_list: list[dict[str, Any]] = []

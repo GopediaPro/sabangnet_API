@@ -1,4 +1,3 @@
-import openpyxl
 from utils.excels.excel_handler import ExcelHandler
 from utils.excels.excel_column_handler import ExcelColumnHandler
 from utils.macros.ERP.utils import average_duplicate_order_address_amounts

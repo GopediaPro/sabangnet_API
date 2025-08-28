@@ -23,3 +23,4 @@ from models.smile.smile_erp_data import SmileErpData
 from models.smile.smile_settlement_data import SmileSettlementData
 from models.smile.smile_sku_data import SmileSkuData
 from models.smile.smile_macro import SmileMacro
+from models.vlookup_datas.vlooup_datas import VlookupDatas
