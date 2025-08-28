@@ -119,7 +119,7 @@ class ERPZigzagMacroV2:
                 if not matching_rows.empty:
                     ws[f"V{row}"].value = int(
                         matching_rows['배송비'].values[0])
-        del wb[sheet1.title]
+            del wb[sheet1.title]
     
     def _add_vlookup_v2(self, wb, ws):
         """
