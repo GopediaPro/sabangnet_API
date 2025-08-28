@@ -1,3 +1,4 @@
+from openpyxl.cell import Cell
 from openpyxl.styles import Font, Alignment
 from utils.excels.excel_handler import ExcelHandler
 from utils.excels.excel_column_handler import ExcelColumnHandler
@@ -44,6 +45,7 @@ class ERPEtcSiteMacroV2:
         # 기본 데이터 처리
         for row in range(2, self.ws.max_row + 1):
             self._overlap_by_site_column(self.ws[f"B{row}"], row)
+            self._overlap_kakao(row)
             self._toss_process_column(self.ws[f"B{row}"], row)
             self._order_num_by_site_column(self.ws[f"B{row}"])
             self.ws[f"H{row}"].value = self.ex.format_phone_number(self.ws[f"H{row}"].value)
@@ -138,6 +140,30 @@ class ERPEtcSiteMacroV2:
                     self.ws[f"V{row}"].value = 0
                 else:
                     self.order_set.add(order_key)
+    
+    # 카카오톡스토어 배송비 중복 처리 (_overlap_by_site_column 로직 보완)
+    def _overlap_kakao(self, row: int):
+        """
+        사이트 이름, 수취인명, 수취인주소, 우편번호 기준으로 중복값 확인 후 배송비 처리
+        args:
+            row: 행 번호
+        """
+        site_name = str(self.ws[f"B{row}"].value).strip()
+        if "카카오톡스토어" in site_name:
+            receiver_name = str(self.ws[f"C{row}"].value).strip()
+            receiver_address = str(self.ws[f"J{row}"].value).strip()
+            receiver_zip_code = str(self.ws[f"K{row}"].value).strip()
+            
+            # 키 생성
+            order_key = f"{site_name}_{receiver_name}_{receiver_address}_{receiver_zip_code}"
+
+            if not order_key:
+                return
+
+            if order_key in self.order_set:
+                self.ws[f"V{row}"].value = 0
+            else:
+                self.order_set.add(order_key)
 
     def _toss_process_column(self, cell, row):
         """
