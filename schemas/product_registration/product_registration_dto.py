@@ -6,7 +6,7 @@ Product Registration DTOs
 import logging
 from decimal import Decimal
 from datetime import datetime
-from typing import Optional, Any
+from typing import Optional, Any, Generic, TypeVar, List
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ logger.info("Product Registration DTO 모듈 로드 시작...")
 
 class ProductRegistrationDto(BaseModel):
     """상품 등록 DTO"""
-        # 기본 정보
+    # 기본 정보
     id: int = Field(..., description="고유 식별자")
 
     # 상품 기본 정보
@@ -193,12 +193,26 @@ class ProductRegistrationResponseDto(BaseModel):
 logger.info("ProductRegistrationResponseDto 정의 완료")
 
 
-class ProductRegistrationBulkCreateDto(BaseModel):
-    """대량 상품 등록 생성 DTO"""
-    data: list[ProductRegistrationCreateDto] = Field(..., description="상품 등록 데이터 목록")
+class ProductRegistrationBulkCreateDto(ProductRegistrationCreateDto):
+    """대량 상품 등록 생성 DTO - 개별 아이템"""
+    pass
 
 
 logger.info("ProductRegistrationBulkCreateDto 정의 완료")
+
+class ProductRegistrationBulkUpdateDto(ProductRegistrationCreateDto):
+    """대량 상품 등록 업데이트 DTO - 개별 아이템"""
+    id: int = Field(..., description="업데이트할 상품 ID")
+
+
+logger.info("ProductRegistrationBulkUpdateDto 정의 완료")
+
+class ProductRegistrationBulkDeleteDto(BaseModel):
+    """대량 상품 등록 삭제 DTO - 단일 ID"""
+    id: int = Field(..., description="삭제할 상품 ID")
+
+
+logger.info("ProductRegistrationBulkDeleteDto 정의 완료")
 
 
 class ProductRegistrationBulkResponseDto(BaseModel):
@@ -248,3 +262,30 @@ class CompleteWorkflowResponseDto(BaseModel):
 
 logger.info("CompleteWorkflowResponseDto 정의 완료")
 logger.info("Product Registration DTO 모듈 로드 완료")
+
+T = TypeVar("T")
+
+class ProductRegistrationRowResponse(BaseModel):
+    """상품 등록 Row 응답"""
+    content: Optional[ProductRegistrationDto] = None
+    status: Optional[str] = None   # success, error 등
+    message: Optional[str] = None  # row별 메시지
+
+
+class BulkResponse(BaseModel, Generic[T]):
+    """CRUD 범용 Bulk 응답 객체"""
+    items: List[T]
+
+class ProductRegistrationDeleteRowResponse(BaseModel):
+    id: int
+    status: str   # success, not_found, error
+    message: Optional[str] = None
+    
+class ProductRegistrationBulkDeleteResponse(BaseModel):
+    items: list[ProductRegistrationDeleteRowResponse]
+    success_count: int
+    error_count: int
+
+
+# Bulk / Pagination 응답 타입 Alias
+ProductRegistrationBulkResponse = BulkResponse[ProductRegistrationRowResponse]

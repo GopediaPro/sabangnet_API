@@ -14,6 +14,8 @@ from schemas.product_registration import (
     ProductRegistrationCreateDto, 
     ProductRegistrationResponseDto,
     ProductRegistrationBulkResponseDto,
+    ProductRegistrationBulkDeleteResponse,
+    ProductRegistrationDeleteRowResponse,
     ExcelProcessResultDto
 )
 from services.usecase.product_db_xml_usecase import ProductDbXmlUsecase
@@ -441,3 +443,110 @@ class ProductRegistrationService:
                 'xml_file_path': xml_file_path,
                 'xml_url': None
             }
+
+    async def update_bulk_products(self, data_list: List[ProductRegistrationCreateDto]) -> ProductRegistrationBulkResponseDto:
+        """
+        대량 상품 등록 데이터를 업데이트합니다.
+
+        Args:
+            data_list: 업데이트할 데이터 DTO 리스트 (id 포함되어야 함)
+
+        Returns:
+            ProductRegistrationBulkResponseDto: 대량 업데이트 결과 응답 DTO
+        """
+        try:
+            logger.info(f"대량 상품 업데이트 시작: {len(data_list)}개")
+
+            updated_ids = []
+            success_data = []
+            errors = []
+
+            batch_size = 100
+            for i in range(0, len(data_list), batch_size):
+                batch = data_list[i:i + batch_size]
+                try:
+                    # 배치 단위 업데이트
+                    batch_ids = await self.repository.update_bulk(batch)
+                    updated_ids.extend(batch_ids)
+
+                    # 수정된 데이터 조회 (응답용)
+                    for id in batch_ids:
+                        updated_item = await self.repository.get_by_id(id)
+                        if updated_item:
+                            success_data.append(ProductRegistrationResponseDto.from_orm(updated_item))
+
+                except Exception as e:
+                    error_msg = f"배치 {i//batch_size + 1} 업데이트 오류: {str(e)}"
+                    errors.append(error_msg)
+                    logger.error(error_msg)
+
+            await self.session.commit()
+
+            response = ProductRegistrationBulkResponseDto(
+                success_count=len(updated_ids),
+                error_count=len(data_list) - len(updated_ids),
+                created_ids=updated_ids,
+                errors=errors,
+                success_data=success_data
+            )
+
+            logger.info(f"대량 상품 업데이트 완료: 성공 {response.success_count}개, 실패 {response.error_count}개")
+            return response
+
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"대량 상품 업데이트 오류: {e}")
+            raise
+
+    async def delete_bulk_products(self, ids: List[int]) -> ProductRegistrationBulkDeleteResponse:
+        try:
+            logger.info(f"대량 상품 삭제 시작: {len(ids)}개")
+
+            items = []
+            deleted_ids = []
+            errors = []
+
+            batch_size = 100
+            for i in range(0, len(ids), batch_size):
+                batch = ids[i:i + batch_size]
+                try:
+                    batch_deleted_ids = await self.repository.delete_bulk(batch)
+                    deleted_ids.extend(batch_deleted_ids)
+
+                    # 성공한 것
+                    for did in batch_deleted_ids:
+                        items.append(ProductRegistrationDeleteRowResponse(
+                            id=did, status="success", message="삭제 성공"
+                        ))
+
+                    # 실패한 것 (DB에 없던 ID)
+                    not_found_ids = set(batch) - set(batch_deleted_ids)
+                    for nid in not_found_ids:
+                        items.append(ProductRegistrationDeleteRowResponse(
+                            id=nid, status="not_found", message="존재하지 않는 ID"
+                        ))
+
+                except Exception as e:
+                    error_msg = f"배치 {i//batch_size + 1} 삭제 오류: {str(e)}"
+                    errors.append(error_msg)
+                    logger.error(error_msg)
+                    for nid in batch:
+                        items.append(ProductRegistrationDeleteRowResponse(
+                            id=nid, status="error", message=error_msg
+                        ))
+
+            await self.session.commit()
+
+            response = ProductRegistrationBulkDeleteResponse(
+                items=items,
+                success_count=len(deleted_ids),
+                error_count=len(ids) - len(deleted_ids)
+            )
+
+            logger.info(f"대량 상품 삭제 완료: 성공 {response.success_count}개, 실패 {response.error_count}개")
+            return response
+
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"대량 상품 삭제 오류: {e}")
+            raise
