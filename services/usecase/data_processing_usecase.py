@@ -236,7 +236,7 @@ class DataProcessingUsecase:
             f"[START] save_down_form_order_from_receive_orders_by_filters_v2 filters: {filters}")
 
         # 몰 아이디, 배송구분 추출
-        mall_id = filters.get('mall_id')
+        fld_dsp = filters.get('fld_dsp')
         dpartner_id = filters.get('dpartner_id')
 
         # (임시 주석처리)
@@ -263,14 +263,13 @@ class DataProcessingUsecase:
 
         # 4. template_code 설정[ERP, 합포장]
         template_code_mapping = {
-            'ESM옥션': ('gmarket_erp', 'gmarket_bundle'),
-            'ESM지마켓': ('gmarket_erp', 'gmarket_bundle'),
+            '옥션2.0': ('gmarket_erp', 'gmarket_bundle'),
+            'G마켓2.0': ('gmarket_erp', 'gmarket_bundle'),
             '브랜디': ('brandi_erp', 'basic_bundle'),
-            '지그재그': ('zigzag_erp', 'zigzag_bundle'),
-            '기타사이트': ('basic_erp', 'basic_bundle')
+            '지그재그': ('zigzag_erp', 'zigzag_bundle')
         }
         erp_template_code, bundle_template_code = template_code_mapping.get(
-            mall_id, ('basic_erp', 'basic_bundle'))
+            fld_dsp, ('basic_erp', 'basic_bundle'))
 
         is_star = False
         # 5. 배송구분(일반배송, 스타배송) 설정
@@ -293,7 +292,7 @@ class DataProcessingUsecase:
 
         return DownFormOrdersFromReceiveOrdersDto(
             success=True,
-            mall_id=mall_id,
+            fld_dsp=fld_dsp,
             dpartner_id=dpartner_id,
             processed_count=len(receive_orders),
             saved_count=saved_count,
