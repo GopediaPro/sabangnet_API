@@ -159,7 +159,7 @@ class ReceiveOrdersFillterRequest(BaseDateRangeRequest):
     날짜/주문상태 Optional 요청 객체
     """
     # 부모 클래스가 이미 모든 필드를 Optional로 제공하므로 그대로 사용
-    mall_id: Optional[str] = Field(None, description="몰 ID")
+    fld_dsp: Optional[str] = Field(None, description="사이트 명")
     order_status: Optional[OrderStatusLabel] = Field(None, description="주문 상태")
 
     @field_validator("order_status")
@@ -178,7 +178,7 @@ class ReceiveOrdersFillterRequest(BaseDateRangeRequest):
                 "date_from": "2025-06-02",
                 "date_to": "2025-06-06",
                 "order_status": "출고완료",
-                "mall_id": "ESM지마켓"
+                "fld_dsp": "G마켓2.0"
             }
         }
     )
@@ -193,7 +193,7 @@ class ReceiveOrdersToDownFormOrdersFillterRequst(ReceiveOrdersFillterRequest):
                 "date_from": "2025-06-02",
                 "date_to": "2025-06-06",
                 "order_status": "출고완료",
-                "mall_id": "ESM지마켓",
+                "fld_dsp": "G마켓2.0",
                 "dpartner_id": "오케이마트"
             }
         }
