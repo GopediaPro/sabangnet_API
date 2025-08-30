@@ -23,7 +23,10 @@ class ZigzagErpMacroV3:
         # 기본처리
         df = macro_basic_process(df)
 
-        #VLOOKUP 적용
+        # 숫자 타입 변환
+        df['expected_payout'] = pd.to_numeric(df['expected_payout'], errors='coerce')
+        df['service_fee'] = pd.to_numeric(df['service_fee'], errors='coerce')
+        df['delv_cost'] = pd.to_numeric(df['delv_cost'], errors='coerce')
         
         # 금액 계산
         df['etc_cost'] = df['expected_payout'].fillna(

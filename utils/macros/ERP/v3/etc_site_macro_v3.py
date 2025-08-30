@@ -23,6 +23,11 @@ class ERPEtcSiteMacroV3:
         
         df = self._overlap_by_site_column(df)
         df = self._toss_process_column(df)
+
+        # 숫자 타입 변환
+        df['expected_payout'] = pd.to_numeric(df['expected_payout'], errors='coerce')
+        df['service_fee'] = pd.to_numeric(df['service_fee'], errors='coerce')
+        df['delv_cost'] = pd.to_numeric(df['delv_cost'], errors='coerce')
         
         # 금액 계산
         df['etc_cost'] = df['expected_payout'].fillna(
