@@ -20,6 +20,22 @@ class TemplateConfigReadService:
         template_config = await self.template_config_repository.get_template_config_by_template_code(template_code=template_code)
         return template_config
     
+    async def get_template_config_by_template_code_with_mapping(self, template_code: str) -> dict:
+        """
+        get template config
+        args:
+            template_code: template code(gmarket_erp, etc_site_erp ...)
+        returns:
+            template_config: 전체 템플릿 설정 (column_mappings 포함)
+        """
+        template_code_mapping = {
+            'zigzag_erp': 'basic_erp',
+            'zigzag_bundle': 'basic_bundle',
+        }
+        
+        template_config = await self.template_config_repository.get_template_config_by_template_code(template_code=template_code_mapping.get(template_code, template_code))
+        return template_config
+    
     async def get_macro_name_by_template_code(self, template_code: str) -> Optional[str]:
         return await self.template_config_repository.get_macro_name_by_template_code(template_code)
     
@@ -36,3 +52,4 @@ class TemplateConfigReadService:
     
     async def get_sub_site_true_template_code(self, template_code: str):
         return await self.template_config_repository.get_sub_site_true_template_code(template_code)
+    
