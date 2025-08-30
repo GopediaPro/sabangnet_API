@@ -34,6 +34,8 @@ from services.down_form_orders.template_config_read_service import TemplateConfi
 from services.down_form_orders.down_form_order_create_service import DownFormOrderCreateService
 from services.export_templates.export_templates_read_service import ExportTemplatesReadService
 from services.macro_batch_processing.batch_info_create_service import BatchInfoCreateService
+from services.vlookup_datas.vlookup_datas_read_service import VlookupDatasReadService
+from services.vlookup_datas.vlookup_datas_create_service import VlookupDatasCreateService
 # file
 from minio_handler import temp_file_to_object_name, delete_temp_file, upload_and_get_url_and_size, url_arrange
 
@@ -54,6 +56,8 @@ class DataProcessingUsecase:
             session)
         self.batch_info_create_service = BatchInfoCreateService(session)
         self.order_create_service = ReceiveOrderCreateService(session)
+        self.vlookup_datas_read_service = VlookupDatasReadService(session)
+        self.vlookup_datas_create_service = VlookupDatasCreateService(session)
 
     def parse_filename(self, filename: str) -> dict[str, Any]:
         """
@@ -525,7 +529,7 @@ class DataProcessingUsecase:
         # 1. 템플릿 설정 조회
         logger.info(
             f"run_macro_with_db_v3 called with template_code={template_code}")
-        config: dict = await self.template_config_read_service.get_template_config_by_template_code(template_code)
+        config: dict = await self.template_config_read_service.get_template_config_by_template_code_with_mapping(template_code)
         logger.info(f"Loaded template config: {config}")
 
         # 2. 데이터 1대1 매핑 변환 (DB_to_DB 에서는 합포장, ERP 구분없이 사용)
@@ -534,7 +538,11 @@ class DataProcessingUsecase:
         run_macro_data: list[dict[str, Any]] = []
         macro_func = self.order_macro_utils.MACRO_MAP_V3.get(template_code)
         if macro_func:
-            run_macro_data = macro_func(processed_data, is_star)
+            if template_code == 'zigzag_erp' or template_code == 'zigzag_bundle':
+                processed_vlookup_data = await self.vlookup_data_processing(processed_data)
+                run_macro_data = macro_func(processed_vlookup_data, is_star)
+            else:
+                run_macro_data = macro_func(processed_data, is_star)
         else:
             logger.error(f"Macro not found for template code: {template_code}")
             raise ValueError(
@@ -550,6 +558,42 @@ class DataProcessingUsecase:
         except Exception as e:
             logger.error(f"Error running {template_code} macro with db: {e}")
             raise
+    
+    async def vlookup_data_processing(self, processed_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """
+        vlookup 데이터 처리
+        """
+        logger.info(f"[START] VLOOKUP DATA PROCESSING")
+        mall_product_id_dict = {}
+        # 상품코드 배송비 추출
+        for item in processed_data:
+            mall_product_id = item.get('mall_product_id')
+            if mall_product_id:
+                mall_product_id_dict[mall_product_id] = {
+                    'mall_product_id': mall_product_id, 
+                    'delv_cost': item.get('delv_cost')
+                    }
+        logger.info(f"mall_product_id_dict len: {len(mall_product_id_dict)}")
+        # vlookup 데이터 조회
+        vlookup_datas = await self.vlookup_datas_read_service.get_vlookup_datas_with_not_found_mall_product_ids(mall_product_id_dict.keys())
+        found_datas = vlookup_datas.get('found_datas', {})
+        not_found_datas = vlookup_datas.get('not_found_datas', [])
+        logger.info(f"found_datas len: {len(found_datas)} | not_found_datas len: {len(not_found_datas)}")
+
+        # 조회되지 않은 데이터 vlookup_datas 테이블에 추가
+        if not_found_datas:
+            not_found_data_list: list[dict] = [mall_product_id_dict.get(item) for item in not_found_datas]
+            saved_count_vlookup_datas = await self.vlookup_datas_create_service.saved_count_bulk_create_vlookup_datas(not_found_data_list)
+            logger.info(f"saved_count_vlookup_datas: {saved_count_vlookup_datas['saved_count']}")
+        
+        # 조회된 데이터 추가
+        if found_datas:
+            for item in processed_data:
+                mall_product_id = item.get('mall_product_id')
+                if mall_product_id and mall_product_id in found_datas:
+                    item['delv_cost'] = found_datas[mall_product_id]['delv_cost']
+        logger.info(f"[END] VLOOKUP DATA PROCESSING")
+        return processed_data
 
     async def run_macro_with_db(self, template_code: str) -> int:
         """
