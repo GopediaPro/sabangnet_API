@@ -9,7 +9,7 @@ class VlookupDatas(Base):
 
     id: Mapped[int] = mapped_column(
         Integer, primary_key=True, autoincrement=True)
-    mall_product_id: Mapped[str | None] = mapped_column(Text)
+    mall_product_id: Mapped[str | None] = mapped_column(Text, unique=True)
     delv_cost: Mapped[Decimal | None] = mapped_column(Numeric(30, 2))
 
     
