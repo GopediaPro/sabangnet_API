@@ -314,6 +314,37 @@ def map_raw_to_down_form(raw_row: dict[str, Any], config: dict) -> dict[str, Any
     return mapped
 
 
+def map_raw_to_down_form_and_receive_order(raw_row: dict[str, Any], config: dict) -> dict[str, Any]:
+    """
+    단일 receive_orders row를 down_form_orders 스키마에 맞게 변환
+    config['column_mappings']를 참고하여 raw_row의 값을 변환
+    """
+    
+    # config['column_mappings']를 참고하여 raw_row의 값을 변환
+    for col in config['column_mappings']:
+        field = col['source_field']
+        field_type = col.get('field_type')
+        transform_config = col.get('transform_config', {})
+        # variable: 원본 그대로
+        if field_type == 'variable':
+            raw_row[field] = raw_row.get(field)
+        # formula: 수식/가공
+        elif field_type == 'formula':
+            raw_row[field] = eval_formula(transform_config, raw_row)
+        # empty: 빈 값
+        elif field_type == 'empty':
+            raw_row[field] = None
+        else:
+            raw_row[field] = raw_row.get(field)
+    
+    # down_form_orders 스키마에 맞게 타입 변환 및 매핑
+    mapped = {}
+    for field, value in raw_row.items():
+        if field in FIELD_TYPE_MAPPING:
+            mapped[field] = convert_field_to_db_type(field, value)
+    return mapped
+
+
 def map_aggregated_to_down_form(group_rows: list[dict[str, Any]], config: dict) -> dict[str, Any]:
     """
     집계 row를 down_form_orders 스키마에 맞게 변환
@@ -376,12 +407,12 @@ def eval_formula(transform_config: dict, row: dict) -> Any:
             formula = formula.replace('convert_name(', '').replace(')', '')
         elif 'sum' in formula:
             formula = formula.replace('sum(', '').replace(')', '')
-        
+
         safe_functions = {
             'int': int,
             'str': str
         }
-       
+
         return eval(formula, {"__builtins__": {}}, safe_functions)
     except Exception as e:
         logger.error(f"수식 계산 실패: {source}, 에러: {e}")
