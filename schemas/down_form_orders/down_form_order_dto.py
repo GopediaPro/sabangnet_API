@@ -19,7 +19,7 @@ class DownFormOrderDto(BaseDTO):
     process_dt: Optional[datetime] = Field(None, description="처리 일시")
     form_name: Optional[str] = Field(None, max_length=30, description="폼 이름 (G마켓/옥션, 기본양식, 브랜디, 카카오 등)")
     seq: Optional[int] = Field(None, description="순번")
-    idx: str = Field(..., max_length=50, description="사방넷주문번호")
+    idx: str = Field(..., description="사방넷주문번호")
     work_status: Optional[str] = Field(None, max_length=14, description="작업 상태")
 
     # 날짜 정보
@@ -40,8 +40,8 @@ class DownFormOrderDto(BaseDTO):
     # 상품 정보
     product_id: Optional[str] = Field(None, description="품번코드(사방넷)")
     product_name: Optional[str] = Field(None, description="상품명(수집)")
-    mall_product_id: Optional[str] = Field(None, max_length=50, description="상품코드(쇼핑몰)")
-    item_name: Optional[str] = Field(None, max_length=100, description="제품명")
+    mall_product_id: Optional[str] = Field(None, description="상품코드(쇼핑몰)")
+    item_name: Optional[str] = Field(None, description="제품명")
     sku_value: Optional[str] = Field(None, description="옵션(수집)")
     sku_alias: Optional[str] = Field(None, description="옵션별칭")
     sku_no: Optional[str] = Field(None, description="SKU번호")
@@ -72,8 +72,8 @@ class DownFormOrderDto(BaseDTO):
 
     # 수취인 정보
     receive_name: Optional[str] = Field(None, max_length=100, description="수취인명")
-    receive_cel: Optional[str] = Field(None, max_length=20, description="수취인전화번호2")
-    receive_tel: Optional[str] = Field(None, max_length=20, description="수취인전화번호1")
+    receive_cel: Optional[str] = Field(None, max_length=25, description="수취인전화번호2")
+    receive_tel: Optional[str] = Field(None, max_length=25, description="수취인전화번호1")
     receive_addr: Optional[str] = Field(None, description="수취인주소(4)")
     receive_zipcode: Optional[str] = Field(None, max_length=15, description="수취인우편번호(1)")
 
