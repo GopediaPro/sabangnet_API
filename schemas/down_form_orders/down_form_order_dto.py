@@ -109,7 +109,7 @@ class DownFormOrderDto(BaseDTO):
     )
 
     # 배송 정보
-    delivery_payment_type: Optional[str] = Field(
+    delivery_method_str: Optional[str] = Field(
         None, max_length=50, description="배송결제(신용,착불)"
     )
     delv_msg: Optional[str] = Field(None, description="배송메세지")
