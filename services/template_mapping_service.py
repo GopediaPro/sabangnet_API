@@ -14,24 +14,25 @@ class TemplateMappingService:
         self.export_template_repository = ExportTemplateRepository(session)
         self.template_column_mapping_repository = TemplateColumnMappingRepository(session)
 
-    async def get_template_mappings_by_form_names(self, form_names: list[str]) -> dict[int, list[dict]]:
+    async def get_template_mappings_by_form_name(self, form_name: str) -> dict[int, list[dict]]:
         """
-        form_names로부터 template_id를 조회하고, 해당하는 column mappings을 반환
+        form_name로부터 template_id를 조회하고, 해당하는 column mappings을 반환
         
         Args:
-            form_names: template_code 리스트
+            form_name: template_code
             
         Returns:
             template_id별 매핑 정보 딕셔너리
         """
-        # 1. form_names로 template_id 조회
-        template_ids = await self.export_template_repository.get_template_ids_by_codes(form_names)
-        
-        if not template_ids:
+        # 1. form_name으로 template_id 조회
+        logger.info(f"form_name: {form_name}")
+        template_id = await self.export_template_repository.get_template_id_by_code(form_name)
+        logger.info(f"template_id: {template_id}")
+        if not template_id:
             return {}
         
         # 2. template_id들로 column mappings 조회
-        mappings = await self.template_column_mapping_repository.get_mappings_by_template_ids(template_ids)
+        mappings = await self.template_column_mapping_repository.get_mappings_by_template_id(template_id)
         
         # 3. template_id별로 매핑 정보 그룹화
         template_mappings = {}
@@ -50,8 +51,15 @@ class TemplateMappingService:
             })
         
         return template_mappings
+    
+    async def get_template_mappings_all(self) -> dict[int, list[dict]]:
+        """
+        template_id 전체 조회
+        """
+        template_mappings = await self.template_column_mapping_repository.get_mappings_all()
+        return template_mappings
 
-    def apply_template_mappings(self, df: pd.DataFrame, template_mappings: dict[int, list[dict]]) -> pd.DataFrame:
+    def apply_template_mapping(self, df: pd.DataFrame, template_mappings: dict[int, list[dict]]) -> pd.DataFrame:
         """
         template_mappings에 따라 DataFrame의 컬럼을 동적으로 변환
         
@@ -66,6 +74,8 @@ class TemplateMappingService:
             return df
         
         # 첫 번째 템플릿의 매핑을 기준으로 변환 (여러 템플릿이 있을 경우)
+        logger.info(f"template_mappings: {template_mappings}")
+        logger.info(f"df: {df}")
         first_template_id = list(template_mappings.keys())[0]
         mappings = template_mappings[first_template_id]
         # logger.info(f"template_mappings: {template_mappings}")
@@ -80,7 +90,7 @@ class TemplateMappingService:
             target_column = mapping['target_column']
             source_field = mapping['source_field']
             # logger.info(f"first_template_id: {first_template_id}")
-            # logger.info(f"df.columns: {df.columns}")
+            logger.info(f"df.columns: {df.columns}")
             # logger.info(f"source_field: {source_field}")
             if source_field:
                 # 직접 매핑
@@ -113,6 +123,46 @@ class TemplateMappingService:
             
             # new_columns 순서로 재정렬
             df = df.reindex(columns=new_columns)
+        logger.info(f"df 결과 값: {df}")
+        return df
+
+    def reverse_template_mapping(self, df: pd.DataFrame, template_mappings: dict[int, list[dict]]) -> pd.DataFrame:
+        """
+        Excel Upload용: template_mappings에 따라 DataFrame의 컬럼명을 DB field명으로 역변환
+        
+        Args:
+            df: Excel에서 읽은 DataFrame (target_column 이름의 컬럼들)
+            template_mappings: template_id별 매핑 정보
+            
+        Returns:
+            변환된 DataFrame (source_field 이름의 컬럼들)
+        """
+        if not template_mappings:
+            return df
+        
+        # 첫 번째 템플릿의 매핑을 기준으로 변환 (여러 템플릿이 있을 경우)
+        logger.info(f"reverse_template_mapping - template_mappings: {template_mappings}")
+        logger.info(f"reverse_template_mapping - df columns: {df.columns}")
+        
+        first_template_id = list(template_mappings.keys())[0]
+        mappings = template_mappings[first_template_id]
+        
+        # column_order로 정렬
+        mappings.sort(key=lambda x: x['column_order'])
+        
+        # 컬럼명 매핑: target_column -> source_field
+        column_mapping = {}
+        for mapping in mappings:
+            target_column = mapping['target_column']
+            source_field = mapping['source_field']
+            
+            if source_field and target_column in df.columns:
+                column_mapping[target_column] = source_field
+        
+        # 컬럼명 변경
+        if column_mapping:
+            df = df.rename(columns=column_mapping)
+            logger.info(f"reverse_template_mapping - renamed columns: {df.columns}")
         
         return df
 
