@@ -88,8 +88,8 @@ class DownFormOrderReadService:
         self, 
         date_from: datetime, 
         date_to: datetime,
-        form_names: list[str] = None,
-        skip: int = None,
+        form_name: str = None,
+        skip: int = None,   
         limit: int = None
     ) -> list[BaseDownFormOrder]:
         """
@@ -105,5 +105,5 @@ class DownFormOrderReadService:
             조회된 주문 데이터 리스트
         """
         return await self.down_form_order_repository.get_down_form_orders_by_date_range(
-            date_from, date_to, form_names, skip, limit
+            date_from, date_to, form_name, skip, limit
         )
