@@ -65,7 +65,6 @@ class BaseFormOrder(Base):
     mall_user_id: Mapped[str | None] = mapped_column(Text)
 
     # 배송 정보
-    delivery_payment_type: Mapped[str | None] = mapped_column(String(50))
     delv_msg: Mapped[str | None] = mapped_column(Text)
     delivery_id: Mapped[str | None] = mapped_column(Text)
     delivery_class: Mapped[str | None] = mapped_column(Text)
@@ -119,7 +118,6 @@ class BaseFormOrder(Base):
             receive_tel=order_data.get("receive_tel", None),
             receive_addr=order_data.get("receive_addr", None),
             receive_zipcode=order_data.get("receive_zipcode", None),
-            delivery_payment_type=order_data.get("delivery_payment_type", None),
             mall_product_id=order_data.get("mall_product_id", None),
             delv_msg=order_data.get("delv_msg", None),
             expected_payout=order_data.get("expected_payout", None),
@@ -173,6 +171,8 @@ class BaseDownFormOrder(BaseFormOrder):
     __tablename__ = "down_form_orders"
 
     # __table_args__ = (UniqueConstraint("idx", name="uq_down_form_orders_idx"),) 다른 쇼핑몰의 주문번호가 같을 수 있어서.
+    
+
 
     @classmethod
     def build_happo(
