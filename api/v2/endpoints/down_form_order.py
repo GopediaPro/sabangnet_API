@@ -32,7 +32,7 @@ from services.down_form_orders.down_form_order_conversion_service import (
 from schemas.integration_request import IntegrationRequest
 from schemas.integration_response import ResponseHandler, Metadata
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto
-from schemas.down_form_orders.request.down_form_orders_request import DbToExcelRequest
+from schemas.down_form_orders.request.down_form_orders_request import DbToExcelRequest, ExcelToDbRequest
 from schemas.down_form_orders.response.down_form_orders_response import DbToExcelResponse, ExcelToDbResponse
 
 # utils
@@ -99,12 +99,12 @@ async def db_to_excel_url(
 
         ord_st_date = request.data.ord_st_date
         ord_ed_date = request.data.ord_ed_date
-        form_names = request.data.form_names
+        form_name = request.data.form_name
 
         # 날짜, 양식 이름으로 데이터 조회
         down_form_orders = (
             await down_form_order_read_service.get_down_form_orders_by_date_range(
-                date_from=ord_st_date, date_to=ord_ed_date, form_names=form_names
+                date_from=ord_st_date, date_to=ord_ed_date, form_name=form_name
             )
         )
 
@@ -120,31 +120,23 @@ async def db_to_excel_url(
         dto_items = down_form_order_conversion_service.convert_orm_to_dto_list(down_form_orders)
         df = down_form_order_conversion_service.convert_dto_list_to_dataframe(dto_items)
 
-        # form_names 개수만큼 각각의 Excel 파일 생성
-        excel_files = []
-        total_record_count = 0
+        # form_name에 맞춰 column transform
+        df = await down_form_order_conversion_service.transform_column_by_form_name(df, form_name)
         
-        for form_name in form_names:
-            # 각 form_name에 대해 별도의 DataFrame 생성
-            form_df = df.copy()
-            
-            # 특정 form_name에 맞춰 column transform
-            form_df = await down_form_order_conversion_service.transform_column_by_form_names(form_df, [form_name])
-            
-            # export_templates에서 description 가져오기
-            template_description = await down_form_order_conversion_service.get_template_description(form_name)
-            date_now = datetime.now().strftime("%Y%m%d")
-            excel_file_name = f"{date_now}_주문서확인처리_{template_description}_매크로완료.xlsx"
-            
-            # Excel 파일 생성
-            with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp_file:
-                form_df.to_excel(tmp_file.name, index=False, engine="openpyxl")
-                excel_files.append({
-                    'temp_path': tmp_file.name,
-                    'file_name': excel_file_name
-                })
-            
-            total_record_count += len(form_df)
+        # export_templates에서 description 가져오기
+        template_description = await down_form_order_conversion_service.get_template_description(form_name)
+        date_now = datetime.now().strftime("%Y%m%d")
+        excel_file_name = f"{date_now}_주문서확인처리_{template_description}_매크로완료.xlsx"
+        
+        # Excel 파일 생성
+        excel_files = []
+        total_record_count = len(df)
+        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp_file:
+            df.to_excel(tmp_file.name, index=False, engine="openpyxl")
+            excel_files.append({
+                'temp_path': tmp_file.name,
+                'file_name': excel_file_name
+            })
 
         try:
             # ZIP 파일 생성
@@ -196,7 +188,7 @@ async def db_to_excel_url(
 
 @router.post("/excel-to-db", response_class=JSONResponse)
 async def get_excel_to_db(
-    request_id: str = Form(..., description="유저 아이디"),
+    request: str = Form(..., description="요청 데이터 (JSON 문자열)"),
     file: UploadFile = File(..., description="Excel 파일"),
     down_form_order_update_service: DownFormOrderUpdateService = Depends(
         get_down_form_order_update_service
@@ -206,12 +198,55 @@ async def get_excel_to_db(
     Excel 파일을 업로드하여 idx(주문번호) 기준으로 upsert 처리
     """
     try:
+        import json
+        request_obj = IntegrationRequest[ExcelToDbRequest](**json.loads(request))
+        
+        form_name = request_obj.data.form_name
+        request_id = request_obj.metadata.request_id
+        work_status = request_obj.data.work_status
+        
         logger.info(
-            f"[get_excel_to_db] 시작 - 파일: {file.filename}, 요청자: {request_id}"
+            f"[get_excel_to_db] 시작 - 파일: {file.filename}, \
+            요청자: {request_id}, 양식 이름: {form_name}"
         )
 
         # Excel 파일을 DataFrame으로 변환
         dataframe = ExcelHandler.from_upload_file_to_dataframe(file)
+        
+        # Template mapping 적용 (Excel Upload용: Excel 컬럼명을 DB field명으로 변환)
+        async for session in get_async_session():
+            from services.template_mapping_service import TemplateMappingService
+            template_mapping_service = TemplateMappingService(session)
+            template_mappings = await template_mapping_service.get_template_mappings_by_form_name(form_name)
+            
+            if template_mappings:
+                dataframe = template_mapping_service.reverse_template_mapping(dataframe, template_mappings)
+            break
+
+        # work_status와 form_name 컬럼 추가
+        dataframe['work_status'] = work_status
+        dataframe['form_name'] = form_name
+
+        # batch_process 생성 및 batch_id 컬럼 추가
+        async for session in get_async_session():
+            from services.macro_batch_processing.batch_info_create_service import BatchInfoCreateService
+            from schemas.macro_batch_processing.batch_process_dto import BatchProcessDto
+            
+            batch_service = BatchInfoCreateService(session)
+            batch_dto = BatchProcessDto(
+                original_filename=file.filename,
+                created_by=request_id,
+                work_status=work_status
+            )
+            
+            batch_process = await batch_service.save_batch_info(batch_dto)
+            batch_id = batch_process.batch_id
+            
+            # batch_id 컬럼 추가
+            dataframe['batch_id'] = batch_id
+            
+            logger.info(f"batch_process 생성 완료 - batch_id: {batch_id}")
+            break
 
         logger.info(f"읽은 레코드 수: {len(dataframe)}")
 
@@ -223,10 +258,10 @@ async def get_excel_to_db(
                 metadata=Metadata(version="v2", request_id=request_id),
             )
 
-        # idx 컬럼 확인
-        if "idx" not in dataframe.columns:
+        # order_id 컬럼 확인
+        if "order_id" not in dataframe.columns:
             return ResponseHandler.bad_request(
-                message="Excel 파일에 'idx' 컬럼이 필요합니다.",
+                message="Excel 파일에 'order_id' 컬럼이 필요합니다.",
                 metadata=Metadata(version="v2", request_id=request_id),
             )
 
@@ -234,7 +269,7 @@ async def get_excel_to_db(
         dto_items = []
         failed_count = 0
 
-        for _, row in dataframe.iterrows():
+        for order_id, row in dataframe.iterrows():
             try:
                 # NaN 값을 None으로 변환
                 row_dict = row.to_dict()
@@ -245,11 +280,16 @@ async def get_excel_to_db(
                     elif isinstance(value, pd.Timestamp) and value.tz is None:
                         # UTC 타임존으로 localize
                         row_dict[key] = value.tz_localize("UTC")
+                
+                # 디버깅: 첫 번째 행의 데이터 확인
+                if order_id == 0:
+                    logger.info(f"첫 번째 행 데이터: {row_dict}")
+                    logger.info(f"첫 번째 행의 sku_alias: {row_dict.get('sku_alias')} (타입: {type(row_dict.get('sku_alias'))})")
 
                 dto = DownFormOrderDto.model_validate(row_dict)
                 dto_items.append(dto)
             except Exception as e:
-                logger.warning(f"레코드 변환 실패: {row.to_dict()}, 오류: {str(e)}")
+                logger.warning(f"레코드 변환 실패 (행 {order_id}): {row.to_dict()}, 오류: {str(e)}")
                 failed_count += 1
 
         logger.info(f"변환 완료 - 성공: {len(dto_items)}, 실패: {failed_count}")
