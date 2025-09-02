@@ -58,9 +58,9 @@ class DownFormOrderDto(BaseDTO):
     product_id: Optional[str] = Field(None, description="품번코드(사방넷)")
     product_name: Optional[str] = Field(None, description="상품명(수집)")
     mall_product_id: Optional[str] = Field(
-        None, max_length=50, description="상품코드(쇼핑몰)"
+        None, description="상품코드(쇼핑몰)"
     )
-    item_name: Optional[str] = Field(None, max_length=100, description="제품명")
+    item_name: Optional[str] = Field(None, description="제품명")
 
     sku_value: Optional[str] = Field(None, description="옵션(수집)")
     sku_alias: Optional[str] = Field(None, description="옵션별칭")
