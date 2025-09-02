@@ -91,3 +91,11 @@ class ExportTemplateRepository:
             raise e
         finally:
             await self.session.close()
+
+    async def get_template_id_by_code(self, template_code: str) -> int:
+        query = select(ExportTemplates.id).where(
+            ExportTemplates.template_code == template_code,
+            ExportTemplates.is_active == True
+        )
+        result = await self.session.execute(query)
+        return result.scalar()
