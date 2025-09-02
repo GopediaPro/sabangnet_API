@@ -47,7 +47,7 @@ FIELD_TYPE_MAPPING = {
     'receive_tel': 'str',
     'receive_addr': 'str',
     'receive_zipcode': 'str',
-    'delivery_payment_type': 'str',
+    'delivery_method_str': 'str',
     'delv_msg': 'str',
     'delivery_id': 'str',
     'delivery_class': 'str',
@@ -119,9 +119,9 @@ def convert_field_to_db_type(field_name: str, value: Any) -> Any:
             str_value = str(value)
 
             # String 필드들의 길이 제한 적용
-            if field_name == 'delivery_payment_type' and len(str_value) > 10:
+            if field_name == 'delivery_method_str' and len(str_value) > 10:
                 logger.warning(
-                    f"delivery_payment_type value too long: {str_value}, truncating to 10 characters")
+                    f"delivery_method_str value too long: {str_value}, truncating to 10 characters")
                 return str_value[:10]
             elif field_name == 'form_name' and len(str_value) > 30:
                 logger.warning(

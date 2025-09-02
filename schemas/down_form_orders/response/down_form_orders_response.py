@@ -93,3 +93,16 @@ class DownFormOrderPaginationWithDateRangeResponse(BaseModel):
     date_from: date
     date_to: date
     items: list[DownFormOrderResponse]
+
+
+class DbToExcelResponse(BaseModel):
+    excel_url: str = Field(..., description="Excel 파일 URL")
+    record_count: int = Field(..., description="레코드 수")
+    file_size: int = Field(..., description="파일 크기 (bytes)")
+
+
+class ExcelToDbResponse(BaseModel):
+    processed_count: int = Field(..., description="처리된 레코드 수")
+    inserted_count: int = Field(..., description="삽입된 레코드 수")
+    updated_count: int = Field(..., description="업데이트된 레코드 수")
+    failed_count: int = Field(0, description="실패한 레코드 수")
