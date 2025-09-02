@@ -38,7 +38,7 @@ class BundleUtilsV3:
             'receive_zipcode': 'first',
             'receive_cel': 'first',
             'receive_tel': 'first',
-            'delivery_payment_type': 'first',
+            'delivery_method_str': 'first',
             'invoice_no': 'first',
             'location_nm': 'first',
             'order_etc_7': 'first',
