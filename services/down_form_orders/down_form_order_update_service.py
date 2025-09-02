@@ -23,7 +23,7 @@ class DownFormOrderUpdateService:
     
     async def bulk_upsert_from_excel(self, dto_items: list[DownFormOrderDto]) -> Tuple[int, int]:
         """
-        Excel에서 읽어온 데이터를 idx 기준으로 upsert 처리
+        Excel에서 읽어온 데이터를 order_id 기준으로 upsert 처리
         
         Args:
             dto_items: upsert할 DTO 리스트
