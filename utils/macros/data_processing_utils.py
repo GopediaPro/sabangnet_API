@@ -5,6 +5,7 @@ from utils.mappings.down_form_order_mapper import (
     map_raw_to_down_form,
     map_excel_to_down_form,
     map_aggregated_to_down_form,
+    map_raw_to_down_form_and_receive_order
 )
 
 
@@ -93,6 +94,23 @@ class DataProcessingUtils:
                 'seq': seq,
             }
             processed_row.update(map_raw_to_down_form(raw_row, config))
+            processed_data.append(processed_row)
+        return processed_data
+    
+    @staticmethod
+    async def process_receive_order_data(
+            raw_data: list[dict[str, Any]],
+            config: dict
+        ) -> list[dict[str, Any]]:
+        """receive_orders row를 down_form_orders 스키마에 맞게 변환(Macro V3용)"""
+        processed_data = []
+        for seq, raw_row in enumerate(raw_data, start=1):
+            processed_row = {
+                'process_dt': datetime.now(),
+                'form_name': config['template_code'],
+                'seq': seq,
+            }
+            processed_row.update(map_raw_to_down_form_and_receive_order(raw_row, config))
             processed_data.append(processed_row)
         return processed_data
     

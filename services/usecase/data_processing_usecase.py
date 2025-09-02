@@ -531,9 +531,9 @@ class DataProcessingUsecase:
             f"run_macro_with_db_v3 called with template_code={template_code}")
         config: dict = await self.template_config_read_service.get_template_config_by_template_code_with_mapping(template_code)
         logger.info(f"Loaded template config: {config}")
-
+    
         # 2. 데이터 1대1 매핑 변환 (DB_to_DB 에서는 합포장, ERP 구분없이 사용)
-        processed_data = await DataProcessingUtils.process_simple_data(receive_orders_data, config)
+        processed_data = await DataProcessingUtils.process_receive_order_data(receive_orders_data, config)
         # 3. 매크로 실행
         run_macro_data: list[dict[str, Any]] = []
         macro_func = self.order_macro_utils.MACRO_MAP_V3.get(template_code)
