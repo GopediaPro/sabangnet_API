@@ -64,7 +64,7 @@ class DownFormOrderConversionService:
         for col in df.columns:
             if pd.api.types.is_datetime64tz_dtype(df[col]):
                 df[col] = df[col].dt.tz_localize(None)
-        
+        logger.info(f"df: 개수 ({len(df)})")
         return df
 
     def _numeric_to_str(self, v):
@@ -87,27 +87,37 @@ class DownFormOrderConversionService:
         except Exception:
             return s  # 숫자화 불가 시 원 문자열 유지
 
-    async def transform_column_by_form_names(self, df: pd.DataFrame, form_names: list[str]) -> pd.DataFrame:
+    async def transform_column_by_form_name(self, df: pd.DataFrame, form_name: str) -> pd.DataFrame:
         """
-        form_names에 따라 동적으로 컬럼을 변환
+        form_name에 따라 동적으로 컬럼을 변환
         
         Args:
             df: 원본 DataFrame
-            form_names: template_code 리스트
+            form_name: template_code 리스트
             
         Returns:
             pd.DataFrame: 변환된 DataFrame
         """
-        if not form_names:
+        if not form_name:
             return df
         
         # TemplateMappingService를 사용하여 동적 매핑 적용
         template_mapping_service = TemplateMappingService(self.session)
-        template_mappings = await template_mapping_service.get_template_mappings_by_form_names(form_names)
+        template_mappings = await template_mapping_service.get_template_mappings_by_form_name(form_name)
         
         if template_mappings:
-            df = template_mapping_service.apply_template_mappings(df, template_mappings)
-        
+            df = template_mapping_service.apply_template_mapping(df, template_mappings)
+        logger.info(f"df transformed: 개수 ({len(df)})")
+        return df
+    
+    async def transform_column_by_templates(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        template_id에 따라 동적으로 컬럼을 변환
+        """
+        template_mapping_service = TemplateMappingService(self.session)
+        template_mappings = await template_mapping_service.get_template_mappings_all()
+        if template_mappings:
+            df = template_mapping_service.apply_template_mapping(df, template_mappings)
         return df
 
     async def get_template_description(self, template_code: str) -> str:
