@@ -200,8 +200,8 @@ def ali_merge_packaging(input_path: str) -> str:
     # 19. 제주도 주문 처리
     process_jeju_orders(ex)
     
-    # E, M, P, Q, W 열 String숫자 to 숫자 변환
-    ex.convert_numeric_strings(cols=("E", "M", "P", "Q", "W"))
+    # P, Q, W 열 String숫자 to 숫자 변환
+    ex.convert_numeric_strings(cols=("P", "Q", "W"))
 
     # sale_cnt (G열) '/' 구분자 합산
     process_slash_separated_columns(ws, ['G'])

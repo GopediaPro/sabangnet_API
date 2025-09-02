@@ -1,8 +1,11 @@
+from openpyxl.cell import Cell
 from openpyxl.styles import Font, Alignment
 from utils.excels.excel_handler import ExcelHandler
 from utils.excels.excel_column_handler import ExcelColumnHandler
 from utils.macros.ERP.utils import average_duplicate_order_address_amounts
+from utils.logs.sabangnet_logger import get_logger
 
+logger = get_logger(__name__)
 
 class ERPEtcSiteMacroV2:
     def __init__(self, file_path: str, is_star: bool = False):
@@ -23,7 +26,7 @@ class ERPEtcSiteMacroV2:
         4. 시트별로 데이터 분리
         5. 시트별 디자인 적용
         """
-        print("=== 기타 사이트 ERP 자동화 V2 시작 ===")
+        logger.info("=== 기타 사이트 ERP 자동화 V2 시작 ===")
         
         # 1단계: 시트 설정 및 생성
         sheets_name = ["OK", "IY", "BB"]
@@ -35,15 +38,16 @@ class ERPEtcSiteMacroV2:
         
         # 필요한 시트들이 없으면 생성
         self._ensure_sheets_exist(sheets_name)
-        print("✓ 시트 생성 완료")
+        logger.info("✓ 시트 생성 완료")
 
         # 2단계: 데이터 처리
-        print("데이터 처리 시작...")
+        logger.info("데이터 처리 시작...")
         col_h = ExcelColumnHandler()
         
         # 기본 데이터 처리
         for row in range(2, self.ws.max_row + 1):
             self._overlap_by_site_column(self.ws[f"B{row}"], row)
+            self._overlap_kakao(row)
             self._toss_process_column(self.ws[f"B{row}"], row)
             self._order_num_by_site_column(self.ws[f"B{row}"])
             self.ws[f"H{row}"].value = self.ex.format_phone_number(self.ws[f"H{row}"].value)
@@ -55,16 +59,16 @@ class ERPEtcSiteMacroV2:
         # D, U, V 컬럼 처리 (토스 주문 정보 처리 후)
         for row in range(2, self.ws.max_row + 1):
             col_h.d_column(self.ws[f"D{row}"], self.ws[f"U{row}"], self.ws[f"V{row}"])
-        print("✓ 기본 데이터 처리 완료")
+        logger.info("✓ 기본 데이터 처리 완료")
 
         # 3단계: 스타배송 모드에서 평균 금액 적용
         if self.is_star:
-            print("스타배송 모드: 평균 금액 적용 중...")
+            logger.info("스타배송 모드: 평균 금액 적용 중...")
             average_duplicate_order_address_amounts(self.ws)
-            print("✓ 평균 금액 적용 완료")
+            logger.info("✓ 평균 금액 적용 완료")
 
         # 4단계: 시트별로 데이터 분리
-        print("시트별 데이터 분리 시작...")
+        logger.info("시트별 데이터 분리 시작...")
         sort_columns = [2, 3, -4, 5, 6]  # 정렬 기준
         headers, data = self.ex.preprocess_and_update_ws(self.ws, sort_columns)
         
@@ -76,10 +80,10 @@ class ERPEtcSiteMacroV2:
             site_to_sheet=site_to_sheet,
             site_col_idx=2,
         )
-        print("✓ 시트별 데이터 분리 완료")
+        logger.info("✓ 시트별 데이터 분리 완료")
 
         # 5단계: 시트별 디자인 적용
-        print("시트별 서식, 디자인 적용 시작...")
+        logger.info("시트별 서식, 디자인 적용 시작...")
         for ws in self.wb.worksheets:
             if ws.title == "Sheet":  # 기본 시트는 건너뛰기
                 continue
@@ -96,11 +100,11 @@ class ERPEtcSiteMacroV2:
                 col_h.convert_int_column(ws[f"P{row}"])
                 self._v_column_red_font(ws[f"V{row}"])
             
-            print(f"✓ [{ws.title}] 서식 및 디자인 적용 완료")
+            logger.info(f"✓ [{ws.title}] 서식 및 디자인 적용 완료")
         
         # 최종 파일 저장
         output_path = self.ex.save_file(self.file_path)
-        print(f"✓ 기타 사이트 ERP 자동화 V2 완료! 최종 파일: {output_path}")
+        logger.info(f"✓ 기타 사이트 ERP 자동화 V2 완료! 최종 파일: {output_path}")
         return output_path
 
     def _ensure_sheets_exist(self, sheets_name):
@@ -112,7 +116,7 @@ class ERPEtcSiteMacroV2:
         for sheet_name in sheets_name:
             if sheet_name not in existing_sheets:
                 self.wb.create_sheet(title=sheet_name)
-                print(f"  - {sheet_name} 시트 생성됨")
+                logger.info(f"  - {sheet_name} 시트 생성됨")
 
     def _overlap_by_site_column(self, b_cell, row):
         """
@@ -138,6 +142,30 @@ class ERPEtcSiteMacroV2:
                     self.ws[f"V{row}"].value = 0
                 else:
                     self.order_set.add(order_key)
+    
+    # 카카오톡스토어 배송비 중복 처리 (_overlap_by_site_column 로직 보완)
+    def _overlap_kakao(self, row: int):
+        """
+        사이트 이름, 수취인명, 수취인주소, 우편번호 기준으로 중복값 확인 후 배송비 처리
+        args:
+            row: 행 번호
+        """
+        site_name = str(self.ws[f"B{row}"].value).strip()
+        if "카카오톡스토어" in site_name:
+            receiver_name = str(self.ws[f"C{row}"].value).strip()
+            receiver_address = str(self.ws[f"J{row}"].value).strip()
+            receiver_zip_code = str(self.ws[f"K{row}"].value).strip()
+            
+            # 키 생성
+            order_key = f"{site_name}_{receiver_name}_{receiver_address}_{receiver_zip_code}"
+
+            if not order_key:
+                return
+
+            if order_key in self.order_set:
+                self.ws[f"V{row}"].value = 0
+            else:
+                self.order_set.add(order_key)
 
     def _toss_process_column(self, cell, row):
         """

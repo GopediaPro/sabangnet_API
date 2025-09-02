@@ -14,19 +14,19 @@ class BundleUtilsV3:
             self.df['receive_addr'] + self.df['receive_name']
 
         all_columns = {
-            'order_id': 'min',  # 주문 번호
-            'item_name': ' + '.join,  # 제품명
+            'order_id': 'max',  # 주문 번호
+            'item_name': self.reversed_join(' + '),  # 제품명
             'service_fee': 'max',  # 서비스이용료
             'pay_cost': 'sum',  # 금액[배송비미포함]
             'delv_cost': 'max',
-            'idx': lambda x: '/'.join(filter(None, x)),  # 사방넷주문번호
-            'product_name': lambda x: ' / '.join(filter(None, x)),  # 수집상품명
-            'mall_product_id': lambda x: '/'.join(filter(None, x)),  # 상품번호
-            'sku_value': lambda x: '/'.join(filter(None, x)),  # 수집옵션
-            'sale_cnt': lambda x: str(sum(int(val) for val in x if val is not None)),  # 수량
+            'idx': self.reversed_join('/'),  # 사방넷주문번호
+            'product_name': self.reversed_join(' / '),  # 수집상품명
+            'mall_product_id': self.reversed_join('/'),  # 상품번호
+            'sku_value': self.reversed_join('/'),  # 수집옵션
+            'sale_cnt': self.sum_to_str(),  # 수량
             'expected_payout': 'max',  # 정산예정금액
-            'delv_msg': lambda x: '/'.join(filter(None, x)),  # 배송메시지
-            'etc_cost': lambda x: str(sum(int(val) for val in x if val is not None)),  # 금액(이미 ERP 매크로를 통해 계산된 값)
+            'delv_msg': self.reversed_join('/'),  # 배송메시지
+            'etc_cost': self.sum_to_str(),  # 금액(이미 ERP 매크로를 통해 계산된 값)
 
             # 나머지 컬럼
             'seq': 'first',
@@ -55,3 +55,11 @@ class BundleUtilsV3:
         run_bundle_macro_data = self.df.to_dict(orient='records')
         logger.info(f"[END]run_bundle_macro_data")
         return run_bundle_macro_data
+
+    def reversed_join(self, target_str: str) -> str:
+        """역순으로 join"""
+        return lambda x: target_str.join(filter(None, x[::-1]))
+
+    def sum_to_str(self) -> str:
+        """정수 합계 문자열로 반환"""
+        return lambda x: str(sum(int(val) for val in x if val is not None))

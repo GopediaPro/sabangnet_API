@@ -79,24 +79,24 @@ def add_island_delivery(df: pd.DataFrame):
     """
     logger.info(f"[START]add_island_delivery")
     island_dict = [
-        {"site_name": "GSSHOP", "fid_dsp": "GSSHOP", "cost": 3000, "add_dsp": None},
-        {"site_name": "텐바이텐", "fid_dsp": "텐바이텐", "cost": 3000,
+        {"site_name": "GSSHOP", "fld_dsp": "GSSHOP", "cost": 3000, "add_dsp": None},
+        {"site_name": "텐바이텐", "fld_dsp": "텐바이텐", "cost": 3000,
          "add_dsp": "[3000원 연락해야함, 어드민 조회필요(외부몰/자체몰)]"},
-        {"site_name": "쿠팡", "fid_dsp": "쿠팡", "cost": 3000, "add_dsp": None},
-        {"site_name": "무신사", "fid_dsp": "무신사", "cost": 3000, "add_dsp": None},
-        {"site_name": "NS홈쇼핑", "fid_dsp": "NS홈쇼핑", "cost": 3000, "add_dsp": None},
-        {"site_name": "CJ온스타일", "fid_dsp": "CJ온스타일", "cost": 3000, "add_dsp": None},
-        {"site_name": "오늘의집", "fid_dsp": "오늘의집", "cost": 3000, "add_dsp": None},
-        {"site_name": "브랜디", "fid_dsp": "브랜디",
+        {"site_name": "쿠팡", "fld_dsp": "쿠팡", "cost": 3000, "add_dsp": None},
+        {"site_name": "무신사", "fld_dsp": "무신사", "cost": 3000, "add_dsp": None},
+        {"site_name": "NS홈쇼핑", "fld_dsp": "NS홈쇼핑", "cost": 3000, "add_dsp": None},
+        {"site_name": "CJ온스타일", "fld_dsp": "CJ온스타일", "cost": 3000, "add_dsp": None},
+        {"site_name": "오늘의집", "fld_dsp": "오늘의집", "cost": 3000, "add_dsp": None},
+        {"site_name": "브랜디", "fld_dsp": "브랜디",
             "cost": 3000, "add_dsp": "[3000원 연락해야함]"},
-        {"site_name": "에이블리", "fid_dsp": "에이블리", "cost": 3000, "add_dsp": None},
-        {"site_name": "보리보리", "fid_dsp": "보리보리",
+        {"site_name": "에이블리", "fld_dsp": "에이블리", "cost": 3000, "add_dsp": None},
+        {"site_name": "보리보리", "fld_dsp": "보리보리",
             "cost": 3000, "add_dsp": "[3000원 연락해야함]"},
-        {"site_name": "지그재그", "fid_dsp": "지그재그", "cost": 3000, "add_dsp": None},
-        {"site_name": "카카오톡선물하기", "fid_dsp": "카카오선물하기",
+        {"site_name": "지그재그", "fld_dsp": "지그재그", "cost": 3000, "add_dsp": None},
+        {"site_name": "카카오톡선물하기", "fld_dsp": "카카오선물하기",
             "cost": 3000, "add_dsp": "[3000원 연락해야함]"},
-        {"site_name": "11번가", "fid_dsp": "11번가", "cost": 5000, "add_dsp": None},
-        {"site_name": "홈&쇼핑", "fid_dsp": "홈&쇼핑",
+        {"site_name": "11번가", "fld_dsp": "11번가", "cost": 5000, "add_dsp": None},
+        {"site_name": "홈&쇼핑", "fld_dsp": "홈&쇼핑",
             "cost": 3000, "add_dsp": "[3000원 연락해야함]"},
     ]
 
@@ -112,8 +112,8 @@ def add_island_delivery(df: pd.DataFrame):
 
     for island_info in island_dict:
         # 해당 사이트의 제주도 배송 데이터 필터링
-        site_mask = jeju_data['fid_dsp'].fillna('').str.contains(
-            island_info['fid_dsp'], case=False, na=False
+        site_mask = jeju_data['fld_dsp'].fillna('').str.contains(
+            island_info['fld_dsp'], case=False, na=False
         )
         target_indices = jeju_data[site_mask].index
 
@@ -144,14 +144,27 @@ def format_phone_number(df: pd.DataFrame):
     """
     전화번호 포맷팅
     """
-    receive_tel = df['receive_tel'].fillna('').str.replace('-', '')
-    receive_cel = df['receive_cel'].fillna('').str.replace('-', '')
-    if len(receive_tel) == 11 and receive_tel.startswith('010') and receive_tel.isdigit():
-        df.loc[receive_tel,
-               'receive_tel'] = f"{receive_tel[:3]}-{receive_tel[3:7]}-{receive_tel[7:]}"
-    if len(receive_cel) == 11 and receive_cel.startswith('010') and receive_cel.isdigit():
-        df.loc[receive_cel,
-               'receive_cel'] = f"{receive_cel[:3]}-{receive_cel[3:7]}-{receive_cel[7:]}"
+    df['receive_tel'] = df['receive_tel'].fillna(
+        '').astype(str).str.replace('-', '')
+    df['receive_cel'] = df['receive_cel'].fillna(
+        '').astype(str).str.replace('-', '')
+
+    # 조건에 맞는 행들만 포맷팅
+    tel_mask = (df['receive_tel'].str.len() == 11) & (
+        df['receive_tel'].str.startswith('010')) & (df['receive_tel'].str.isdigit())
+
+    cel_mask = (df['receive_cel'].str.len() == 11) & (
+        df['receive_cel'].str.startswith('010')) & (df['receive_cel'].str.isdigit())
+
+    # 포맷팅 적용
+    df.loc[tel_mask, 'receive_tel'] = df.loc[tel_mask, 'receive_tel'].apply(
+        lambda x: f"{x[:3]}-{x[3:7]}-{x[7:]}"
+    )
+
+    df.loc[cel_mask, 'receive_cel'] = df.loc[cel_mask, 'receive_cel'].apply(
+        lambda x: f"{x[:3]}-{x[3:7]}-{x[7:]}"
+    )
+
     return df
 
 
@@ -174,15 +187,18 @@ def star_average_process(df: pd.DataFrame):
     if len(valid_delivery_df) > 0:
         group_sizes = valid_delivery_df.groupby('star_avg').size()
         groups_with_multiple = group_sizes[group_sizes >= 2].index
-        
+
         if len(groups_with_multiple) > 0:
-            avg_delivery = valid_delivery_df[valid_delivery_df['star_avg'].isin(groups_with_multiple)].groupby('star_avg')['delv_cost'].mean()
-            
+            avg_delivery = valid_delivery_df[valid_delivery_df['star_avg'].isin(
+                groups_with_multiple)].groupby('star_avg')['delv_cost'].mean()
+
             # 평균 배송비 적용
-            df.loc[df['star_avg'].isin(avg_delivery.index), 'delv_cost'] = df.loc[df['star_avg'].isin(avg_delivery.index), 'star_avg'].map(avg_delivery)
-            
-            logger.info(f"스타배송 평균 배송비 적용 완료: {len(avg_delivery)}개 그룹 (2개 이상인 그룹만)")
-    
+            df.loc[df['star_avg'].isin(avg_delivery.index), 'delv_cost'] = df.loc[df['star_avg'].isin(
+                avg_delivery.index), 'star_avg'].map(avg_delivery)
+
+            logger.info(
+                f"스타배송 평균 배송비 적용 완료: {len(avg_delivery)}개 그룹 (2개 이상인 그룹만)")
+
     # 임시 컬럼 제거
     df = df.drop('star_avg', axis=1)
     return df

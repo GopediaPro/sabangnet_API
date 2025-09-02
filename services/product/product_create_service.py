@@ -29,6 +29,12 @@ class ProductCreateService:
             # return response.text
             full_url = f"{api_url}?xml_url={xml_url}"
             logger.info(f"최종 요청 URL: {full_url}")
+
+            # response = requests.get(full_url, timeout=30)  # 사방넷 API에 요청을 보내기 전에 URL을 확인하기 위해 호출
+            # response.raise_for_status()  # HTTP 오류가 발생하면 예외를 발생시킴
+            # # 요청 URL과 응답을 로그에 기록
+            # response_text = response.text
+            # return response_text
             
             # 비동기 HTTP 요청으로 변경
             async with aiohttp.ClientSession() as session:

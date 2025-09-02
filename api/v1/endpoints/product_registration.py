@@ -6,27 +6,36 @@ Product Registration API
 - 판매 예정인 상품들의 데이터라고 이해하면 됩니다.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
+from schemas.integration_request import IntegrationRequest
+from schemas.integration_response import ResponseHandler, Metadata
+# utils
+from utils.response_status import RowStatus, make_row_result
+from utils.excels.excel_handler import ExcelHandler
+from fastapi.responses import JSONResponse
 from typing import List, Dict, Any
 import os
 import logging
 import tempfile
 
+
 from core.db import get_async_session
 from services.product_registration import ProductRegistrationService, ProductCodeIntegratedService, ProductRegistrationReadService
 from services.product_registration.product_integrated_service_v2 import ProductCodeIntegratedServiceV2
 from schemas.product_registration import (
-    ProductRegistrationDto,
+    ProductRegistrationCreateDto,
     ProductRegistrationReadResponse,
     ProductRegistrationPaginationReadResponse,
-    ProductRegistrationBulkResponseDto,
-    ProductRegistrationBulkCreateDto,
-    ProductRegistrationResponseDto,
-    ProductRegistrationCreateDto,
     ExcelProcessResultDto,
     ExcelImportResponseDto,
-    CompleteWorkflowResponseDto
+    CompleteWorkflowResponseDto,
+    ProductRegistrationBulkCreateDto,
+    ProductRegistrationBulkUpdateDto,
+    ProductRegistrationBulkDeleteDto,
+    ProductRegistrationBulkResponseDto,
+    ProductRegistrationResponseDto,
+    ProductRegistrationBulkDeleteResponse,
 )
 from utils.decorators import (
     product_registration_handler, 
@@ -51,12 +60,11 @@ try:
     logger.info("Product Registration 스키마 검증 중...")
     from schemas.product_registration import (
         ProductRegistrationBulkResponseDto,
-        ProductRegistrationBulkCreateDto,
         ProductRegistrationResponseDto,
         ProductRegistrationCreateDto,
         ExcelProcessResultDto,
         ExcelImportResponseDto,
-        CompleteWorkflowResponseDto
+        CompleteWorkflowResponseDto,
     )
     logger.info("Product Registration 스키마 로드 성공")
 except Exception as e:
@@ -365,20 +373,92 @@ async def create_single_product(
 
 
 @router.post(
-    "/bulk-create",
-    response_model=ProductRegistrationBulkResponseDto,
+    "/bulk",
+    response_class=JSONResponse,
     summary="대량 상품 등록",
     description="여러 상품 등록 데이터를 한 번에 생성합니다."
 )
-@product_registration_handler()
-async def create_bulk_products(
-    data: ProductRegistrationBulkCreateDto,
+async def bulk_create_products(
+    request: IntegrationRequest[list[ProductRegistrationBulkCreateDto]] = Body(...),
     service: ProductRegistrationService = Depends(get_product_registration_service)
 ):
-    """대량 상품 등록 데이터를 생성합니다."""
-    result = await service.create_bulk_products(data.data)
-    logger.info(f"대량 상품 등록 완료: 성공 {result.success_count}개")
-    return result
+    logger.info(f"[bulk_create_products] 요청: {len(request.data)}건")
+
+    try:
+        result: ProductRegistrationBulkResponseDto = await service.create_bulk_products(request.data)
+        logger.info(f"[bulk_create_products] 성공: {result.success_count}건 생성")
+
+        return ResponseHandler.ok(
+            data=result,
+            metadata=Metadata(version="v1", request_id=request.metadata.request_id)
+        )
+
+    except Exception as e:
+        logger.error(f"[bulk_create_products] 실패: {str(e)}")
+        return ResponseHandler.internal_error(
+            message=str(e),
+            metadata=Metadata(version="v1", request_id=request.metadata.request_id)
+        )
+
+
+@router.put(
+    "/bulk",
+    response_class=JSONResponse,
+    summary="대량 상품 등록 데이터 업데이트",
+    description="여러 상품 등록 데이터를 한 번에 업데이트합니다."
+)
+async def bulk_update_products(
+    request: IntegrationRequest[list[ProductRegistrationBulkUpdateDto]] = Body(...),
+    service: ProductRegistrationService = Depends(get_product_registration_service)
+):
+    logger.info(f"[bulk_update_products] 요청: {len(request.data)}건")
+
+    try:
+        result: ProductRegistrationBulkResponseDto = await service.update_bulk_products(request.data)
+        logger.info(f"[bulk_update_products] 성공: {result.success_count}건 수정")
+
+        return ResponseHandler.ok(
+            data=result,
+            metadata=Metadata(version="v1", request_id=request.metadata.request_id)
+        )
+    except Exception as e:
+        logger.error(f"[bulk_update_products] 실패: {str(e)}")
+        return ResponseHandler.internal_error(
+            message=str(e),
+            metadata=Metadata(version="v1", request_id=request.metadata.request_id)
+        )
+
+
+@router.delete(
+    "/bulk",
+    response_class=JSONResponse,
+    summary="대량 상품 등록 데이터 삭제",
+    description="여러 상품 등록 데이터를 한 번에 삭제합니다."
+)
+async def bulk_delete_products(
+    request: IntegrationRequest[list[ProductRegistrationBulkDeleteDto]] = Body(...),
+    service: ProductRegistrationService = Depends(get_product_registration_service)
+):
+    logger.info(f"[bulk_delete_products] 요청: {len(request.data)}건")
+
+    try:
+        ids = [dto.id for dto in request.data]
+
+        result: ProductRegistrationBulkDeleteResponse = await service.delete_bulk_products(ids)
+
+        logger.info(f"[bulk_delete_products] 성공: {result.success_count}건, 실패: {result.error_count}건")
+
+        return ResponseHandler.ok(
+            data=result,
+            metadata=Metadata(version="v1", request_id=request.metadata.request_id)
+        )
+
+    except Exception as e:
+        logger.error(f"[bulk_delete_products] 실패: {str(e)}")
+        return ResponseHandler.internal_error(
+            message=str(e),
+            metadata=Metadata(version="v1", request_id=request.metadata.request_id)
+        )
 
 
 @router.get(
@@ -471,3 +551,4 @@ async def delete_product(
     
     logger.info(f"상품 삭제 완료: ID={product_id}")
     return {"message": "상품 등록 데이터가 성공적으로 삭제되었습니다.", "deleted_id": product_id}
+

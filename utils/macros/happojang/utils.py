@@ -40,5 +40,5 @@ def process_slash_separated_columns(ws, columns: list, start_row: int = 2) -> No
             cell = ws[f'{col}{row}']
             if cell.value:
                 # '/' 구분자 합산 처리
-                processed_value = sum_slash_separated_values(str(cell.value))
+                processed_value = sum_slash_separated_values(str(int(cell.value)))
                 cell.value = processed_value

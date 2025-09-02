@@ -10,7 +10,7 @@ from sqlalchemy import select, insert, update, delete, func
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
 from models.product.product_registration_data import ProductRegistrationRawData
-from schemas.product_registration import ProductRegistrationCreateDto
+from schemas.product_registration import ProductRegistrationCreateDto, ProductRegistrationBulkUpdateDto, ProductRegistrationBulkDeleteDto
 from utils.logs.sabangnet_logger import get_logger
 
 logger = get_logger(__name__)
@@ -290,4 +290,60 @@ class ProductRegistrationRepository:
         query = select(ProductRegistrationRawData).where(ProductRegistrationRawData.product_nm == product_nm)
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
-      
+    
+
+    async def update_bulk(self, data_list: list[ProductRegistrationBulkUpdateDto]) -> list[int]:
+        """
+        대량 상품 등록 데이터를 업데이트합니다.
+        """
+        try:
+            if not data_list:
+                return []
+            
+            updated_ids = []
+
+            for dto in data_list:
+                values = dto.dict(exclude_unset=True, exclude_none=True)
+                dto_id = values.pop("id", None)
+                if not dto_id:
+                    continue  # id가 없으면 업데이트 불가
+                
+                stmt = (
+                    update(ProductRegistrationRawData)
+                    .where(ProductRegistrationRawData.id == dto_id)
+                    .values(**values)
+                    .returning(ProductRegistrationRawData.id)
+                )
+                result = await self.session.execute(stmt)
+                row = result.fetchone()
+                if row:
+                    updated_ids.append(row[0])
+
+            logger.info(f"대량 상품 등록 데이터 업데이트 완료: {len(updated_ids)}개")
+            return updated_ids
+
+        except SQLAlchemyError as e:
+            logger.error(f"데이터베이스 오류: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"알 수 없는 오류: {e}")
+            raise
+
+    async def delete_bulk(self, ids: list[int]) -> list[int]:
+        """
+        주어진 ID 목록을 삭제하고, 실제 삭제된 ID 리스트를 반환
+        """
+        try:
+            stmt = delete(ProductRegistrationRawData).where(
+                ProductRegistrationRawData.id.in_(ids)
+            ).returning(ProductRegistrationRawData.id)
+
+            result = await self.session.execute(stmt)
+            deleted_ids = [row[0] for row in result.fetchall()]
+
+            logger.info(f"대량 상품 등록 데이터 삭제 완료: {len(deleted_ids)}개")
+            return deleted_ids
+
+        except Exception as e:
+            logger.error(f"알 수 없는 오류: {e}")
+            raise

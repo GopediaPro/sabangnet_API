@@ -34,6 +34,8 @@ from services.down_form_orders.template_config_read_service import TemplateConfi
 from services.down_form_orders.down_form_order_create_service import DownFormOrderCreateService
 from services.export_templates.export_templates_read_service import ExportTemplatesReadService
 from services.macro_batch_processing.batch_info_create_service import BatchInfoCreateService
+from services.vlookup_datas.vlookup_datas_read_service import VlookupDatasReadService
+from services.vlookup_datas.vlookup_datas_create_service import VlookupDatasCreateService
 # file
 from minio_handler import temp_file_to_object_name, delete_temp_file, upload_and_get_url_and_size, url_arrange
 
@@ -54,6 +56,8 @@ class DataProcessingUsecase:
             session)
         self.batch_info_create_service = BatchInfoCreateService(session)
         self.order_create_service = ReceiveOrderCreateService(session)
+        self.vlookup_datas_read_service = VlookupDatasReadService(session)
+        self.vlookup_datas_create_service = VlookupDatasCreateService(session)
 
     def parse_filename(self, filename: str) -> dict[str, Any]:
         """
@@ -236,7 +240,7 @@ class DataProcessingUsecase:
             f"[START] save_down_form_order_from_receive_orders_by_filters_v2 filters: {filters}")
 
         # 몰 아이디, 배송구분 추출
-        mall_id = filters.get('mall_id')
+        fld_dsp = filters.get('fld_dsp')
         dpartner_id = filters.get('dpartner_id')
 
         # (임시 주석처리)
@@ -245,26 +249,14 @@ class DataProcessingUsecase:
 
         # if not receive_orders_saved_success:
         #     logger.error(f"No receive_orders data saved to receive_orders")
-        #     return ResponseHandler.not_found(
-        #         message="No receive_orders data saved to receive_orders",
-        #         metadata=Metadata(
-        #             version="v2",
-        #             request_id=filters.get('request_id')
-        #         )
-        #     )
+        #     raise ValueError("No receive_orders data saved to receive_orders")
 
         # 2. filters에 따라 receive_orders 조회
         receive_orders: list[ReceiveOrders] = await self.order_read_service.get_receive_orders_by_filters(filters)
         logger.info(f"receive_orders_len: {len(receive_orders)}")
         if not receive_orders:
             logger.error(f"No receive_orders data found to process")
-            return ResponseHandler.not_found(
-                message="No receive_orders data found to process",
-                metadata=Metadata(
-                    version="v2",
-                    request_id=filters.get('request_id')
-                )
-            )
+            raise ValueError("No receive_orders data found to process")
 
         # 3. receive_orders 데이터를 dto로 변환
         receive_orders_dto_list: list[dict[str, Any]] = []
@@ -275,14 +267,13 @@ class DataProcessingUsecase:
 
         # 4. template_code 설정[ERP, 합포장]
         template_code_mapping = {
-            'ESM옥션': ('gmarket_erp', 'gmarket_bundle'),
-            'ESM지마켓': ('gmarket_erp', 'gmarket_bundle'),
+            '옥션2.0': ('gmarket_erp', 'gmarket_bundle'),
+            'G마켓2.0': ('gmarket_erp', 'gmarket_bundle'),
             '브랜디': ('brandi_erp', 'basic_bundle'),
-            '지그재그': ('zigzag_erp', 'zigzag_bundle'),
-            '기타사이트': ('basic_erp', 'basic_bundle')
+            '지그재그': ('zigzag_erp', 'zigzag_bundle')
         }
         erp_template_code, bundle_template_code = template_code_mapping.get(
-            mall_id, ('basic_erp', 'basic_bundle'))
+            fld_dsp, ('basic_erp', 'basic_bundle'))
 
         is_star = False
         # 5. 배송구분(일반배송, 스타배송) 설정
@@ -305,7 +296,7 @@ class DataProcessingUsecase:
 
         return DownFormOrdersFromReceiveOrdersDto(
             success=True,
-            mall_id=mall_id,
+            fld_dsp=fld_dsp,
             dpartner_id=dpartner_id,
             processed_count=len(receive_orders),
             saved_count=saved_count,
@@ -538,16 +529,20 @@ class DataProcessingUsecase:
         # 1. 템플릿 설정 조회
         logger.info(
             f"run_macro_with_db_v3 called with template_code={template_code}")
-        config: dict = await self.template_config_read_service.get_template_config_by_template_code(template_code)
+        config: dict = await self.template_config_read_service.get_template_config_by_template_code_with_mapping(template_code)
         logger.info(f"Loaded template config: {config}")
-
+    
         # 2. 데이터 1대1 매핑 변환 (DB_to_DB 에서는 합포장, ERP 구분없이 사용)
-        processed_data = await DataProcessingUtils.process_simple_data(receive_orders_data, config)
+        processed_data = await DataProcessingUtils.process_receive_order_data(receive_orders_data, config)
         # 3. 매크로 실행
         run_macro_data: list[dict[str, Any]] = []
         macro_func = self.order_macro_utils.MACRO_MAP_V3.get(template_code)
         if macro_func:
-            run_macro_data = macro_func(processed_data, is_star)
+            if template_code == 'zigzag_erp' or template_code == 'zigzag_bundle':
+                processed_vlookup_data = await self.vlookup_data_processing(processed_data)
+                run_macro_data = macro_func(processed_vlookup_data, is_star)
+            else:
+                run_macro_data = macro_func(processed_data, is_star)
         else:
             logger.error(f"Macro not found for template code: {template_code}")
             raise ValueError(
@@ -563,6 +558,42 @@ class DataProcessingUsecase:
         except Exception as e:
             logger.error(f"Error running {template_code} macro with db: {e}")
             raise
+    
+    async def vlookup_data_processing(self, processed_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """
+        vlookup 데이터 처리
+        """
+        logger.info(f"[START] VLOOKUP DATA PROCESSING")
+        mall_product_id_dict = {}
+        # 상품코드 배송비 추출
+        for item in processed_data:
+            mall_product_id = item.get('mall_product_id')
+            if mall_product_id:
+                mall_product_id_dict[mall_product_id] = {
+                    'mall_product_id': mall_product_id, 
+                    'delv_cost': item.get('delv_cost')
+                    }
+        logger.info(f"mall_product_id_dict len: {len(mall_product_id_dict)}")
+        # vlookup 데이터 조회
+        vlookup_datas = await self.vlookup_datas_read_service.get_vlookup_datas_with_not_found_mall_product_ids(mall_product_id_dict.keys())
+        found_datas = vlookup_datas.get('found_datas', {})
+        not_found_datas = vlookup_datas.get('not_found_datas', [])
+        logger.info(f"found_datas len: {len(found_datas)} | not_found_datas len: {len(not_found_datas)}")
+
+        # 조회되지 않은 데이터 vlookup_datas 테이블에 추가
+        if not_found_datas:
+            not_found_data_list: list[dict] = [mall_product_id_dict.get(item) for item in not_found_datas]
+            saved_count_vlookup_datas = await self.vlookup_datas_create_service.saved_count_bulk_create_vlookup_datas(not_found_data_list)
+            logger.info(f"saved_count_vlookup_datas: {saved_count_vlookup_datas['saved_count']}")
+        
+        # 조회된 데이터 추가
+        if found_datas:
+            for item in processed_data:
+                mall_product_id = item.get('mall_product_id')
+                if mall_product_id and mall_product_id in found_datas:
+                    item['delv_cost'] = found_datas[mall_product_id]['delv_cost']
+        logger.info(f"[END] VLOOKUP DATA PROCESSING")
+        return processed_data
 
     async def run_macro_with_db(self, template_code: str) -> int:
         """

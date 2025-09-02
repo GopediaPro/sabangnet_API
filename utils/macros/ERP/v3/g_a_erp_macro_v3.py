@@ -28,11 +28,15 @@ class GAERPMacroV3:
         # 장바구니 중복값 배송비 제거
         df = self._process_dupl_basket(df)
 
+        # 숫자 타입 변환
+        df['expected_payout'] = pd.to_numeric(df['expected_payout'], errors='coerce').fillna(0)
+        df['service_fee'] = pd.to_numeric(df['service_fee'], errors='coerce').fillna(0)
+        df['delv_cost'] = pd.to_numeric(df['delv_cost'], errors='coerce').fillna(0)
+
         # 금액 계산
-        df['etc_cost'] = df['expected_payout'].fillna(
-            0) + df['service_fee'].fillna(0) + df['delv_cost'].fillna(0)
+        df['etc_cost'] = df['expected_payout'] + df['service_fee'] + df['delv_cost']
         df['etc_cost'] = df['etc_cost'].astype(int).astype(str)
-        
+
         # 스타배송 평균 배송비 적용
         if self.is_star:
             df = star_average_process(df)
@@ -67,9 +71,9 @@ class GAERPMacroV3:
         df.loc[mask, 'delv_cost'] = df.loc[mask, 'site_basket'].map(
             delivery_mapping).fillna(0)
 
-
         df.drop('site_basket', axis=1, inplace=True)
         return df
+
 
 def gauc_erp_macro_run(row_datas: list[dict], is_star: bool = False) -> list[dict]:
     return GAERPMacroV3(row_datas, is_star).gauc_erp_macro_run()
