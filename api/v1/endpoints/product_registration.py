@@ -12,13 +12,14 @@ from schemas.integration_request import IntegrationRequest
 from schemas.integration_response import ResponseHandler, Metadata
 # utils
 from utils.response_status import RowStatus, make_row_result
-from utils.excels.excel_handler import ExcelHandler
 from fastapi.responses import JSONResponse
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from datetime import datetime
 import os
 import logging
 import tempfile
-
+from fastapi import Query
+from fastapi.responses import FileResponse
 
 from core.db import get_async_session
 from services.product_registration import ProductRegistrationService, ProductCodeIntegratedService, ProductRegistrationReadService
@@ -140,6 +141,53 @@ async def get_api_status():
     return {"message": "Product Registration API is running", "status": "ok"}
 
 
+@router.get(
+    "/excel/download/products",
+    response_class=FileResponse,
+    summary="상품 등록 데이터 Excel 다운로드",
+    description="상품 등록 데이터를 Excel 파일로 직접 다운로드합니다."
+)
+async def download_products_excel(
+    sort_order: Optional[str] = Query(
+        None,
+        pattern="^(asc|desc)$",
+        description="정렬(asc/desc). 미지정 시 정렬 미적용",
+        example="desc"
+    ),
+    created_before: Optional[datetime] = Query(
+        None,
+        description="이 날짜/시각 이전(created_at <=) 데이터만 필터링, 미지정 시 필터링 미적용",
+        example="2025-09-01T00:00:00"
+    ),
+    service: ProductRegistrationService = Depends(get_product_registration_service)
+):
+    """
+    상품 등록 데이터를 Excel 파일로 다운로드합니다.
+    """
+    try:
+        # 서비스 계층에서 Excel 파일 생성 및 경로 반환
+        temp_file_path, file_name = await service.generate_excel_file(
+            sort_order=sort_order,
+            created_before=created_before
+        )
+        
+        logger.info(f"[download_products_excel] 성공: {file_name}")
+
+        # FileResponse 반환
+        return FileResponse(
+            path=temp_file_path,
+            filename=file_name,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    except Exception as e:
+        logger.error(f"[download_products_excel] 실패: {str(e)}")
+        return ResponseHandler.internal_error(
+            message=str(e),
+            metadata=Metadata(version="v1", request_id="N/A")
+        )
+
+
 @router.post(
     "/excel/process",
     response_model=ExcelProcessResultDto,
@@ -205,7 +253,7 @@ async def import_excel_to_db(
     finally:
         # 임시 파일 정리
         cleanup_func()
-
+        
 
 @router.post(
     "/complete-workflow-db",

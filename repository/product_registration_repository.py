@@ -5,6 +5,7 @@ Product Registration Repository
 
 from decimal import Decimal
 from typing import Optional, Tuple
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete, func
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
@@ -346,4 +347,32 @@ class ProductRegistrationRepository:
 
         except Exception as e:
             logger.error(f"알 수 없는 오류: {e}")
+            raise
+
+    async def fetch_products_for_excel(
+        self,
+        sort_order: Optional[str] = None,
+        created_before: Optional[datetime] = None
+    ) -> list[ProductRegistrationRawData]:
+        """
+        Excel 다운로드용 상품 등록 데이터 조회
+        """
+        try:
+            stmt = select(ProductRegistrationRawData)
+
+            # created_before 필터링
+            if created_before:
+                stmt = stmt.where(ProductRegistrationRawData.created_at <= created_before)
+
+            # 정렬
+            if sort_order == "asc":
+                stmt = stmt.order_by(ProductRegistrationRawData.created_at.asc())
+            elif sort_order == "desc":
+                stmt = stmt.order_by(ProductRegistrationRawData.created_at.desc())
+
+            result = await self.session.execute(stmt)
+            return result.scalars().all()
+
+        except SQLAlchemyError as e:
+            logger.error(f"Excel 다운로드 데이터 조회 오류: {e}")
             raise
