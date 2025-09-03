@@ -589,7 +589,7 @@ class ProductRegistrationService:
 
             # Excel 파일 생성
             temp_dir = tempfile.gettempdir()
-            temp_file_path = os.path.join(temp_dir, "product_registration.xlsx")
+            temp_file_path = os.path.join(temp_dir, "상품등록.xlsx")
             excel_handler.create_excel_file_from_dto(
                 dto_class=ProductRegistrationCreateDto,
                 data=[p.dict() for p in products],
@@ -609,7 +609,7 @@ class ProductRegistrationService:
         self,
         sort_order: Optional[str] = None,
         created_before: Optional[datetime] = None,
-    ) -> List[ProductRegistrationResponseDto]:
+    ) -> List[ProductRegistrationCreateDto]:
         """
         Excel 다운로드용 상품 등록 데이터 조회
         - sort_order: "asc"|"desc"|None
@@ -619,4 +619,4 @@ class ProductRegistrationService:
             sort_order=sort_order,
             created_before=created_before,
         )
-        return [ProductRegistrationResponseDto.from_orm(r) for r in rows]
+        return [ProductRegistrationCreateDto.from_orm(r) for r in rows]
