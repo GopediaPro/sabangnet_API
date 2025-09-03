@@ -6,7 +6,7 @@ Product Registration API
 - 판매 예정인 상품들의 데이터라고 이해하면 됩니다.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query, Body
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query, Body, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from schemas.integration_request import IntegrationRequest
 from schemas.integration_response import ResponseHandler, Metadata
@@ -19,11 +19,12 @@ import os
 import logging
 import tempfile
 from fastapi import Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from core.db import get_async_session
 from services.product_registration import ProductRegistrationService, ProductCodeIntegratedService, ProductRegistrationReadService
 from services.product_registration.product_integrated_service_v2 import ProductCodeIntegratedServiceV2
+from services.product.product_read_service import ProductReadService
 from schemas.product_registration import (
     ProductRegistrationCreateDto,
     ProductRegistrationReadResponse,
@@ -105,6 +106,13 @@ async def get_product_integrated_service_v2() -> ProductCodeIntegratedServiceV2:
     return ProductCodeIntegratedServiceV2()
 
 
+async def get_product_read_service(
+    session: AsyncSession = Depends(get_async_session)
+) -> ProductReadService:
+    """상품 조회 서비스 의존성 주입"""
+    return ProductReadService(session)
+
+
 @router.get("", response_model=ProductRegistrationReadResponse)
 @product_registration_handler()
 async def get_products_all(
@@ -144,8 +152,8 @@ async def get_api_status():
 @router.get(
     "/excel/download/products",
     response_class=FileResponse,
-    summary="상품 등록 데이터 Excel 다운로드",
-    description="상품 등록 데이터를 Excel 파일로 직접 다운로드합니다."
+    summary="상품 등록 데이터(product_registration_raw_data) Excel 다운로드",
+    description="상품 등록 데이터(product_registration_raw_data)를 Excel 파일로 직접 다운로드합니다. (정렬/날짜 필터링 지원)"
 )
 async def download_products_excel(
     sort_order: Optional[str] = Query(
@@ -156,7 +164,7 @@ async def download_products_excel(
     ),
     created_before: Optional[datetime] = Query(
         None,
-        description="이 날짜/시각 이전(created_at <=) 데이터만 필터링, 미지정 시 필터링 미적용",
+        description="해당 날짜/시각 이전(created_at <=) 데이터만 필터링, 미지정 시 필터링 미적용",
         example="2025-09-01T00:00:00"
     ),
     service: ProductRegistrationService = Depends(get_product_registration_service)
@@ -165,8 +173,8 @@ async def download_products_excel(
     상품 등록 데이터를 Excel 파일로 다운로드합니다.
     """
     try:
-        # 서비스 계층에서 Excel 파일 생성 및 경로 반환
-        temp_file_path, file_name = await service.generate_excel_file(
+        # Excel 파일 생성 및 경로 반환
+        temp_file_path, file_name = await service.convert_product_data_to_excel_file_by_filter(
             sort_order=sort_order,
             created_before=created_before
         )
@@ -182,6 +190,63 @@ async def download_products_excel(
 
     except Exception as e:
         logger.error(f"[download_products_excel] 실패: {str(e)}")
+        return ResponseHandler.internal_error(
+            message=str(e),
+            metadata=Metadata(version="v1", request_id="N/A")
+        )
+
+
+@router.get(
+    "/excel/download/test-products",
+    response_class=FileResponse,
+    summary="대량 상품 등록 데이터(test_product_raw_data) Excel 다운로드",
+    description="대량 상품 등록 데이터((test_product_raw_data))를 Excel 파일로 직접 다운로드합니다. (정렬/날짜 필터링 지원)"
+)
+async def download_test_products_excel(
+    background_tasks: BackgroundTasks,
+    sort_order: Optional[str] = Query(
+        None,
+        pattern="^(asc|desc)$",
+        description="정렬 순서 (asc/desc). 미지정 시 정렬 미적용",
+        example="desc"
+    ),
+    created_before: Optional[datetime] = Query(
+        None,
+        description="이 날짜/시각 이전(created_at <=) 데이터만 필터링",
+        example="2025-09-01T00:00:00"
+    ),
+    service: ProductReadService = Depends(get_product_read_service),
+):
+    """
+    - 서비스에서 임시 파일(.xlsx) 생성
+    - 응답 완료 후 임시 파일 삭제 (BackgroundTasks)
+    """
+    try:
+        temp_path, download_name = await service.convert_test_product_data_to_excel_file_by_filter(
+            sort_order=sort_order,
+            created_before=created_before,
+            # 파일 이름은 서비스에서 기본값 제공. 필요시 여기서도 override 가능
+        )
+
+        # 응답 후 임시 파일 삭제
+        background_tasks.add_task(lambda p: os.path.exists(p) and os.remove(p), temp_path)
+
+        logger.info(f"[download_test_products_excel] 파일 준비 완료: {temp_path} -> {download_name}")
+        return FileResponse(
+            path=temp_path,
+            filename=download_name,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+    except DataNotFoundException as e:
+        # FileResponse 엔드포인트이지만, 일관된 에러 바디가 필요하면 JSON으로 래핑
+        # (스웨거 상 혼합 타입을 피하려면 프런트에서 404 처리 권장)
+        return ResponseHandler.internal_error(
+            message=str(e),
+            metadata=Metadata(version="v1", request_id="N/A")
+        )
+    except Exception as e:
+        logger.error(f"[download_test_products_excel] 실패: {str(e)}")
         return ResponseHandler.internal_error(
             message=str(e),
             metadata=Metadata(version="v1", request_id="N/A")

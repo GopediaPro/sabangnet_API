@@ -558,7 +558,7 @@ class ProductRegistrationService:
             logger.error(f"대량 상품 삭제 오류: {e}")
             raise
         
-    async def generate_excel_file(
+    async def convert_product_data_to_excel_file_by_filter(
         self,
         sort_order: Optional[str] = None,
         created_before: Optional[datetime] = None

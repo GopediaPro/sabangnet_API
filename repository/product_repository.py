@@ -6,7 +6,7 @@ from sqlalchemy import select, insert, update, func
 from models.product.product_raw_data import ProductRawData
 from models.product.modified_product_data import ModifiedProductData
 from utils.logs.sabangnet_logger import get_logger
-
+from datetime import datetime
 
 logger = get_logger(__name__)
 
@@ -473,6 +473,34 @@ class ProductRepository:
             'failed_count': failed_count,
             'failed_items': failed_items
         }
+        
+    async def fetch_test_product_raw_data_for_excel(
+            self,
+            sort_order: Optional[str] = None,
+            created_before: Optional[datetime] = None
+        ) -> List[ProductRawData]:
+            """
+            test_product_raw_data 테이블 데이터 조회 (Excel 다운로드용)
+            """
+            try:
+                stmt = select(ProductRawData)
+
+                if created_before:
+                    stmt = stmt.where(ProductRawData.created_at <= created_before)
+
+                if sort_order == "asc":
+                    stmt = stmt.order_by(ProductRawData.created_at.asc())
+                elif sort_order == "desc":
+                    stmt = stmt.order_by(ProductRawData.created_at.desc())
+                else:
+                    stmt = stmt.order_by(ProductRawData.id.asc())
+
+                result = await self.session.execute(stmt)
+                return result.scalars().all()
+
+            except Exception as e:
+                logger.error(f"[fetch_product_raw_data_for_excel] 실패: {e}")
+                raise
 
 async def insert_product_raw_data(session: AsyncSession, data: dict) -> ProductRawData:
     obj = ProductRawData(**data)
