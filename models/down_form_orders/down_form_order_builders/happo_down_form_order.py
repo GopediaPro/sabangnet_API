@@ -23,13 +23,13 @@ class GmarketAuctionHappoBuilder(BaseDownFormOrder):
             expected_payout = order_data['mall_won_cost'] * sale_cnt
             price_formula = expected_payout + order_data['order_etc_6'] + order_data['delv_cost'] # O2 + P2 + V2
             item_name = f"{order_data['sku_alias']} {sale_cnt}개"
-            delivery_payment_type = order_data['delivery_method_str']
+            delivery_method_str = order_data['delivery_method_str']
             erp_model_name = f"{order_data['barcode']} {sale_cnt}개"
 
         down_form_order_model = super().build_happo(receive_orders_dto)
         down_form_order_model.price_formula = price_formula
         down_form_order_model.item_name = item_name
-        down_form_order_model.delivery_payment_type = delivery_payment_type
+        down_form_order_model.delivery_method_str = delivery_method_str
         down_form_order_model.erp_model_name = erp_model_name
 
         return down_form_order_model

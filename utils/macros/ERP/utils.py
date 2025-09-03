@@ -63,8 +63,8 @@ def macro_basic_process(df: pd.DataFrame):
     df = format_phone_number(df)
 
     # 선불, 착불 처리
-    df.loc[df['delivery_payment_type'].fillna(
-        '').str.contains('선불'), 'delivery_payment_type'] = ''
+    df.loc[df['delivery_method_str'].fillna(
+        '').str.contains('선불'), 'delivery_method_str'] = ''
 
     # 주문번호
     df['mall_order_id'] = df['mall_order_id'].fillna(

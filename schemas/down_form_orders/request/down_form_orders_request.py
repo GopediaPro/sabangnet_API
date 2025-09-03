@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Optional
 from pydantic import BaseModel, Field, ConfigDict
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto
@@ -114,3 +114,13 @@ class DownFormOrdersPaginationWithDateRangeRequest(BaseModel):
 class DownFormOrdersFromReceiveOrdersFillterRequest(BaseModel):
     filters: Optional[ReceiveOrdersToDownFormOrdersFillterRequst] = Field(
         ..., description="필터 정보")
+
+
+class DbToExcelRequest(BaseModel):
+    ord_st_date: datetime = Field(..., description="주문 수집 시작 날짜 및 시간")
+    ord_ed_date: datetime = Field(..., description="주문 수집 종료 날짜 및 시간")
+    form_name: str = Field(None, description="양식 이름")
+
+class ExcelToDbRequest(BaseModel):
+    form_name: str = Field(..., description="양식 이름")
+    work_status: str = Field(None, description="작업 상태")

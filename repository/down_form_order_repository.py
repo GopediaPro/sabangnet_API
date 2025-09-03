@@ -1,8 +1,9 @@
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 from datetime import date, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.logs.sabangnet_logger import get_logger
-from sqlalchemy import select, delete, func, update, text
+from sqlalchemy import select, delete, func, update, text, or_, and_, bindparam
+from sqlalchemy.dialects.postgresql import insert
 from models.down_form_orders.down_form_order import BaseDownFormOrder
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto, DownFormOrdersInvoiceNoUpdateDto
 
@@ -460,6 +461,232 @@ class DownFormOrderRepository:
             logger.error(f"주문번호 {idx}의 invoice_no 업데이트 실패: {str(e)}")
             raise e
 
+    async def get_down_form_orders_by_date_range(
+        self, 
+        date_from: datetime, 
+        date_to: datetime,
+        form_name: str = None,
+        skip: int = None,
+        limit: int = None
+    ) -> list[BaseDownFormOrder]:
+        """
+        날짜 범위로 down_form_orders 조회
+        
+        Args:
+            date_from: 시작 날짜
+            date_to: 종료 날짜 
+            skip: 건너뛸 건수
+            limit: 조회할 건수
+            
+        Returns:
+            조회된 주문 데이터 리스트
+        """
+        try:
+            # datetime을 "YYYYMMDDHHMMSS" 형태의 문자열로 변환
+            date_from_str = date_from.strftime("%Y%m%d%H%M%S")
+            date_to_str = date_to.strftime("%Y%m%d%H%M%S")
+            
+            # reg_date는 VARCHAR(14) 형태의 문자열이므로 문자열 비교
+            conditions = [
+                BaseDownFormOrder.reg_date >= date_from_str,
+                BaseDownFormOrder.reg_date <= date_to_str
+            ]
+            # form_name이 제공된 경우 필터링 조건에 추가
+            if form_name:
+                if 'integ_sites' in form_name:
+                    pass
+                else:
+                    conditions.append(BaseDownFormOrder.form_name == form_name)
+            
+            query = select(BaseDownFormOrder).where(*conditions).order_by(BaseDownFormOrder.id.desc())
+            
+            if skip is not None:
+                query = query.offset(skip)
+            if limit is not None:
+                query = query.limit(limit)
+                
+            result = await self.session.execute(query)
+            return result.scalars().all()
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"날짜 범위 조회 실패: {str(e)}")
+            raise e
+        finally:
+            await self.session.close()
+
+    async def bulk_upsert(self, dto_items: list[DownFormOrderDto]) -> Tuple[int, int]:
+        """
+        order_id + form_name 기준으로 대량 upsert 처리
+        (form_name이 다르면서 order_id가 같은 값이 있을 수 있음)
+        
+        Args:
+            dto_items: upsert할 DTO 리스트
+            
+        Returns:
+            (inserted_count, updated_count) 튜플
+        """
+        try:
+            if not dto_items:
+                return 0, 0
+                
+            # DTO를 딕셔너리로 변환
+            data_to_upsert = []
+            for dto in dto_items:
+                data_dict = dto.model_dump()
+                # None 값들을 필터링
+                data_dict = {k: v for k, v in data_dict.items() if v is not None}
+                # 자동 생성 필드 제거
+                data_dict.pop('id', None)
+                data_dict.pop('created_at', None) 
+                data_dict.pop('updated_at', None)
+                
+                # 문자열 값들을 명시적으로 처리하여 SQLAlchemy 바인딩 문제 해결
+                for key, value in data_dict.items():
+                    if isinstance(value, str):
+                        # 문자열이 비어있지 않으면 그대로 사용, 비어있으면 None으로 설정
+                        if value.strip() == '':
+                            data_dict[key] = None
+                        else:
+                            # 문자열 값을 명시적으로 str()로 변환하여 SQLAlchemy가 바인딩 파라미터로 인식하도록 함
+                            data_dict[key] = str(value)
+                
+                data_to_upsert.append(data_dict)
+            
+            if not data_to_upsert:
+                return 0, 0
+            
+            # 기존 데이터 조회하여 중복 체크
+            existing_records = await self._get_existing_records(data_to_upsert)
+            
+            # INSERT와 UPDATE 분리
+            to_insert = []
+            to_update = []
+            
+            for data in data_to_upsert:
+                order_id = data.get('order_id')
+                form_name = data.get('form_name')
+                
+                if order_id and form_name:
+                    key = (order_id, form_name)
+                    if key in existing_records:
+                        # 기존 레코드가 있으면 UPDATE
+                        to_update.append((existing_records[key], data))
+                    else:
+                        # 기존 레코드가 없으면 INSERT
+                        to_insert.append(data)
+                else:
+                    # order_id나 form_name이 없으면 INSERT
+                    to_insert.append(data)
+            
+            inserted_count = 0
+            updated_count = 0
+            
+            # INSERT 처리
+            if to_insert:
+                # 디버깅: 첫 번째 항목의 데이터 구조 확인
+                if to_insert:
+                    logger.info(f"첫 번째 INSERT 데이터 샘플: {to_insert[0]}")
+                    logger.info(f"첫 번째 INSERT 데이터의 sku_alias 값: {to_insert[0].get('sku_alias')} (타입: {type(to_insert[0].get('sku_alias'))})")
+                
+                try:
+                    # 일반적인 INSERT 시도
+                    insert_stmt = insert(BaseDownFormOrder).values(to_insert)
+                    result = await self.session.execute(insert_stmt)
+                    inserted_count = len(to_insert)
+                    logger.info(f"INSERT 완료: {inserted_count}건")
+                except Exception as insert_error:
+                    logger.warning(f"일반 INSERT 실패, 개별 INSERT로 시도: {str(insert_error)}")
+                    
+                    # 개별 INSERT로 fallback
+                    inserted_count = 0
+                    for data in to_insert:
+                        try:
+                            # 각 필드를 bindparam으로 명시적 바인딩
+                            insert_stmt = insert(BaseDownFormOrder).values(
+                                **{k: bindparam(k, v) for k, v in data.items()}
+                            )
+                            await self.session.execute(insert_stmt)
+                            inserted_count += 1
+                        except Exception as single_insert_error:
+                            logger.error(f"개별 INSERT 실패 - 데이터: {data}, 오류: {str(single_insert_error)}")
+                            # 계속 진행
+                    
+                    logger.info(f"개별 INSERT 완료: {inserted_count}건")
+            
+            # UPDATE 처리
+            if to_update:
+                for existing_id, update_data in to_update:
+                    # updated_at은 현재 시간으로 설정
+                    update_data['updated_at'] = func.now()
+                    
+                    # id, created_at, order_id, form_name 제외하고 업데이트
+                    update_fields = {k: v for k, v in update_data.items() 
+                                   if k not in ['id', 'created_at', 'order_id', 'form_name']}
+                    
+                    if update_fields:
+                        update_stmt = (
+                            update(BaseDownFormOrder)
+                            .where(BaseDownFormOrder.id == existing_id)
+                            .values(**update_fields)
+                        )
+                        await self.session.execute(update_stmt)
+                        updated_count += 1
+                
+                logger.info(f"UPDATE 완료: {updated_count}건")
+            
+            await self.session.commit()
+            
+            logger.info(f"Upsert 완료 - 삽입: {inserted_count}, 업데이트: {updated_count}")
+            return inserted_count, updated_count
+            
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Upsert 실패: {str(e)}")
+            raise e
+        finally:
+            await self.session.close()
+    
+    async def _get_existing_records(self, data_list: list[dict]) -> dict:
+        """
+        기존 레코드 조회하여 중복 체크용 딕셔너리 반환
+        
+        Args:
+            data_list: 체크할 데이터 리스트
+            
+        Returns:
+            {(order_id, form_name): existing_id} 형태의 딕셔너리
+        """
+        try:
+            # order_id와 form_name이 있는 데이터만 필터링
+            check_data = [(data.get('order_id'), data.get('form_name')) 
+                         for data in data_list 
+                         if data.get('order_id') and data.get('form_name')]
+            
+            if not check_data:
+                return {}
+            
+            # 기존 레코드 조회
+            query = select(BaseDownFormOrder.id, BaseDownFormOrder.order_id, BaseDownFormOrder.form_name).where(
+                or_(*[
+                    and_(BaseDownFormOrder.order_id == order_id, BaseDownFormOrder.form_name == form_name)
+                    for order_id, form_name in check_data
+                ])
+            )
+            
+            result = await self.session.execute(query)
+            rows = result.fetchall()
+            
+            # {(order_id, form_name): existing_id} 형태로 변환
+            existing_records = {}
+            for row in rows:
+                existing_records[(row.order_id, row.form_name)] = row.id
+            
+            return existing_records
+            
+        except Exception as e:
+            logger.error(f"기존 레코드 조회 실패: {str(e)}")
+            return {}
+
     async def update_batch_id_by_date_range(self, order_date_from: date, order_date_to: date, batch_id: int) -> int:
         """
         주문 날짜 범위로 batch_id 업데이트
@@ -494,3 +721,4 @@ class DownFormOrderRepository:
             await self.session.rollback()
             logger.error(f"down_form_orders batch_id 업데이트 실패: {str(e)}")
             raise e
+
