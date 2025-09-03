@@ -289,3 +289,8 @@ class ProductRegistrationBulkDeleteResponse(BaseModel):
 
 # Bulk / Pagination 응답 타입 Alias
 ProductRegistrationBulkResponse = BulkResponse[ProductRegistrationRowResponse]
+
+class ProductDbToExcelResponse(BaseModel):
+    excel_url: str = Field(..., description="Excel 파일 URL")
+    record_count: int = Field(..., description="레코드 수")
+    file_size: int = Field(..., description="파일 크기 (bytes)")

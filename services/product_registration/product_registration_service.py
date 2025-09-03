@@ -562,19 +562,17 @@ class ProductRegistrationService:
         self,
         sort_order: Optional[str] = None,
         created_before: Optional[datetime] = None
-    ) -> Tuple[str, str]:
+    ) -> Tuple[str, str, int, int]:
         """
         상품 등록 데이터를 조회하고 Excel 파일을 생성합니다.
 
-        Args:
-            sort_order: 정렬 순서 (asc/desc)
-            created_before: 특정 날짜 이전 데이터만 조회
-
         Returns:
-            Tuple[str, str]: 생성된 Excel 파일 경로와 파일 이름
+            temp_file_path: 임시 파일 경로
+            file_name: 파일 이름
+            record_count: 엑셀에 포함된 레코드 수
+            file_size: 파일 크기(bytes)
         """
         try:
-            # 데이터 조회
             products: List[ProductRegistrationResponseDto] = await self.get_products_for_excel(
                 sort_order=sort_order,
                 created_before=created_before
@@ -582,14 +580,14 @@ class ProductRegistrationService:
             if not products:
                 raise DataNotFoundException("다운로드할 상품 등록 데이터가 없습니다.")
 
-            # Workbook/Worksheet 준비 → ExcelHandler 초기화
             wb = Workbook()
             ws = wb.active
             excel_handler = ExcelHandler(ws, wb)
 
-            # Excel 파일 생성
             temp_dir = tempfile.gettempdir()
-            temp_file_path = os.path.join(temp_dir, "상품등록.xlsx")
+            file_name = "상품등록.xlsx"
+            temp_file_path = os.path.join(temp_dir, file_name)
+
             excel_handler.create_excel_file_from_dto(
                 dto_class=ProductRegistrationCreateDto,
                 data=[p.dict() for p in products],
@@ -597,12 +595,14 @@ class ProductRegistrationService:
             )
             wb.save(temp_file_path)
 
-            # 파일 이름 반환
-            file_name = os.path.basename(temp_file_path)
-            return temp_file_path, file_name
+            record_count = len(products)
+            file_size = os.path.getsize(temp_file_path)
+
+            logger.info(f"[convert_product_data_to_excel_file_by_filter] 생성 완료: {file_name}, count={record_count}, size={file_size}")
+            return temp_file_path, file_name, record_count, file_size
 
         except Exception as e:
-            logger.error(f"[generate_excel_file] 실패: {str(e)}")
+            logger.error(f"[convert_product_data_to_excel_file_by_filter] 실패: {str(e)}")
             raise
 
     async def get_products_for_excel(

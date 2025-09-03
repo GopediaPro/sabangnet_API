@@ -1,4 +1,5 @@
 import io
+import os
 import pandas as pd
 import urllib.parse
 import tempfile
@@ -105,6 +106,62 @@ class ProductReadService:
                 headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
             )
 
+
+    # 대량상품등록(test_product_raw_data) form에 맞춰서 excel 파일 생성
+    async def convert_test_product_data_to_excel_file_by_filter(
+        self,
+        sort_order: Optional[str] = None,
+        created_before: Optional[datetime] = None,
+        filename: str = "대량상품등록.xlsx",
+        sheet_name: str = "상품등록",
+    ) -> Tuple[str, str, int, int]:  # 반환 타입: (파일 경로, 파일 이름, 레코드 수, 파일 크기)
+        # 1) 데이터 조회
+        rows = await self.product_repository.fetch_test_product_raw_data_for_excel(
+            sort_order=sort_order,
+            created_before=created_before,
+        )
+        dict_rows: List[Dict] = [self.product_repository.to_dict(r) for r in rows]
+        if not dict_rows:
+            raise DataNotFoundException("다운로드할 상품 데이터가 없습니다.")
+
+        # 2) pandas DataFrame 빌드
+        df = self._build_dataframe(dict_rows, include_derived=False)
+
+        # 3) 임시 파일에 우선 저장 (xlsxwriter)
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
+        tmp_path = tmp.name
+        tmp.close()
+        with pd.ExcelWriter(tmp_path, engine="xlsxwriter") as writer:
+            df.to_excel(writer, index=False, sheet_name=sheet_name)
+
+        # 4) openpyxl로 다시 열어 ExcelHandler 스타일 적용
+        from openpyxl import load_workbook
+        from utils.excels.excel_handler import ExcelHandler  # ★ ExcelHandler 경로에 맞춰 import
+
+        wb = load_workbook(tmp_path)
+        ws = wb[sheet_name]
+
+        # 헤더 리스트는 df.columns 사용
+        headers = list(df.columns)
+
+        # ExcelHandler 인스턴스 생성(시그니처 유지: (ws, wb))
+        excel = ExcelHandler(ws, wb)
+
+        # 헤더 스타일, 열너비/행높이 조정, 줄바꿈 적용
+        excel.set_header_style(ws)
+        excel._adjust_column_widths(ws, headers)
+        excel._adjust_row_heights(ws)
+        excel._enable_wrap_text(ws)
+
+        wb.save(tmp_path)
+
+        # 5) 추가 메타데이터 계산
+        record_count = len(df)                  # 레코드 수
+        file_size = os.path.getsize(tmp_path)   # 파일 크기 (bytes)
+
+        return tmp_path, filename, record_count, file_size
+    
+    
     # ORM 컬럼 집합
     def _orm_field_set(self) -> set[str]:
         """
@@ -193,52 +250,3 @@ class ProductReadService:
         df = pd.DataFrame(rows, columns=mapping_value_list)
         df.columns = mapping_key_list  # 한글 헤더로 교체
         return df
-    
-    # 대량상품등록(test_product_raw_data) form에 맞춰서 excel 파일 생성
-    async def convert_test_product_data_to_excel_file_by_filter(
-        self,
-        sort_order: Optional[str] = None,
-        created_before: Optional[datetime] = None,
-        filename: str = "대량상품등록.xlsx",
-        sheet_name: str = "상품등록",
-    ) -> Tuple[str, str]:
-        rows = await self.product_repository.fetch_test_product_raw_data_for_excel(
-            sort_order=sort_order,
-            created_before=created_before,
-        )
-        dict_rows: List[Dict] = [self.product_repository.to_dict(r) for r in rows]
-        if not dict_rows:
-            raise DataNotFoundException("다운로드할 상품 데이터가 없습니다.")
-
-        # df 빌드 (파생 컬럼 제외 옵션)
-        df = self._build_dataframe(dict_rows, include_derived=False)
-
-        # 1) 임시 파일에 우선 저장 (xlsxwriter)
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
-        tmp_path = tmp.name
-        tmp.close()
-        with pd.ExcelWriter(tmp_path, engine="xlsxwriter") as writer:
-            df.to_excel(writer, index=False, sheet_name=sheet_name)
-
-        # 2) openpyxl로 다시 열어 ExcelHandler 스타일 적용
-        from openpyxl import load_workbook
-        from utils.excels.excel_handler import ExcelHandler  # ★ ExcelHandler 경로에 맞춰 import
-
-        wb = load_workbook(tmp_path)
-        ws = wb[sheet_name]
-
-        # 헤더 리스트는 df.columns 사용
-        headers = list(df.columns)
-
-        # ExcelHandler 인스턴스 생성(시그니처 유지: (ws, wb))
-        excel = ExcelHandler(ws, wb)
-
-        # 헤더 스타일, 열너비/행높이 조정, 줄바꿈 적용
-        excel.set_header_style(ws)
-        excel._adjust_column_widths(ws, headers)
-        excel._adjust_row_heights(ws)
-        excel._enable_wrap_text(ws)
-
-        wb.save(tmp_path)
-
-        return tmp_path, filename
