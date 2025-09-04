@@ -80,22 +80,35 @@ class DataProcessingUsecase:
 
         # [사이트타입] 또는 (사이트타입)-용도타입-세부사이트 추출 (구분자: - 또는 _)
         match = re.search(
-            r'[\[\(]([^\]\)]+)[\]\)]-([^-_]+?)(?:[-_]([^.]+?))?(?:\.xlsx)?$', filename)
+            r'[\[\(]([^\]\)]+)[\]\)]-([^-_]+?)(?:[-_]([^.]+?))?(?:\.xlsx)?$', normalized_filename)
 
-        if not match:
-            return {
-                'site_type': None,
-                'usage_type': None,
-                'sub_site': None,
-                'is_star': is_star
-            }
-
-        return {
-            'site_type': match.group(1),      # "G마켓,옥션", "기본양식", "브랜디"
-            'usage_type': match.group(2),     # "ERP용", "합포장용"
-            'sub_site': match.group(3),       # "기타사이트", "지그재그", None
-            'is_star': is_star                # 스타배송 여부
+        result = {
+            'site_type': None,
+            'usage_type': None,
+            'sub_site': None,
+            'is_star': is_star
         }
+        if not match:
+            return result
+        
+        TYPE_MATCH_MAPPING: dict[str, set[str]] = {
+            'site_type': {'G마켓,옥션', '기본양식', '브랜디'},
+            'usage_type': {'ERP용', '합포장용'},
+            'sub_site': {'기타사이트', '지그재그', '알리'}
+        }
+        # match group tuple로 반환
+        groups = match.groups()
+ 
+        for group in groups:
+            # group 비어있으면 패스
+            if not group:
+                continue
+            # group이 TYPE_MATCH_MAPPING에 있는 값과 일치하면 result에 추가
+            for key, values in TYPE_MATCH_MAPPING.items():
+                if group in values:
+                    result[key] = group
+
+        return result
 
     async def down_form_order_to_excel(self, template_code: str, file_path: str, file_name: str):
         """
@@ -483,8 +496,8 @@ class DataProcessingUsecase:
         # 템플릿 코드로 sub_site 여부 조회
         sub_site_true_template_code = await self.template_config_read_service.get_sub_site_true_template_code(template_code)
 
-        # sub_site가 있으면 해당하는 매크로명 조회, 없으면 기본 매크로명 조회 
-        #if is_star in ['알리', '지그재그', '기타사이트']:
+        # sub_site가 있으면 해당하는 매크로명 조회, 없으면 기본 매크로명 조회
+        # if is_star in ['알리', '지그재그', '기타사이트']:
         if sub_site_true_template_code:
             macro_name: Optional[str] = await self.template_config_read_service.get_macro_name_by_template_code_with_sub_site(template_code, sub_site)
             logger.info(f"macro_name from DB with sub_site: {macro_name}")
@@ -531,7 +544,7 @@ class DataProcessingUsecase:
             f"run_macro_with_db_v3 called with template_code={template_code}")
         config: dict = await self.template_config_read_service.get_template_config_by_template_code_with_mapping(template_code)
         logger.info(f"Loaded template config: {config}")
-    
+
         # 2. 데이터 1대1 매핑 변환 (DB_to_DB 에서는 합포장, ERP 구분없이 사용)
         processed_data = await DataProcessingUtils.process_receive_order_data(receive_orders_data, config)
         # 3. 매크로 실행
@@ -558,7 +571,7 @@ class DataProcessingUsecase:
         except Exception as e:
             logger.error(f"Error running {template_code} macro with db: {e}")
             raise
-    
+
     async def vlookup_data_processing(self, processed_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         vlookup 데이터 처리
@@ -570,22 +583,25 @@ class DataProcessingUsecase:
             mall_product_id = item.get('mall_product_id')
             if mall_product_id:
                 mall_product_id_dict[mall_product_id] = {
-                    'mall_product_id': mall_product_id, 
+                    'mall_product_id': mall_product_id,
                     'delv_cost': item.get('delv_cost')
-                    }
+                }
         logger.info(f"mall_product_id_dict len: {len(mall_product_id_dict)}")
         # vlookup 데이터 조회
         vlookup_datas = await self.vlookup_datas_read_service.get_vlookup_datas_with_not_found_mall_product_ids(mall_product_id_dict.keys())
         found_datas = vlookup_datas.get('found_datas', {})
         not_found_datas = vlookup_datas.get('not_found_datas', [])
-        logger.info(f"found_datas len: {len(found_datas)} | not_found_datas len: {len(not_found_datas)}")
+        logger.info(
+            f"found_datas len: {len(found_datas)} | not_found_datas len: {len(not_found_datas)}")
 
         # 조회되지 않은 데이터 vlookup_datas 테이블에 추가
         if not_found_datas:
-            not_found_data_list: list[dict] = [mall_product_id_dict.get(item) for item in not_found_datas]
+            not_found_data_list: list[dict] = [
+                mall_product_id_dict.get(item) for item in not_found_datas]
             saved_count_vlookup_datas = await self.vlookup_datas_create_service.saved_count_bulk_create_vlookup_datas(not_found_data_list)
-            logger.info(f"saved_count_vlookup_datas: {saved_count_vlookup_datas['saved_count']}")
-        
+            logger.info(
+                f"saved_count_vlookup_datas: {saved_count_vlookup_datas['saved_count']}")
+
         # 조회된 데이터 추가
         if found_datas:
             for item in processed_data:
