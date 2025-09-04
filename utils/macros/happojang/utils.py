@@ -38,7 +38,11 @@ def process_slash_separated_columns(ws, columns: list, start_row: int = 2) -> No
     for col in columns:
         for row in range(start_row, max_row + 1):
             cell = ws[f'{col}{row}']
+            cell_value = cell.value
             if cell.value:
+                # int, float 타입 문자열로 변환
+                if isinstance(cell_value, (int, float)):
+                    cell_value = str(int(cell.value))
                 # '/' 구분자 합산 처리
-                processed_value = sum_slash_separated_values(str(int(cell.value)))
+                processed_value = sum_slash_separated_values(cell_value)
                 cell.value = processed_value
