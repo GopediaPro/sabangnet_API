@@ -119,14 +119,22 @@ async def db_to_excel_url(
         # DownFormOrderDto로 변환 및 DataFrame 생성
         dto_items = down_form_order_conversion_service.convert_orm_to_dto_list(down_form_orders)
         df = down_form_order_conversion_service.convert_dto_list_to_dataframe(dto_items)
-
+        
+        form_type = None
+        if form_name == 'integ_sites_erp':
+            form_type = 'erp'
+            form_name = 'integ_sites'
+        elif form_name == 'integ_sites_bundle':
+            form_type = 'bundle'
+            form_name = 'integ_sites'
         # form_name에 맞춰 column transform
         df = await down_form_order_conversion_service.transform_column_by_form_name(df, form_name)
-        
         # export_templates에서 description 가져오기
-        template_description = await down_form_order_conversion_service.get_template_description(form_name)
+        template_description = await down_form_order_conversion_service.get_template_description(form_name, form_type)
+        logger.info(f"template_description: {template_description}")
         date_now = datetime.now().strftime("%Y%m%d")
         excel_file_name = f"{date_now}_주문서확인처리_{template_description}_매크로완료.xlsx"
+        logger.info(f"excel_file_name: {excel_file_name}")
         
         # Excel 파일 생성
         excel_files = []
@@ -142,7 +150,7 @@ async def db_to_excel_url(
             # ZIP 파일 생성
             ord_st_date_str = ord_st_date.strftime("%Y%m%d")
             ord_ed_date_str = ord_ed_date.strftime("%Y%m%d")
-            zip_file_name = f"down_form_orders_{ord_st_date_str}_{ord_ed_date_str}.zip"
+            zip_file_name = f"{date_now}_주문서확인처리_{template_description}_매크로완료.zip"
             zip_temp_path = None
             with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as zip_tmp_file:
                 with zipfile.ZipFile(zip_tmp_file.name, 'w', zipfile.ZIP_DEFLATED) as zipf:
