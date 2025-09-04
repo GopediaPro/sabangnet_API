@@ -492,9 +492,16 @@ class DownFormOrderRepository:
                 BaseDownFormOrder.reg_date <= date_to_str
             ]
             # form_name이 제공된 경우 필터링 조건에 추가
+            
             if form_name:
-                if 'integ_sites' in form_name:
-                    pass
+                if form_name == 'integ_sites_erp':
+                    # form_name에서 erp 포함된 값은 모두 포함
+                    conditions.append(BaseDownFormOrder.form_name.like('%erp%'))
+                    logger.info(f"form_name: {form_name} | conditions: {conditions}")
+                elif form_name == 'integ_sites_bundle':
+                    # form_name에서 bundle 포함된 값은 모두 포함
+                    conditions.append(BaseDownFormOrder.form_name.like('%bundle%'))
+                    logger.info(f"form_name: {form_name} | conditions: {conditions}")
                 else:
                     conditions.append(BaseDownFormOrder.form_name == form_name)
             
