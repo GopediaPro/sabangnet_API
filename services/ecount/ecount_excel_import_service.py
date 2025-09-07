@@ -255,12 +255,20 @@ class EcountExcelImportService:
                     total_records=0
                 )
             
-            # DataFrame 생성
+            # DataFrame 생성 - 제공된 컬럼 매핑에 따라
             df_data = []
             for item in data:
                 df_data.append({
-                    '파트너 코드': item.partner_code,
-                    '제품명': item.product_nm
+                    '업체명': item.fld_dsp,           # A
+                    '거래처코드': item.partner_code,      # B
+                    '오케이마트': '',                     # C (빈 값)
+                    '아이예스': '',                     # D (빈 값)
+                    'Column1': '',                     # E (빈 값)
+                    '송장최종안': '',                     # F (빈 값)
+                    '품목코드': item.product_nm,        # G
+                    '_1': '',                     # H (빈 값)
+                    '업체명_2': '',                     # I (빈 값)
+                    '창고': item.wh_cd              # J
                 })
             
             df = pd.DataFrame(df_data)
@@ -356,14 +364,19 @@ class EcountExcelImportService:
         
         for index, row in df.iterrows():
             try:
-                # product_nm이 있는 경우만 처리
-                product_nm = row.get('제품명') or row.get('product_nm')
-                partner_code = row.get('파트너 코드') or row.get('partner_code')
+                # 새로운 컬럼 구조에 맞춰 데이터 추출
+                fld_dsp = row.get('업체명') or row.get('fld_dsp')
+                partner_code = row.get('거래처코드') or row.get('partner_code')
+                product_nm = row.get('품목코드') or row.get('product_nm')
+                wh_cd = row.get('창고') or row.get('wh_cd')
                 
-                if pd.notna(product_nm) and str(product_nm).strip():
+                # fld_dsp 또는 product_nm이 있는 경우만 처리
+                if (pd.notna(fld_dsp) and str(fld_dsp).strip()) or (pd.notna(product_nm) and str(product_nm).strip()):
                     processed_data.append({
-                        'product_nm': str(product_nm).strip(),
-                        'partner_code': str(partner_code).strip() if pd.notna(partner_code) else None
+                        'fld_dsp': str(fld_dsp).strip() if pd.notna(fld_dsp) else None,
+                        'partner_code': str(partner_code).strip() if pd.notna(partner_code) else None,
+                        'product_nm': str(product_nm).strip() if pd.notna(product_nm) else None,
+                        'wh_cd': self._safe_convert_to_int(wh_cd)
                     })
                     
             except Exception as e:
