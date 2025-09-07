@@ -16,6 +16,6 @@ class EcountIyesCost(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     product_nm = Column(String(255), nullable=True, comment="제품명")
-    cost = Column(Integer, nullable=True, comment="원가(VAT 포함)")
-    cost_10_vat = Column(Integer, nullable=True, comment="원가(VAT 10%)")
-    cost_20_vat = Column(Integer, nullable=True, comment="원가(VAT 20%)")
+    price = Column(Integer, nullable=True, comment="원가(VAT 포함)")
+    price_10_vat = Column(Integer, nullable=True, comment="원가(VAT 10%)")
+    price_20_vat = Column(Integer, nullable=True, comment="원가(VAT 20%)")
