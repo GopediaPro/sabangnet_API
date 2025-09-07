@@ -15,5 +15,7 @@ class EcountErpPartnerCode(Base):
     __tablename__ = "ecount_erp_partner_code"
 
     id = Column(Integer, primary_key=True, index=True)
-    partner_code = Column(String(255), nullable=True, comment="파트너 코드")
-    product_nm = Column(String(255), nullable=True, comment="제품명")
+    fld_dsp = Column(String(255), nullable=True, comment="업체명")
+    partner_code = Column(String(255), nullable=True, comment="거래처 코드")
+    product_nm = Column(String(255), nullable=True, comment="품목코드")
+    wh_cd = Column(Integer, nullable=True, comment="창고코드")
