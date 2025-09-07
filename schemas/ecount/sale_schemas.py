@@ -39,7 +39,7 @@ class EcountSaleDto(BaseModel):
     cust: Optional[str] = Field(None, description="거래처코드")
     cust_des: Optional[str] = Field(None, description="거래처명")
     emp_cd: Optional[str] = Field(None, description="담당자")
-    wh_cd: Optional[str] = Field(None, description="출하창고")
+    wh_cd: Optional[int] = Field(None, description="출하창고")
     io_type: Optional[str] = Field(None, description="구분(거래유형)")
     exchange_type: Optional[str] = Field(None, description="외화종류")
     u_memo1: Optional[str] = Field(None, description="E-MAIL")

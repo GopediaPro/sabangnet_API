@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from utils.logs.sabangnet_logger import get_logger
 from utils.mappings.down_form_to_ecount_mapping import DownFormOrderToEcountMapper
-from repository.ecount_sale_repository import EcountSaleRepository, DownFormOrderRepository
+from repository.ecount_sale_repository import EcountSaleRepository
+from repository.down_form_order_repository import DownFormOrderRepository
 from services.ecount.ecount_auth_service import EcountAuthManager
 from services.ecount.ecount_sale_service import EcountSaleService
 from schemas.ecount.sale_schemas import (

@@ -187,13 +187,13 @@ async def import_all_ecount_data_from_excel(
 )
 @ecount_excel_import_handler()
 async def download_erp_partner_code_excel(
-    request: str = Body(
+    request: IntegrationRequest[dict] = Body(
         ...,
         examples=[
             {
                 "data": {},
                 "metadata": {
-                    "request_id": "req_12345"
+                    "request_id": "lyckabc"
                 }
             }
         ]
@@ -202,8 +202,8 @@ async def download_erp_partner_code_excel(
 ):
     """ERP 파트너 코드 데이터를 Excel 파일로 다운로드합니다."""
     
-    # JSON 문자열을 파싱하여 IntegrationRequest 객체 생성
-    request_obj = IntegrationRequest[dict](**json.loads(request))
+    # IntegrationRequest 객체를 직접 사용
+    request_obj = request
     
     # 서비스 호출
     result = await service.download_erp_partner_code_excel()
@@ -225,7 +225,7 @@ async def download_erp_partner_code_excel(
 )
 @ecount_excel_import_handler()
 async def download_iyes_cost_excel(
-    request: str = Body(
+    request: IntegrationRequest[dict] = Body(
         ...,
         examples=[
             {
@@ -240,8 +240,8 @@ async def download_iyes_cost_excel(
 ):
     """IYES 단가 데이터를 Excel 파일로 다운로드합니다."""
     
-    # JSON 문자열을 파싱하여 IntegrationRequest 객체 생성
-    request_obj = IntegrationRequest[dict](**json.loads(request))
+    # IntegrationRequest 객체를 직접 사용
+    request_obj = request
     
     # 서비스 호출
     result = await service.download_iyes_cost_excel()

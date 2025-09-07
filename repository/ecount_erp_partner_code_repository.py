@@ -38,12 +38,14 @@ class EcountErpPartnerCodeRepository:
             logger.error(f"ERP 파트너 코드 조회 중 오류: {e}")
             return None
     
-    async def create_erp_partner_code(self, partner_code: str, product_nm: str) -> EcountErpPartnerCode:
+    async def create_erp_partner_code(self, data: dict) -> EcountErpPartnerCode:
         """ERP 파트너 코드를 생성합니다."""
         try:
             erp_partner_code = EcountErpPartnerCode(
-                partner_code=partner_code,
-                product_nm=product_nm
+                fld_dsp=data.get('fld_dsp'),
+                partner_code=data.get('partner_code'),
+                product_nm=data.get('product_nm'),
+                wh_cd=data.get('wh_cd')
             )
             self.session.add(erp_partner_code)
             await self.session.flush()
@@ -52,13 +54,17 @@ class EcountErpPartnerCodeRepository:
             logger.error(f"ERP 파트너 코드 생성 중 오류: {e}")
             raise
     
-    async def update_erp_partner_code(self, product_nm: str, partner_code: str) -> Optional[EcountErpPartnerCode]:
+    async def update_erp_partner_code(self, product_nm: str, data: dict) -> Optional[EcountErpPartnerCode]:
         """제품명으로 ERP 파트너 코드를 업데이트합니다."""
         try:
             stmt = (
                 update(EcountErpPartnerCode)
                 .where(EcountErpPartnerCode.product_nm == product_nm)
-                .values(partner_code=partner_code)
+                .values(
+                    fld_dsp=data.get('fld_dsp'),
+                    partner_code=data.get('partner_code'),
+                    wh_cd=data.get('wh_cd')
+                )
                 .returning(EcountErpPartnerCode)
             )
             result = await self.session.execute(stmt)
@@ -67,19 +73,23 @@ class EcountErpPartnerCodeRepository:
             logger.error(f"ERP 파트너 코드 업데이트 중 오류: {e}")
             raise
     
-    async def upsert_erp_partner_code(self, partner_code: str, product_nm: str) -> EcountErpPartnerCode:
+    async def upsert_erp_partner_code(self, data: dict) -> EcountErpPartnerCode:
         """ERP 파트너 코드를 upsert합니다 (product_nm 기준)."""
         try:
+            product_nm = data.get('product_nm')
+            if not product_nm:
+                raise ValueError("product_nm is required for upsert")
+            
             # 먼저 기존 데이터가 있는지 확인
             existing = await self.get_erp_partner_code_by_product_nm(product_nm)
             
             if existing:
                 # 업데이트
-                updated = await self.update_erp_partner_code(product_nm, partner_code)
+                updated = await self.update_erp_partner_code(product_nm, data)
                 return updated
             else:
                 # 생성
-                return await self.create_erp_partner_code(partner_code, product_nm)
+                return await self.create_erp_partner_code(data)
         except Exception as e:
             logger.error(f"ERP 파트너 코드 upsert 중 오류: {e}")
             raise
@@ -90,11 +100,12 @@ class EcountErpPartnerCodeRepository:
             upserted_data = []
             
             for data in data_list:
-                partner_code = data.get('partner_code')
                 product_nm = data.get('product_nm')
+                fld_dsp = data.get('fld_dsp')
                 
-                if product_nm:  # product_nm이 있는 경우만 처리
-                    upserted = await self.upsert_erp_partner_code(partner_code, product_nm)
+                # product_nm 또는 fld_dsp가 있는 경우만 처리
+                if product_nm or fld_dsp:
+                    upserted = await self.upsert_erp_partner_code(data)
                     upserted_data.append(upserted)
             
             await self.session.commit()
