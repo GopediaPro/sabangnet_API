@@ -3,7 +3,7 @@ from datetime import datetime
 from models.base_model import Base
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy import Integer, String, Text, Numeric, DateTime, UniqueConstraint
+from sqlalchemy import Integer, String, Text, Numeric, DateTime, UniqueConstraint, Column
 from schemas.receive_orders.receive_orders_dto import ReceiveOrdersDto
 
 
