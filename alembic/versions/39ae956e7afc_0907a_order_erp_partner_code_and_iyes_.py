@@ -94,7 +94,7 @@ def upgrade() -> None:
     sa.Column('io_date', sa.String(length=8), nullable=True, comment='판매일자'),
     sa.Column('cust', sa.String(length=30), nullable=True, comment='거래처코드'),
     sa.Column('cust_des', sa.String(length=50), nullable=True, comment='거래처명'),
-    sa.Column('wh_cd', sa.String(length=5), nullable=False, comment='출하창고코드'),
+    sa.Column('wh_cd', sa.Integer(), nullable=False, comment='출하창고코드'),
     sa.Column('prod_cd', sa.String(length=20), nullable=False, comment='품목코드'),
     sa.Column('prod_des', sa.String(length=100), nullable=True, comment='품목명'),
     sa.Column('qty', sa.Numeric(precision=28, scale=10), nullable=False, comment='수량'),
