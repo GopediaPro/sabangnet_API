@@ -298,7 +298,7 @@ class ProductDbToExcelRequest(BaseModel):
     )
     created_before: Optional[datetime] = Field(
         None,
-        description="이 날짜/시각 이전(created_at <=) 데이터만 필터링. 미지정 시 전체 데이터 반환",
+        description="이 날짜/시각 이전(created_at <=) 데이터만 필터링. 미지정 시 전체 데이터 반환, null일 경우에는 전체 데이터 반환",
         example="2025-09-01T00:00:00",
     )
 

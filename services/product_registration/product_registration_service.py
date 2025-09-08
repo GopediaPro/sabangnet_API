@@ -30,7 +30,7 @@ from services.product.product_create_service import ProductCreateService
 from utils.make_xml.product_registration_xml import ProductRegistrationXml
 from minio_handler import upload_file_to_minio, get_minio_file_url
 from utils.make_xml.sabang_api_result_parser import SabangApiResultParser
-
+from utils.excels.excel_handler import ExcelHandler
 
 logger = get_logger(__name__)
 
@@ -588,8 +588,7 @@ class ProductRegistrationService:
             file_name = "상품등록.xlsx"
             temp_file_path = os.path.join(temp_dir, file_name)
 
-            excel_handler.create_excel_file_from_dto(
-                dto_class=ProductRegistrationCreateDto,
+            excel_handler.create_excel_file_from_mapping(
                 data=[p.dict() for p in products],
                 sheet_name="상품등록"
             )
