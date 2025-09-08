@@ -24,3 +24,6 @@ from models.smile.smile_settlement_data import SmileSettlementData
 from models.smile.smile_sku_data import SmileSkuData
 from models.smile.smile_macro import SmileMacro
 from models.vlookup_datas.vlookup_datas import VlookupDatas
+from models.ecount.erp_partner_code import EcountErpPartnerCode
+from models.ecount.iyes_cost import EcountIyesCost
+from models.ecount.ecount_models import EcountSale, EcountPurchase, EcountAuthSession, EcountApiLog, EcountConfig

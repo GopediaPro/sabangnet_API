@@ -207,4 +207,31 @@ def product_handler(
                 logger.error(f"상품 처리 오류: {str(e)}")
                 raise ProductException(error_message)
         return wrapper
+    return decorator
+
+
+def ecount_excel_import_handler(
+    error_code: str = "ECOUNT_EXCEL_IMPORT_ERROR",
+    error_message: str = "이카운트 Excel 가져오기 중 오류가 발생했습니다."
+):
+    """
+    이카운트 Excel 가져오기 API 요청을 위한 공통 핸들러 데코레이터
+    
+    Args:
+        error_code: 에러 코드
+        error_message: 기본 에러 메시지
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            logger = get_logger(__name__)
+            try:
+                return await func(*args, **kwargs)
+            except ValueError as e:
+                logger.error(f"이카운트 Excel 가져오기 검증 오류: {str(e)}")
+                raise ValidationException(str(e))
+            except Exception as e:
+                logger.error(f"이카운트 Excel 가져오기 오류: {str(e)}")
+                raise InternalServerException(error_message)
+        return wrapper
     return decorator 

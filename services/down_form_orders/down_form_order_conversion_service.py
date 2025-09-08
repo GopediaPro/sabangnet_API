@@ -120,26 +120,53 @@ class DownFormOrderConversionService:
             df = template_mapping_service.apply_template_mapping(df, template_mappings)
         return df
 
-    async def get_template_description(self, template_code: str) -> str:
+    async def get_template_description(self, template_code: str, form_type: str = None) -> str:
         """
         template_code로부터 export_templates 테이블의 description 조회
         
         Args:
             template_code: 템플릿 코드
+            form_type: 폼 타입 (erp, bundle)
             
         Returns:
             str: 템플릿 설명 또는 기본값
         """
         from repository.export_templates_repository import ExportTemplateRepository
         
+        logger.info(f"get_template_description 호출: template_code={template_code}, form_type={form_type}")
+        
         export_template_repository = ExportTemplateRepository(self.session)
         
         # 모든 템플릿 조회 후 template_code로 필터링
         all_templates = await export_template_repository.get_export_templates()
-        
+        logger.info(f"조회된 템플릿 수: {len(all_templates)}")
+
         for template in all_templates:
-            if template.template_code == template_code:
-                return template.description or template.template_name or template_code
+            logger.info(f"템플릿 확인: template_code={template.template_code}, description={template.description}")
+            if form_type:
+                if form_type == 'erp':
+                    # erp 타입인 경우: template_code가 정확히 일치하는 경우 우선 반환
+                    if template.template_code == template_code:
+                        logger.info(f"ERP 타입 매칭 성공: {template.template_code}")
+                        description = template.description or template.template_name or template_code
+                        # ERP용이므로 description에 ERP 표시 추가
+                        result = f"{description}_ERP용"
+                        logger.info(f"ERP 타입 최종 반환값: {result}")
+                        return result
+                elif form_type == 'bundle':
+                    # bundle 타입인 경우: template_code가 정확히 일치하는 경우 우선 반환
+                    if template.template_code == template_code:
+                        logger.info(f"BUNDLE 타입 매칭 성공: {template.template_code}")
+                        description = template.description or template.template_name or template_code
+                        # Bundle용이므로 description에 합포장 표시 추가
+                        result = f"{description}_합포장용"
+                        logger.info(f"BUNDLE 타입 최종 반환값: {result}")
+                        return result
+            else:
+                if template.template_code == template_code:
+                    logger.info(f"일반 타입 매칭 성공: {template.template_code}")
+                    return template.description or template.template_name or template_code
         
         # 매칭되는 템플릿이 없으면 template_code 반환
+        logger.info(f"매칭되는 템플릿 없음, 기본값 반환: {template_code}")
         return template_code
