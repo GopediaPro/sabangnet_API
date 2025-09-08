@@ -1,5 +1,5 @@
 """
-이카운트 매핑 관련 스키마
+이카운트 관련 스키마
 """
 import re
 from pydantic import BaseModel, Field, model_validator, field_validator
@@ -40,22 +40,26 @@ class EcountSaleDto(BaseModel):
     cust_des: Optional[str] = Field(None, description="거래처명")
     emp_cd: Optional[str] = Field(None, description="담당자")
     wh_cd: Optional[int] = Field(None, description="출하창고")
-    io_type: Optional[str] = Field(None, description="구분(거래유형)")
-    exchange_type: Optional[str] = Field(None, description="외화종류")
+    io_type: Optional[str] = Field(None, description="거래유형")
+    exchange_type: Optional[str] = Field(None, description="통화")
+    exchange_rate: Optional[float] = Field(None, description="환율")
     u_memo1: Optional[str] = Field(None, description="E-MAIL")
     u_memo2: Optional[str] = Field(None, description="FAX")
     u_memo3: Optional[str] = Field(None, description="연락처")
     u_txt1: Optional[str] = Field(None, description="주소")
+    u_memo4: Optional[str] = Field(None, description="매장판매 결제구분(입금/현금/카드)")
+    u_memo5: Optional[str] = Field(None, description="매장판매 거래구분(매장판매/매장구매)")
     
     # 품목 정보
     prod_cd: Optional[str] = Field(None, description="품목코드")
     prod_des: Optional[str] = Field(None, description="품목명")
-    size_des: Optional[str] = Field(None, description="규격(주문번호)")
+    size_des: Optional[str] = Field(None, description="주문번호")  # Sale에서는 주문번호로 사용
     qty: Optional[float] = Field(None, description="수량")
     price: Optional[float] = Field(None, description="단가")
+    supply_amt_f: Optional[float] = Field(None, description="외화금액")
     supply_amt: Optional[float] = Field(None, description="공급가액")
     vat_amt: Optional[float] = Field(None, description="부가세")
-    remarks: Optional[str] = Field(None, description="고객정보")
+    remarks: Optional[str] = Field(None, description="고객정보(이름/주문번호/연락처/주소/관리코드/장바구니번호)")
     
     # 적요 필드들
     p_remarks1: Optional[str] = Field(None, description="송장번호")
@@ -67,15 +71,19 @@ class EcountSaleDto(BaseModel):
     p_amt2: Optional[float] = Field(None, description="서비스이용료")
     
     # 기타 필드들
-    item_des: Optional[str] = Field(None, description="운임비타입")
-    temp_column_id1: Optional[str] = Field(None, description="SKU번호")
+    item_cd: Optional[str] = Field(None, description="운임비타입")
     
-    # 메타 정보
+    # API 응답 정보
     is_success: bool = Field(False, description="성공여부")
-    slip_no: Optional[str] = Field(None, description="판매번호(ERP)")
+    slip_nos: Optional[str] = Field(None, description="판매번호(ERP)")
     trace_id: Optional[str] = Field(None, description="로그확인용 일련번호")
     error_message: Optional[str] = Field(None, description="오류메시지")
+    
+    # 메타 정보
     is_test: bool = Field(True, description="테스트 여부")
+    work_status: Optional[str] = Field(None, description="작업상태")
+    batch_id: Optional[str] = Field(None, description="배치ID")
+    template_code: Optional[str] = Field(None, description="템플릿코드")
     
     @field_validator('com_code', 'user_id', mode='before')
     @classmethod
@@ -95,6 +103,69 @@ class EcountSaleDto(BaseModel):
         if not self.user_id:
             raise ValueError("user_id는 필수입니다. 환경변수 ECOUNT_USER_ID 설정하세요.")
 
+
+class EcountPurchaseDto(BaseModel):
+    """이카운트 구매 DTO"""
+    com_code: Optional[str] = Field(None, description="회사코드")
+    user_id: Optional[str] = Field(None, description="사용자ID")
+    emp_cd: Optional[str] = Field(None, description="담당자")
+    
+    # 매핑된 구매 데이터
+    upload_ser_no: Optional[int] = Field(None, description="순번")
+    io_date: Optional[str] = Field(None, description="구매일자")
+    cust: Optional[str] = Field(None, description="거래처코드")
+    cust_des: Optional[str] = Field(None, description="거래처명")
+    wh_cd: Optional[int] = Field(None, description="입고창고")
+    io_type: Optional[str] = Field(None, description="거래유형")
+    exchange_type: Optional[str] = Field(None, description="통화")
+    exchange_rate: Optional[float] = Field(None, description="환율")
+    u_memo1: Optional[str] = Field(None, description="E-MAIL")
+    u_memo2: Optional[str] = Field(None, description="FAX")
+    u_memo3: Optional[str] = Field(None, description="연락처")
+    u_txt1: Optional[str] = Field(None, description="주소")
+    
+    # 품목 정보
+    prod_cd: Optional[str] = Field(None, description="품목코드")
+    prod_des: Optional[str] = Field(None, description="품목명")
+    size_des: Optional[str] = Field(None, description="규격")  # Purchase에서는 규격으로 사용
+    qty: Optional[float] = Field(None, description="수량")
+    price: Optional[float] = Field(None, description="단가")
+    supply_amt_f: Optional[float] = Field(None, description="외화금액")
+    supply_amt: Optional[float] = Field(None, description="공급가액")
+    vat_amt: Optional[float] = Field(None, description="부가세")
+    remarks: Optional[str] = Field(None, description="적요")
+    
+    # API 응답 정보
+    is_success: bool = Field(False, description="성공여부")
+    slip_nos: Optional[str] = Field(None, description="구매번호(ERP)")
+    trace_id: Optional[str] = Field(None, description="로그확인용 일련번호")
+    error_message: Optional[str] = Field(None, description="오류메시지")
+    
+    # 메타 정보
+    is_test: bool = Field(True, description="테스트 여부")
+    work_status: Optional[str] = Field(None, description="작업상태")
+    batch_id: Optional[str] = Field(None, description="배치ID")
+    template_code: Optional[str] = Field(None, description="템플릿코드")
+    
+    @field_validator('com_code', 'user_id', mode='before')
+    @classmethod
+    def set_default_auth_info(cls, v, info):
+        """환경변수에서 기본 인증 정보를 설정합니다."""
+        if v is None:
+            if info.field_name == 'com_code':
+                return SETTINGS.ECOUNT_COM_CODE
+            elif info.field_name == 'user_id':
+                return SETTINGS.ECOUNT_USER_ID
+        return v
+    
+    def model_post_init(self, __context) -> None:
+        """모델 초기화 후 검증을 수행합니다."""
+        if not self.com_code:
+            raise ValueError("com_code는 필수입니다. 환경변수 ECOUNT_COM_CODE 설정하세요.")
+        if not self.user_id:
+            raise ValueError("user_id는 필수입니다. 환경변수 ECOUNT_USER_ID 설정하세요.")
+
+
 class EcountSaleItem(BaseModel):
     """이카운트 API SaleList 항목 스키마"""
     BulkDatas: dict  # 동적으로 생성되는 UPPER_SNAKE_CASE dict
@@ -104,6 +175,16 @@ class EcountApiRequest(BaseModel):
     """이카운트 API 실제 요청 형식"""
     SaleList: List[EcountSaleItem]
 
+class EcountPurchaseItem(BaseModel):
+    """이카운트 API PurchaseList 항목 스키마"""
+    BulkDatas: dict  # 동적으로 생성되는 UPPER_SNAKE_CASE dict
+
+
+class EcountApiPurchaseRequest(BaseModel):
+    """이카운트 API 실제 요청 형식"""
+    PurchaseList: List[EcountPurchaseItem]
+
+
 class EcountErrorDetail(BaseModel):
     """이카운트 API 오류 상세 정보"""
     ColCd: Optional[str] = Field(None, description="컬럼 코드")
@@ -111,6 +192,7 @@ class EcountErrorDetail(BaseModel):
     # 추가 필드들도 허용
     class Config:
         extra = "allow"
+
 
 class EcountResultDetail(BaseModel):
     """이카운트 API 응답 결과 상세 정보"""
@@ -122,6 +204,7 @@ class EcountResultDetail(BaseModel):
     # 추가 필드들도 허용
     class Config:
         extra = "allow"
+
 
 class EcountApiResponseData(BaseModel):
     """이카운트 API 응답 데이터 스키마"""
@@ -231,6 +314,7 @@ class EcountBatchProcessResponse(BaseModel):
             }
         }
 
+
 class EcountSaleRequest(BaseModel):
     sales: List[EcountSaleDto]
 
@@ -252,6 +336,7 @@ class EcountSaleRequest(BaseModel):
                 ]
             }
         }
+
 
 class EcountSaleResponse(BaseModel):
     success: bool = Field(..., description="성공 여부")
@@ -286,6 +371,64 @@ class EcountSaleResponse(BaseModel):
             }
         }
 
+
+class EcountPurchaseRequest(BaseModel):
+    purchases: List[EcountPurchaseDto]
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "purchases": [
+                    {
+                    "upload_ser_no": 0,
+                    "io_date": "20250718",
+                    "cust": "9999999",
+                    "emp_cd": "okokmart_test",
+                    "wh_cd": "32",
+                    "prod_cd": "test_sample1",
+                    "qty": 99,
+                    "price": 999999,
+                    "remarks": "test"
+                    }
+                ]
+            }
+        }
+
+
+class EcountPurchaseResponse(BaseModel):
+    success: bool = Field(..., description="성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    data: Optional[List[EcountPurchaseDto]] = Field(None, description="성공한 구매 데이터")
+    errors: Optional[List[str]] = Field(None, description="오류 메시지 리스트")
+    api_response: Optional[EcountApiResponseData] = Field(None, description="이카운트 API 응답 데이터")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "success": True,
+                "message": "배치 처리 완료: 5건 성공, 0건 실패",
+                "data": [],
+                "errors": [],
+                "api_response": {
+                    "EXPIRE_DATE": "",
+                    "QUANTITY_INFO": "시간당 연속 오류 제한 건수 : 0/30, 1시간 허용량 : 9/6000, 1일 허용량 : 9/10000",
+                    "TRACE_ID": "db6138411aad40e42dc5e209f65f6f3c",
+                    "SuccessCnt": 5,
+                    "FailCnt": 0,
+                    "ResultDetails": [
+                        {
+                            "IsSuccess": True,
+                            "TotalError": "[전표묶음0] OK",
+                            "Errors": [],
+                            "Code": None
+                        }
+                    ],
+                    "SlipNos": ["20180612-1", "20180612-2"]
+                }
+            }
+        }
+
+
 # 범용 변환 함수
 
 def snake_to_upper_snake(d: dict) -> dict:
@@ -301,6 +444,7 @@ def snake_to_upper_snake(d: dict) -> dict:
         result[convert_key(k)] = v
     return result
 
+
 def upper_snake_to_snake(d: dict) -> dict:
     """dict의 모든 UPPER_SNAKE_CASE 키를 snake_case로 변환 (재귀 지원)"""
     def to_snake(s):
@@ -314,13 +458,16 @@ def upper_snake_to_snake(d: dict) -> dict:
         result[to_snake(k)] = v
     return result
 
+
 # Pydantic 모델 <-> API dict 변환
 
 def to_api_dict(model: BaseModel) -> dict:
     return snake_to_upper_snake(model.model_dump(exclude_unset=True))
 
+
 def from_api_dict(api_data: dict, model_cls) -> BaseModel:
     return model_cls(**upper_snake_to_snake(api_data))
+
 
 # 이카운트 API 요청 변환 함수
 
@@ -340,6 +487,7 @@ def convert_ecount_api_request_to_dto(api_request: EcountApiRequest) -> List[Eco
         result.append(sale_dto)
     
     return result
+
 
 def convert_dto_to_ecount_api_request(sale_dtos: List[EcountSaleDto]) -> EcountApiRequest:
     """EcountSaleDto 리스트를 이카운트 API 요청 형식으로 변환합니다."""
