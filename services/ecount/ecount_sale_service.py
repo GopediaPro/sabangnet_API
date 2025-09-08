@@ -8,7 +8,7 @@ from typing import Optional, List, Dict, Any
 from decimal import Decimal
 from utils.logs.sabangnet_logger import get_logger
 from utils.decorators import api_exception_handler
-from schemas.ecount.sale_schemas import (
+from schemas.ecount.ecount_schemas import (
     EcountSaleDto, 
     EcountApiRequest, 
     EcountApiResponse,

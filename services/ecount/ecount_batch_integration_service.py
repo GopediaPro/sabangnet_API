@@ -14,7 +14,7 @@ from repository.ecount_sale_repository import EcountSaleRepository
 from repository.down_form_order_repository import DownFormOrderRepository
 from services.ecount.ecount_auth_service import EcountAuthManager
 from services.ecount.ecount_sale_service import EcountSaleService
-from schemas.ecount.sale_schemas import (
+from schemas.ecount.ecount_schemas import (
     EcountBatchProcessRequest, EcountBatchProcessResult, 
     EcountBatchProcessResponse, EcountSaleDto, to_api_dict, from_api_dict
 )
