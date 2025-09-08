@@ -33,6 +33,7 @@ from api.v2.endpoints.down_form_order import router as down_form_order_v2_router
 from api.v2.endpoints.smile.smile_macro import router as smile_macro_v2_router
 from api.v2.endpoints.ecount.erp_excel_import import router as ecount_excel_import_v2_router
 from api.v2.endpoints.ecount.erp_transfer import router as ecount_erp_transfer_v2_router
+from api.v2.endpoints.ecount.erp import router as ecount_erp_v2_router
 
 
 from utils.logs.sabangnet_logger import get_logger, HTTPLoggingMiddleware
@@ -93,6 +94,7 @@ master_router_v2.include_router(down_form_order_v2_router)
 master_router_v2.include_router(smile_macro_v2_router)
 master_router_v2.include_router(ecount_excel_import_v2_router)
 master_router_v2.include_router(ecount_erp_transfer_v2_router)
+master_router_v2.include_router(ecount_erp_v2_router)
 
 
 app.include_router(master_router)
