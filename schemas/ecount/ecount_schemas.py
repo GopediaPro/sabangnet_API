@@ -3,7 +3,7 @@
 """
 import re
 from pydantic import BaseModel, Field, model_validator, field_validator
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 from core.settings import SETTINGS
 
@@ -54,7 +54,7 @@ class EcountSaleDto(BaseModel):
     prod_cd: Optional[str] = Field(None, description="품목코드")
     prod_des: Optional[str] = Field(None, description="품목명")
     size_des: Optional[str] = Field(None, description="주문번호")  # Sale에서는 주문번호로 사용
-    qty: Optional[float] = Field(None, description="수량")
+    qty: Optional[int] = Field(None, description="수량")
     price: Optional[float] = Field(None, description="단가")
     supply_amt_f: Optional[float] = Field(None, description="외화금액")
     supply_amt: Optional[float] = Field(None, description="공급가액")
@@ -128,7 +128,7 @@ class EcountPurchaseDto(BaseModel):
     prod_cd: Optional[str] = Field(None, description="품목코드")
     prod_des: Optional[str] = Field(None, description="품목명")
     size_des: Optional[str] = Field(None, description="규격")  # Purchase에서는 규격으로 사용
-    qty: Optional[float] = Field(None, description="수량")
+    qty: Optional[int] = Field(None, description="수량")
     price: Optional[float] = Field(None, description="단가")
     supply_amt_f: Optional[float] = Field(None, description="외화금액")
     supply_amt: Optional[float] = Field(None, description="공급가액")
@@ -182,7 +182,7 @@ class EcountPurchaseItem(BaseModel):
 
 class EcountApiPurchaseRequest(BaseModel):
     """이카운트 API 실제 요청 형식"""
-    PurchaseList: List[EcountPurchaseItem]
+    PurchasesList: List[EcountPurchaseItem]
 
 
 class EcountErrorDetail(BaseModel):
@@ -489,13 +489,14 @@ def convert_ecount_api_request_to_dto(api_request: EcountApiRequest) -> List[Eco
     return result
 
 
-def convert_dto_to_ecount_api_request(sale_dtos: List[EcountSaleDto]) -> EcountApiRequest:
-    """EcountSaleDto 리스트를 이카운트 API 요청 형식으로 변환합니다."""
+def convert_dto_to_ecount_api_request(ecount_dtos: List[Union[EcountSaleDto, EcountPurchaseDto]]) -> Union[EcountApiRequest, EcountApiPurchaseRequest]:
+    """EcountSaleDto/EcountPurchaseDto 리스트를 이카운트 API 요청 형식으로 변환합니다. (기본적으로 판매로 처리)"""
+    # 기본적으로 판매로 처리 (기존 호환성 유지)
     sale_items = []
     
-    for sale_dto in sale_dtos:
-        # EcountSaleDto를 snake_case dict로 변환
-        dto_dict = sale_dto.model_dump(exclude_unset=True)
+    for dto in ecount_dtos:
+        # DTO를 snake_case dict로 변환
+        dto_dict = dto.model_dump(exclude_unset=True)
         
         # snake_case를 UPPER_SNAKE_CASE로 변환
         upper_dict = snake_to_upper_snake(dto_dict)
@@ -505,3 +506,42 @@ def convert_dto_to_ecount_api_request(sale_dtos: List[EcountSaleDto]) -> EcountA
         sale_items.append(sale_item)
     
     return EcountApiRequest(SaleList=sale_items)
+
+def convert_dto_to_ecount_api_request_with_template_code(ecount_dtos: List[Union[EcountSaleDto, EcountPurchaseDto]], template_code: str) -> Union[EcountApiRequest, EcountApiPurchaseRequest]:
+    """EcountSaleDto/EcountPurchaseDto 리스트를 이카운트 API 요청 형식으로 변환합니다. (템플릿 코드에 따라 자동 구분)"""
+    # template_code에 따라 API 타입 결정
+    is_purchase = template_code and "purchase" in template_code.lower()
+    
+    if is_purchase:
+        # 구매 API 요청 생성
+        purchase_items = []
+        
+        for dto in ecount_dtos:
+            # DTO를 snake_case dict로 변환
+            dto_dict = dto.model_dump(exclude_unset=True)
+            
+            # snake_case를 UPPER_SNAKE_CASE로 변환
+            upper_dict = snake_to_upper_snake(dto_dict)
+            
+            # BulkDatas를 dict로 직접 생성
+            purchase_item = EcountPurchaseItem(BulkDatas=upper_dict)
+            purchase_items.append(purchase_item)
+        
+        return EcountApiPurchaseRequest(PurchasesList=purchase_items)
+    
+    else:
+        # 판매 API 요청 생성
+        sale_items = []
+        
+        for dto in ecount_dtos:
+            # DTO를 snake_case dict로 변환
+            dto_dict = dto.model_dump(exclude_unset=True)
+            
+            # snake_case를 UPPER_SNAKE_CASE로 변환
+            upper_dict = snake_to_upper_snake(dto_dict)
+            
+            # BulkDatas를 dict로 직접 생성
+            sale_item = EcountSaleItem(BulkDatas=upper_dict)
+            sale_items.append(sale_item)
+        
+        return EcountApiRequest(SaleList=sale_items)
