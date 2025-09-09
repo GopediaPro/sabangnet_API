@@ -214,13 +214,13 @@ class EcountSaleService:
                 if not sale_dto.vat_amt:
                     sale_dto.vat_amt = float(vat_amt)
     
-    def _prepare_api_request(self, sale_dtos: List[EcountSaleDto], auth_info: EcountAuthInfo) -> tuple[str, dict]:
+    def _prepare_api_request(self, sale_dtos: List[EcountSaleDto], auth_info: EcountAuthInfo, is_test: bool = True) -> tuple[str, dict]:
         """API 요청을 준비합니다."""
         # DTO를 API 요청 형식으로 변환
         api_request = convert_dto_to_ecount_api_request(sale_dtos)
         
         # API 요청 URL 구성
-        url = self._build_sale_url(auth_info, is_test=False)
+        url = self._build_sale_url(auth_info, is_test)
         
         # API 요청 데이터 준비
         request_data = api_request.model_dump(exclude_unset=True)
@@ -248,10 +248,10 @@ class EcountSaleService:
             return None, [f"응답 파싱 실패: {str(e)}"]
     
     @api_exception_handler(logger=logger, default_status=500, default_detail="API 요청 중 오류가 발생했습니다")
-    async def _send_sales_api_request(self, sale_dtos: List[EcountSaleDto], auth_info: EcountAuthInfo) -> tuple[Optional[EcountApiResponse], List[str]]:
+    async def _send_sales_api_request(self, sale_dtos: List[EcountSaleDto], auth_info: EcountAuthInfo, is_test: bool = True) -> tuple[Optional[EcountApiResponse], List[str]]:
         """판매 API 요청을 전송하고 응답을 처리합니다."""
         # 1단계: API 요청 준비
-        url, request_data = self._prepare_api_request(sale_dtos, auth_info)
+        url, request_data = self._prepare_api_request(sale_dtos, auth_info, is_test)
         
         # 2단계: API 요청 전송
         response_data, status, error = await aiohttp_post(
@@ -278,7 +278,7 @@ class EcountSaleService:
         if api_response.Data.SuccessCnt > 0 and api_response.Data.SlipNos:
             for i, sale_dto in enumerate(sale_dtos):
                 if i < len(api_response.Data.SlipNos):
-                    sale_dto.slip_no = api_response.Data.SlipNos[i]
+                    sale_dto.slip_nos = api_response.Data.SlipNos[i]
                 sale_dto.trace_id = api_response.Data.TRACE_ID
                 sale_dto.is_success = True
     
@@ -300,7 +300,7 @@ class EcountSaleService:
         self._calculate_amounts_for_sales(valid_dtos)
         
         # 3단계: API 요청 전송 및 응답 처리
-        api_response, api_errors = await self._send_sales_api_request(valid_dtos, auth_info)
+        api_response, api_errors = await self._send_sales_api_request(valid_dtos, auth_info, is_test=True)
         
         # 4단계: 결과 반환
         all_errors = validation_errors + api_errors

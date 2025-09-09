@@ -279,7 +279,7 @@ class EcountBatchIntegrationService:
             
             if api_sale_response.is_success:
                 sale_dto.is_success = True
-                sale_dto.slip_no = api_sale_response.slip_no
+                sale_dto.slip_nos = api_sale_response.slip_nos
                 sale_dto.trace_id = api_sale_response.trace_id
             else:
                 sale_dto.is_success = False
