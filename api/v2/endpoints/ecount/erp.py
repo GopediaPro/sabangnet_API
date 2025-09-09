@@ -6,7 +6,9 @@ Ecount ERP API v2
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Body, Response
 from typing import Optional, List, Dict, Any
 import json
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.db import get_async_session
 from utils.logs.sabangnet_logger import get_logger
 from utils.decorators import api_exception_handler, validate_excel_file
 from schemas.integration_request import IntegrationRequest, Metadata
@@ -43,7 +45,8 @@ async def create_sale_bulk_from_excel(
         examples=EcountSaleExcelRequestDto.model_config["json_schema_extra"]["examples"]
     ),
     auth_manager: EcountAuthManager = Depends(get_auth_manager),
-    excel_sale_service: EcountExcelSaleService = Depends(get_excel_sale_service)
+    excel_sale_service: EcountExcelSaleService = Depends(get_excel_sale_service),
+    session: AsyncSession = Depends(get_async_session)
 ):
     """
     Excel 파일을 업로드하여 이카운트 판매 데이터를 일괄 생성합니다.
@@ -51,7 +54,11 @@ async def create_sale_bulk_from_excel(
     try:
         # JSON 문자열을 파싱하여 IntegrationRequest 객체 생성
         request_obj = IntegrationRequest[EcountSaleExcelRequestDto](**json.loads(request))
-        
+        is_test = request_obj.data.is_test
+        template_code = request_obj.data.template_code
+        sheet_name = request_obj.data.sheet_name
+        clear_existing = request_obj.data.clear_existing
+        work_status = "ERP 업로드 전"
         # 파일 검증
         validate_excel_file(file)
         
@@ -59,7 +66,7 @@ async def create_sale_bulk_from_excel(
         content = await file.read()
         
         # 인증 정보 가져오기
-        auth_info = await auth_manager.get_authenticated_info_from_env(request_obj.data.is_test)
+        auth_info = await auth_manager.get_authenticated_info_from_env_with_template_code(is_test, template_code)
         if not auth_info:
             return ResponseHandler.unauthorized(
                 message="환경변수 인증 실패",
@@ -73,9 +80,13 @@ async def create_sale_bulk_from_excel(
         response_data = await excel_sale_service.process_excel_sale_upload(
             file_content=content,
             file_name=file.filename,
-            sheet_name=request_obj.data.sheet_name,
+            sheet_name=sheet_name,
             auth_info=auth_info,
-            user_id=request_obj.metadata.request_id
+            user_id=request_obj.metadata.request_id,
+            template_code=template_code,
+            clear_existing=clear_existing,
+            work_status=work_status,
+            session=session
         )
         
         # 표준화된 응답 생성
