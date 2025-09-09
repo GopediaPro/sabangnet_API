@@ -5,7 +5,7 @@ from typing import Optional
 from datetime import datetime
 from utils.logs.sabangnet_logger import get_logger
 from models.down_form_orders.down_form_order import BaseDownFormOrder
-from schemas.ecount.sale_schemas import EcountSaleDto
+from schemas.ecount.ecount_schemas import EcountSaleDto
 
 
 logger = get_logger(__name__)

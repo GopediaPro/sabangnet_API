@@ -12,7 +12,7 @@ from utils.decorators import api_exception_handler
 from schemas.ecount.auth_schemas import (
     ZoneRequest, ZoneResponse, LoginRequest, LoginResponse, EcountAuthInfo
 )
-from schemas.ecount.sale_schemas import (
+from schemas.ecount.ecount_schemas import (
     EcountSaleDto, EcountSaleRequest, EcountSaleResponse,
     EcountBatchProcessRequest, EcountBatchProcessResponse,
     EcountApiResponse
