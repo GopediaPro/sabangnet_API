@@ -84,6 +84,8 @@ class IYESProcessedData(ProcessedOrderData):
     # VBA Step 17에서 추가
     site_okmart: Optional[str] = Field(None, description="사이트-오케이마트")
     site_iyes: Optional[str] = Field(None, description="사이트-아이예스")
+    emp_cd: Optional[str] = Field(None, description="담당자")
+    io_type: Optional[str] = Field(None, description="거래유형")
 
 
 class EcountSaleData(BaseModel):
@@ -153,8 +155,8 @@ class EcountPurchaseData(BaseModel):
     cust_des: Optional[str] = Field(None, description="거래처명")
     wh_cd: Optional[int] = Field(None, description="입고창고")
     io_type: str = Field("2", description="거래유형 (구매)")
-    exchange_type: str = Field("KRW", description="통화")
-    exchange_rate: Decimal = Field(1.0, description="환율")
+    exchange_type: Optional[str] = Field("KRW", description="통화")
+    exchange_rate: Optional[Decimal] = Field(1.0, description="환율")
     
     # 연락처 정보
     u_memo1: Optional[str] = Field(None, description="E-MAIL")
