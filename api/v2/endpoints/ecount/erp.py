@@ -32,7 +32,7 @@ def get_excel_sale_service() -> EcountExcelSaleService:
     return EcountExcelSaleService()
 
 @router.post(
-    "/sale/create-bulk-from-excel",
+    "/create-bulk-from-excel",
     summary="Excel 파일로부터 판매 데이터 일괄 생성",
     description="Excel 파일을 업로드하여 이카운트 판매 데이터를 일괄 생성합니다.",
     response_class=Response
@@ -77,7 +77,7 @@ async def create_sale_bulk_from_excel(
             )
         
         # Excel 파일 업로드 및 판매 처리
-        response_data = await excel_sale_service.process_excel_sale_upload(
+        response_data = await excel_sale_service.process_excel_ecount_upload(
             file_content=content,
             file_name=file.filename,
             sheet_name=sheet_name,
