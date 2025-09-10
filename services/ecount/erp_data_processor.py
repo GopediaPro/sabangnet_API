@@ -24,6 +24,7 @@ from schemas.ecount.erp_data_processing_dto import (
 )
 from schemas.ecount.erp_transfer_dto import FormNameType
 from utils.logs.sabangnet_logger import get_logger
+from core.settings import SETTINGS
 
 logger = get_logger(__name__)
 
@@ -388,6 +389,8 @@ class ERPDataProcessor:
             okmart_order = OKMartProcessedData(**order.model_dump())
             okmart_order.warehouse = warehouse
             okmart_orders.append(okmart_order)
+            okmart_order.emp_cd = SETTINGS.ECOUNT_USER_ID.lower()
+            okmart_order.io_type = "14"  
         
         return okmart_orders
     
@@ -414,6 +417,8 @@ class ERPDataProcessor:
             iyes_order.purchase_vat_amt = purchase_info['vat_amt']
             iyes_order.site_okmart = "1198652000"
             iyes_order.site_iyes = "8768600978"
+            iyes_order.emp_cd = SETTINGS.ECOUNT_USER_ID_IYES
+            iyes_order.io_type = "11"  # 구매 거래유형
             
             iyes_orders.append(iyes_order)
         
@@ -625,9 +630,9 @@ class ERPDataProcessor:
                 upload_ser_no=order.seq,
                 cust=order.site_code,
                 cust_des=None,
-                emp_cd=None,
+                emp_cd=order.emp_cd,
                 wh_cd=order.warehouse if hasattr(order, 'warehouse') else None,
-                io_type=None,
+                io_type="14" if form_name == FormNameType.IYES_ERP_SALE_IYES else order.io_type,
                 exchange_type=None,
                 exchange_rate=None,
                 u_memo1=None,
@@ -678,9 +683,9 @@ class ERPDataProcessor:
                 upload_ser_no=order.seq,
                 cust=order.site_code,
                 cust_des=None,
-                emp_cd=None,
+                emp_cd=order.emp_cd,
                 wh_cd=order.warehouse if hasattr(order, 'warehouse') else None,
-                io_type=None,
+                io_type=order.io_type,
                 exchange_type=None,
                 exchange_rate=None,
                 u_memo1=None,
