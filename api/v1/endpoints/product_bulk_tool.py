@@ -6,6 +6,8 @@ Product API
 # std
 import requests
 from pathlib import Path
+from typing import Optional
+import os
 # core
 from core.settings import SETTINGS
 from core.db import get_async_session
@@ -19,6 +21,7 @@ from services.product.product_update_service import ProductUpdateService
 from services.usecase.product_db_xml_usecase import ProductDbXmlUsecase
 from services.product_registration.product_registration_service import ProductRegistrationService
 # schemas
+from schemas.integration_response import ResponseHandler, Metadata
 from schemas.product.db_xml_dto import DbToXmlResponse
 from schemas.product.request.product_form import ModifyProductNameForm
 from schemas.product.response.product_response import (
@@ -26,6 +29,12 @@ from schemas.product.response.product_response import (
     ProductNameResponse,
     ProductResponse,
 )
+from schemas.product_registration import (
+    ProductDbToExcelResponse,
+    ProductDbToExcelRequest,
+)
+from schemas.integration_request import IntegrationRequest
+from schemas.product_registration.docs_succes_integration_responses import SuccessResponseSchema
 # sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 # utils
@@ -39,7 +48,7 @@ from utils.exceptions.http_exceptions import (
     DataNotFoundException
 )
 # file
-from minio_handler import upload_file_to_minio, get_minio_file_url
+from minio_handler import upload_file_to_minio, get_minio_file_url, upload_and_get_url_and_size, url_arrange
 
 
 logger = get_logger(__name__)
@@ -166,3 +175,72 @@ async def bulk_db_to_excel(
     product_read_service: ProductReadService = Depends(get_product_read_service)
 ) -> StreamingResponse:
     return await product_read_service.convert_product_data_to_excel()
+
+
+@router.post(
+    "/excel/db-to-excel",
+    name="download_test_products_excel",
+    response_model=SuccessResponseSchema[ProductDbToExcelResponse],
+    summary="대량 상품 등록 데이터(test_product_raw_data) Excel 다운로드 URL 반환",
+    description="대량 상품 등록 데이터(test_product_raw_data)를 Excel 파일로 생성 후 MinIO 업로드 URL과 메타데이터를 JSON으로 반환합니다. (정렬/날짜 필터링 지원)"
+)
+async def download_test_products_excel(
+    request: IntegrationRequest[ProductDbToExcelRequest],
+    service: "ProductReadService" = Depends(get_product_read_service),
+):
+    """
+    - 서비스에서 test_product_raw_data 기반 Excel 파일 생성
+    - MinIO 업로드 후 URL/레코드수/파일크기 반환
+    - 업로드 후 임시파일 삭제
+    """
+    temp_path: Optional[str] = None
+    try:
+        # 1) Excel 파일 생성
+        temp_path, file_name, record_count, file_size = await service.convert_test_product_data_to_excel_file_by_filter(
+            sort_order=request.data.sort_order,
+            created_before=request.data.created_before,
+        )
+
+        # 2) MinIO 업로드
+        file_url, minio_object_name, uploaded_size = upload_and_get_url_and_size(
+            temp_path,
+            "test_product_excel",   # 버킷/경로명은 실제 정책에 맞게 지정
+            file_name
+        )
+        file_url = url_arrange(file_url)
+
+        logger.info(
+            f"[download_test_products_excel] 업로드 완료 - URL: {file_url}, "
+            f"레코드 수: {record_count}, 파일 크기(bytes): {uploaded_size}"
+        )
+
+        # 3) JSON 응답
+        body = ProductDbToExcelResponse(
+            excel_url=file_url,
+            record_count=record_count,
+            file_size=uploaded_size,
+        )
+        return ResponseHandler.ok(
+            data=body,
+            metadata=Metadata(version="v1", request_id=request.metadata.request_id or "N/A"),
+        )
+
+    except DataNotFoundException as e:
+        logger.warning(f"[download_test_products_excel] 데이터 없음: {str(e)}")
+        return ResponseHandler.internal_error(
+            message=str(e),
+            metadata=Metadata(version="v1", request_id=request.metadata.request_id or "N/A"),
+        )
+    except Exception as e:
+        logger.error(f"[download_test_products_excel] 실패: {str(e)}")
+        return ResponseHandler.internal_error(
+            message=str(e),
+            metadata=Metadata(version="v1", request_id=request.metadata.request_id or "N/A"),
+        )
+    finally:
+        """4) 로컬 임시파일 정리"""
+        try:
+            if temp_path and os.path.exists(temp_path):
+                os.remove(temp_path)
+        except Exception as cleanup_err:
+            logger.warning(f"[download_test_products_excel] 임시파일 삭제 실패: {cleanup_err}")

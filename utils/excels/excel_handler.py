@@ -5,12 +5,14 @@ import pandas as pd
 import xlrd
 import tempfile
 import os
-from typing import List
+from typing import List, Dict
+from datetime import datetime
 from openpyxl.utils import get_column_letter
 from openpyxl.workbook.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
-from openpyxl.styles import Font, PatternFill, Alignment, Border
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from utils.logs.sabangnet_logger import get_logger
+from utils.mappings.product_create_field_db_mapping_for_excel import PRODUCT_CREATE_DB_TO_EXCEL_HEADER, db_row_to_excel_row
 
 logger = get_logger(__name__)
 """
@@ -1298,7 +1300,126 @@ class ExcelHandler:
         else:
             logger.info("OpenPyXL 방식으로 파일 합치기 선택")
             return ExcelHandler.merge_excel_files(file_paths, output_path, sheet_index)
+        
+    def create_excel_file_from_mapping(
+        self,
+        data: List[Dict],
+        sheet_name: str = "상품등록",
+        split_sheets: List[str] = None,
+        template_code: str = None,
+        mapping: Dict[str, str] = PRODUCT_CREATE_DB_TO_EXCEL_HEADER,  # ✅ 통일 지점
+    ):
+        """
+        DTO 데이터를 기반으로 Excel 파일을 생성합니다.
+        - 엑셀 헤더는 PRODUCT_CREATE_DB_TO_EXCEL_HEADER(영문 DB컬럼 -> 한글 헤더)로 통일합니다.
+        - 데이터를 여러 시트로 나눌 수 있습니다.
+        - 각 시트에 템플릿 코드를 추가할 수 있습니다.
 
+        Args:
+            dto_class: (미사용) 기존 시그니처 호환성용
+            data: DB dict 리스트(영문 키)
+            sheet_name: 기본 시트 이름
+            split_sheets: 나눌 시트 이름 리스트 (예: 카테고리 분리용)
+            template_code: 각 시트에 추가할 템플릿 코드
+            mapping: DB영문 -> 한글헤더 매핑(기본: PRODUCT_CREATE_DB_TO_EXCEL_HEADER)
+
+        Returns:
+            file_path: 생성된 엑셀 파일 경로
+        """
+        # 1) 기본 시트 세팅
+        self.ws.title = sheet_name
+
+        # 2) 헤더: 매핑 값(한글) 순서대로 고정
+        headers = list(mapping.values())
+        self.ws.append(headers)
+        self.set_header_style(self.ws)  # 헤더 스타일 적용(기존 메서드)
+
+        # 3) 데이터 작성: 각 DB dict를 엑셀 헤더 dict로 변환한 뒤 헤더 순서대로 기입
+        for row in data:
+            excel_row = db_row_to_excel_row(row, mapping)  # 영문키 dict -> 한글헤더 dict
+            self.ws.append([excel_row.get(h, "") for h in headers])
+
+        # 4) 열/행 스타일링
+        self._adjust_column_widths(self.ws, headers)
+        self._adjust_row_heights(self.ws)
+        self._enable_wrap_text(self.ws)
+
+        # 5) 시트 분리(선택)
+        if split_sheets:
+            ws_map = self.create_split_sheets(headers, split_sheets)
+            for row in data:
+                # 기본 분리 기준 예시: DB 컬럼 'category' (필요 시 변경)
+                category = (row.get("category") or "기본")
+                target_ws = ws_map.get(category, self.ws)
+                excel_row = db_row_to_excel_row(row, mapping)
+                target_ws.append([excel_row.get(h, "") for h in headers])
+
+            # 각 시트에 템플릿 코드 추가(선택)
+            if template_code:
+                for ws in ws_map.values():
+                    self.create_template_code_in_excel(template_code, ws)
+
+        # 6) 파일 저장
+        file_path = f"/tmp/{sheet_name}.xlsx"
+        self.wb.save(file_path)
+        return file_path
+
+    def _adjust_column_widths(self, ws, headers):
+        """
+        워크시트의 열 너비를 데이터와 헤더 길이에 따라 자동으로 조정합니다.
+        Args:
+            ws: openpyxl 워크시트 객체
+            headers: 헤더 리스트
+        """
+        for col_idx, col in enumerate(ws.columns, start=1):
+            max_length = len(headers[col_idx - 1])  # 헤더 길이 기준
+            for cell in col:
+                try:
+                    if cell.value:
+                        max_length = max(max_length, len(str(cell.value)))
+                except:
+                    pass
+            # 열 너비를 헤더 길이에 맞게 충분히 설정 (최대 너비 50)
+            adjusted_width = min(max_length + 5, 50)  # 헤더 길이에 여유 공간 추가
+            ws.column_dimensions[col[0].column_letter].width = adjusted_width
+
+    def _adjust_row_heights(self, ws):
+        """
+        워크시트의 행 높이를 데이터 길이에 따라 자동으로 조정합니다.
+        """
+        for row in ws.iter_rows():
+            max_height = 15  # 기본 높이
+            for cell in row:
+                if cell.value and isinstance(cell.value, str):
+                    lines = cell.value.count("\n") + 1
+                    max_height = max(max_height, lines * 15)  # 줄바꿈 개수에 따라 높이 조정
+            ws.row_dimensions[row[0].row].height = max_height
+                
+    def _enable_wrap_text(self, ws):
+        """
+        워크시트의 모든 셀에 텍스트 줄바꿈을 활성화합니다.
+        Args:
+            ws: openpyxl 워크시트 객체
+        """
+        for row in ws.iter_rows():
+            for cell in row:
+                cell.alignment = Alignment(wrap_text=True)
+    
+    def set_header_style(self, ws):
+        """
+        지정한 워크시트의 헤더 행에 배경색, 폰트, 정렬을 일괄 적용
+        Args:
+            ws: openpyxl worksheet
+        """
+        white_font = Font(name='맑은 고딕', size=11, color="FFFFFF", bold=True)
+        center_alignment = Alignment(horizontal='center', wrap_text=False)  # 텍스트 줄바꿈 비활성화
+        green_fill = PatternFill(start_color="008000", end_color="008000", fill_type="solid")
+        for cell in ws[1]:
+            cell.fill = green_fill
+            cell.font = white_font
+            cell.alignment = center_alignment
+            cell.border = Border()
+        ws.row_dimensions[1].height = 20  # 헤더 행 높이 설정
 
 class ReverseComparableString:
     def __init__(self, s):

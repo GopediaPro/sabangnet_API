@@ -18,6 +18,8 @@ from .product_registration_dto import (
     ProductRegistrationDeleteRowResponse,
     ExcelProcessResultDto,
     ExcelImportResponseDto,
+    ProductDbToExcelResponse,
+    ProductDbToExcelRequest,
     CompleteWorkflowResponseDto
 )
 
@@ -37,5 +39,7 @@ __all__ = [
     "ProductRegistrationDeleteRowResponse",
     "ExcelProcessResultDto",
     "ExcelImportResponseDto",
+    "ProductDbToExcelResponse",
+    "ProductDbToExcelRequest",
     "CompleteWorkflowResponseDto"
 ]

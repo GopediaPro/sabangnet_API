@@ -3,10 +3,17 @@ Product Registration Service
 상품 등록 비즈니스 로직 처리 서비스
 """
 
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Any
+from datetime import datetime
 from utils.logs.sabangnet_logger import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from pathlib import Path
+
+from openpyxl import Workbook
+from utils.excels.excel_handler import ExcelHandler
+import os
+import tempfile
+from utils.exceptions.http_exceptions import DataNotFoundException
 
 from repository.product_registration_repository import ProductRegistrationRepository
 from utils.excels.excel_processor import ProductRegistrationExcelProcessor
@@ -23,7 +30,7 @@ from services.product.product_create_service import ProductCreateService
 from utils.make_xml.product_registration_xml import ProductRegistrationXml
 from minio_handler import upload_file_to_minio, get_minio_file_url
 from utils.make_xml.sabang_api_result_parser import SabangApiResultParser
-
+from utils.excels.excel_handler import ExcelHandler
 
 logger = get_logger(__name__)
 
@@ -550,3 +557,65 @@ class ProductRegistrationService:
             await self.session.rollback()
             logger.error(f"대량 상품 삭제 오류: {e}")
             raise
+        
+    async def convert_product_data_to_excel_file_by_filter(
+        self,
+        sort_order: Optional[str] = None,
+        created_before: Optional[datetime] = None
+    ) -> Tuple[str, str, int, int]:
+        """
+        상품 등록 데이터를 조회하고 Excel 파일을 생성합니다.
+
+        Returns:
+            temp_file_path: 임시 파일 경로
+            file_name: 파일 이름
+            record_count: 엑셀에 포함된 레코드 수
+            file_size: 파일 크기(bytes)
+        """
+        try:
+            products: List[ProductRegistrationResponseDto] = await self.get_products_for_excel(
+                sort_order=sort_order,
+                created_before=created_before
+            )
+            if not products:
+                raise DataNotFoundException("다운로드할 상품 등록 데이터가 없습니다.")
+
+            wb = Workbook()
+            ws = wb.active
+            excel_handler = ExcelHandler(ws, wb)
+
+            temp_dir = tempfile.gettempdir()
+            file_name = "상품등록.xlsx"
+            temp_file_path = os.path.join(temp_dir, file_name)
+
+            excel_handler.create_excel_file_from_mapping(
+                data=[p.dict() for p in products],
+                sheet_name="상품등록"
+            )
+            wb.save(temp_file_path)
+
+            record_count = len(products)
+            file_size = os.path.getsize(temp_file_path)
+
+            logger.info(f"[convert_product_data_to_excel_file_by_filter] 생성 완료: {file_name}, count={record_count}, size={file_size}")
+            return temp_file_path, file_name, record_count, file_size
+
+        except Exception as e:
+            logger.error(f"[convert_product_data_to_excel_file_by_filter] 실패: {str(e)}")
+            raise
+
+    async def get_products_for_excel(
+        self,
+        sort_order: Optional[str] = None,
+        created_before: Optional[datetime] = None,
+    ) -> List[ProductRegistrationCreateDto]:
+        """
+        Excel 다운로드용 상품 등록 데이터 조회
+        - sort_order: "asc"|"desc"|None
+        - created_before: created_at <= 시점 필터
+        """
+        rows = await self.repository.fetch_products_for_excel(
+            sort_order=sort_order,
+            created_before=created_before,
+        )
+        return [ProductRegistrationCreateDto.from_orm(r) for r in rows]

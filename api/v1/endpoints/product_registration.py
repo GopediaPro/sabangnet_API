@@ -6,23 +6,26 @@ Product Registration API
 - 판매 예정인 상품들의 데이터라고 이해하면 됩니다.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query, Body
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query, Body, BackgroundTasks, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from schemas.integration_request import IntegrationRequest
 from schemas.integration_response import ResponseHandler, Metadata
+from schemas.product_registration.docs_succes_integration_responses import SuccessResponseSchema
 # utils
 from utils.response_status import RowStatus, make_row_result
-from utils.excels.excel_handler import ExcelHandler
 from fastapi.responses import JSONResponse
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from datetime import datetime
 import os
 import logging
 import tempfile
-
+from fastapi import Query
+from urllib.parse import urlencode
 
 from core.db import get_async_session
 from services.product_registration import ProductRegistrationService, ProductCodeIntegratedService, ProductRegistrationReadService
 from services.product_registration.product_integrated_service_v2 import ProductCodeIntegratedServiceV2
+from services.product.product_read_service import ProductReadService
 from schemas.product_registration import (
     ProductRegistrationCreateDto,
     ProductRegistrationReadResponse,
@@ -36,6 +39,8 @@ from schemas.product_registration import (
     ProductRegistrationBulkResponseDto,
     ProductRegistrationResponseDto,
     ProductRegistrationBulkDeleteResponse,
+    ProductDbToExcelResponse,
+    ProductDbToExcelRequest,
 )
 from utils.decorators import (
     product_registration_handler, 
@@ -49,6 +54,9 @@ from utils.exceptions.http_exceptions import (
     DataNotFoundException,
     ProductRegistrationException
 )
+
+# minio
+from minio_handler import upload_and_get_url_and_size, url_arrange
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -104,6 +112,13 @@ async def get_product_integrated_service_v2() -> ProductCodeIntegratedServiceV2:
     return ProductCodeIntegratedServiceV2()
 
 
+async def get_product_read_service(
+    session: AsyncSession = Depends(get_async_session)
+) -> ProductReadService:
+    """상품 조회 서비스 의존성 주입"""
+    return ProductReadService(session)
+
+
 @router.get("", response_model=ProductRegistrationReadResponse)
 @product_registration_handler()
 async def get_products_all(
@@ -138,6 +153,67 @@ async def get_products_by_pagenation(
 async def get_api_status():
     """API 상태를 확인합니다."""
     return {"message": "Product Registration API is running", "status": "ok"}
+
+
+@router.post(
+    "/excel/db-to-excel",
+    name="download_products_excel",
+    response_model=SuccessResponseSchema[ProductDbToExcelResponse],
+    summary="상품 등록 데이터(product_registration_raw_data) Excel 다운로드 URL 반환",
+    description="상품 등록 데이터(product_registration_raw_data) Excel 파일을 생성하여 MinIO에 업로드 후 URL/레코드수/파일크기를 JSON으로 반환합니다."
+)
+async def download_products_excel(
+    request: IntegrationRequest[ProductDbToExcelRequest],
+    service: "ProductRegistrationService" = Depends(get_product_registration_service),
+):
+    """
+    - 서비스에서 product_registration_raw_data 기반 Excel 파일 생성
+    - MinIO 업로드 후 URL/레코드수/파일크기 반환
+    - 업로드 후 임시파일 삭제
+    """
+    temp_file_path: Optional[str] = None
+    try:
+        # 1) Excel 파일 생성
+        temp_file_path, file_name, record_count, file_size = await service.convert_product_data_to_excel_file_by_filter(
+            sort_order=request.data.sort_order,
+            created_before=request.data.created_before,
+        )
+
+        # 2) MinIO 업로드
+        file_url, minio_object_name, uploaded_size = upload_and_get_url_and_size(
+            temp_file_path, "product_registration", file_name
+        )
+        file_url = url_arrange(file_url)
+
+        logger.info(
+            f"[download_products_excel] 완료 - URL: {file_url}, "
+            f"총 레코드 수: {record_count}, 파일 크기(bytes): {uploaded_size}"
+        )
+
+        # 3) JSON 응답
+        body = ProductDbToExcelResponse(
+            excel_url=file_url,
+            record_count=record_count,
+            file_size=uploaded_size,
+        )
+        return ResponseHandler.ok(
+            data=body,
+            metadata=Metadata(version="v1", request_id=request.metadata.request_id or "N/A"),
+        )
+
+    except Exception as e:
+        logger.error(f"[download_products_excel] 실패: {str(e)}")
+        return ResponseHandler.internal_error(
+            message=str(e),
+            metadata=Metadata(version="v1", request_id=request.metadata.request_id or "N/A"),
+        )
+    finally:
+        """4) 로컬 임시파일 삭제"""
+        try:
+            if temp_file_path and os.path.exists(temp_file_path):
+                os.remove(temp_file_path)
+        except Exception as cleanup_err:
+            logger.warning(f"[download_products_excel] 임시파일 삭제 실패: {cleanup_err}")
 
 
 @router.post(
@@ -205,7 +281,7 @@ async def import_excel_to_db(
     finally:
         # 임시 파일 정리
         cleanup_func()
-
+        
 
 @router.post(
     "/complete-workflow-db",
@@ -374,7 +450,7 @@ async def create_single_product(
 
 @router.post(
     "/bulk",
-    response_class=JSONResponse,
+    response_model=SuccessResponseSchema[ProductRegistrationBulkResponseDto],
     summary="대량 상품 등록",
     description="여러 상품 등록 데이터를 한 번에 생성합니다."
 )
@@ -403,7 +479,7 @@ async def bulk_create_products(
 
 @router.put(
     "/bulk",
-    response_class=JSONResponse,
+    response_model=SuccessResponseSchema[ProductRegistrationBulkResponseDto],
     summary="대량 상품 등록 데이터 업데이트",
     description="여러 상품 등록 데이터를 한 번에 업데이트합니다."
 )
@@ -431,7 +507,7 @@ async def bulk_update_products(
 
 @router.delete(
     "/bulk",
-    response_class=JSONResponse,
+    response_model=SuccessResponseSchema[ProductRegistrationBulkDeleteResponse],
     summary="대량 상품 등록 데이터 삭제",
     description="여러 상품 등록 데이터를 한 번에 삭제합니다."
 )

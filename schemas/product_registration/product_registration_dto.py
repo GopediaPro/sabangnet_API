@@ -289,3 +289,21 @@ class ProductRegistrationBulkDeleteResponse(BaseModel):
 
 # Bulk / Pagination 응답 타입 Alias
 ProductRegistrationBulkResponse = BulkResponse[ProductRegistrationRowResponse]
+
+
+class ProductDbToExcelRequest(BaseModel):
+    """DB → Excel 변환 요청 DTO"""
+    sort_order: Optional[str] = Field(
+        None, pattern="^(asc|desc)$", description="정렬 순서 (asc/desc)", example="desc"
+    )
+    created_before: Optional[datetime] = Field(
+        None,
+        description="이 날짜/시각 이전(created_at <=) 데이터만 필터링. 미지정 시 전체 데이터 반환, null일 경우에는 전체 데이터 반환",
+        example="2025-09-01T00:00:00",
+    )
+
+class ProductDbToExcelResponse(BaseModel):
+    """DB → Excel 변환 응답 DTO"""
+    excel_url: str = Field(..., description="Excel 파일 URL")
+    record_count: int = Field(..., description="레코드 수")
+    file_size: int = Field(..., description="파일 크기 (bytes)")
