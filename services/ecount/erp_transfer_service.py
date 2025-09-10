@@ -440,12 +440,12 @@ class ErpTransferService:
                 logger.info("No ecount data to save")
                 return
             
-            if 'SALE' in form_name.value:
+            if 'sale' in form_name.value:
                 # SALE 데이터: EcountSale 테이블에 upsert (size_des 기준)
                 created_count, updated_count = await self.ecount_sale_repo.upsert_sale_data(ecount_erp_data)
                 logger.info(f"EcountSale upsert completed: {created_count} created, {updated_count} updated")
                 
-            elif 'PURCHASE' in form_name.value:
+            elif 'purchase' in form_name.value:
                 # PURCHASE 데이터: EcountPurchase 테이블에 upsert (prod_des 기준)
                 created_count, updated_count = await self.ecount_purchase_repo.upsert_purchase_data(ecount_erp_data)
                 logger.info(f"EcountPurchase upsert completed: {created_count} created, {updated_count} updated")
