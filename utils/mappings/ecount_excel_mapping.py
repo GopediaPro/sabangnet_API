@@ -14,7 +14,7 @@ class EcountExcelMapper:
     """이카운트 Excel 매핑 클래스"""
     
     # Excel 컬럼 매핑 정의
-    EXCEL_COLUMN_MAPPING = {
+    SALE_EXCEL_COLUMN_MAPPING = {
         "일자": "io_date",
         "순번": "upload_ser_no", 
         "거래처코드": "cust",
@@ -46,6 +46,31 @@ class EcountExcelMapper:
         "서비스이용료": "p_amt2",
         "운임비타입": "item_cd"
     }
+
+    PURCHASE_EXCEL_COLUMN_MAPPING = {
+        "일자": "io_date",
+        "순번": "upload_ser_no", 
+        "거래처코드": "cust",
+        "거래처명": "cust_des",
+        "담당자": "emp_cd",
+        "입고창고": "wh_cd",
+        "거래유형": "io_type",
+        "통화": "exchange_type",
+        "환율": "exchange_rate",
+        "E-MAIL": "u_memo1",
+        "FAX": "u_memo2",
+        "연락처": "u_memo3",
+        "주소": "u_txt1",
+        "품목코드": "prod_cd",
+        "품목명": "prod_des",
+        "규격": "size_des",
+        "수량": "qty",
+        "단가": "price",
+        "외화금액": "supply_amt_f",
+        "공급가액": "supply_amt",
+        "부가세": "vat_amt",
+        "적요": "remarks"
+    }
     
     @classmethod
     def map_excel_row_to_sale_data(cls, row: pd.Series, auth_info=None) -> Dict[str, Any]:
@@ -67,7 +92,7 @@ class EcountExcelMapper:
             sale_data['user_id'] = auth_info.user_id
         
         # Excel 컬럼을 DTO 필드로 매핑
-        for excel_col, dto_field in cls.EXCEL_COLUMN_MAPPING.items():
+        for excel_col, dto_field in cls.SALE_EXCEL_COLUMN_MAPPING.items():
             if excel_col in row.index:
                 value = row[excel_col]
                 
@@ -79,6 +104,39 @@ class EcountExcelMapper:
                     sale_data[dto_field] = cls._convert_value(value, dto_field)
         
         return sale_data
+    
+    @classmethod
+    def map_excel_row_to_purchase_data(cls, row: pd.Series, auth_info=None) -> Dict[str, Any]:
+        """
+        Excel 행을 구매 데이터로 매핑합니다.
+        
+        Args:
+            row: Excel 행 데이터
+            auth_info: 인증 정보 (com_code, user_id 포함)
+            
+        Returns:
+            Dict[str, Any]: 매핑된 구매 데이터
+        """
+        purchase_data = {}
+        
+        # 인증 정보 설정
+        if auth_info:
+            purchase_data['com_code'] = auth_info.com_code
+            purchase_data['user_id'] = auth_info.user_id
+        
+        # Excel 컬럼을 DTO 필드로 매핑
+        for excel_col, dto_field in cls.PURCHASE_EXCEL_COLUMN_MAPPING.items():
+            if excel_col in row.index:
+                value = row[excel_col]
+                
+                # NaN 값 처리
+                if pd.isna(value):
+                    purchase_data[dto_field] = None
+                else:
+                    # 데이터 타입 변환
+                    purchase_data[dto_field] = cls._convert_value(value, dto_field)
+        
+        return purchase_data
     
     @classmethod
     def _convert_value(cls, value: Any, dto_field: str) -> Any:
@@ -105,12 +163,13 @@ class EcountExcelMapper:
             return str(value) if value is not None else None
     
     @classmethod
-    def validate_mapping(cls, df: pd.DataFrame) -> Dict[str, Any]:
+    def validate_mapping(cls, df: pd.DataFrame, template_code: str = None) -> Dict[str, Any]:
         """
         Excel 파일의 매핑 유효성을 검증합니다.
         
         Args:
             df: Excel DataFrame
+            template_code: 템플릿 코드 (sale/purchase 구분용)
             
         Returns:
             Dict[str, Any]: 검증 결과
@@ -118,11 +177,17 @@ class EcountExcelMapper:
         # 컬럼명 정리 (앞뒤 공백 제거)
         df.columns = df.columns.str.strip()
         
+        # template_code에 따라 매핑 선택
+        if template_code and "purchase" in template_code.lower():
+            mapping = cls.PURCHASE_EXCEL_COLUMN_MAPPING
+        else:
+            mapping = cls.SALE_EXCEL_COLUMN_MAPPING
+        
         # 매핑 가능한 컬럼 확인
         available_columns = []
         missing_columns = []
         
-        for excel_col in cls.EXCEL_COLUMN_MAPPING.keys():
+        for excel_col in mapping.keys():
             if excel_col in df.columns:
                 available_columns.append(excel_col)
             else:
@@ -133,5 +198,6 @@ class EcountExcelMapper:
             "missing_columns": missing_columns,
             "total_columns": len(df.columns),
             "mapped_columns": len(available_columns),
-            "mapping_rate": len(available_columns) / len(cls.EXCEL_COLUMN_MAPPING) * 100
+            "mapping_rate": len(available_columns) / len(mapping) * 100,
+            "template_type": "purchase" if template_code and "purchase" in template_code.lower() else "sale"
         }
