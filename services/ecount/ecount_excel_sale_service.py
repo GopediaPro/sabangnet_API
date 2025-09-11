@@ -254,7 +254,7 @@ class EcountExcelSaleService:
         default_status=500,
         default_detail="Excel 판매 처리 중 오류가 발생했습니다"
     )
-    async def process_excel_sale_upload(
+    async def process_excel_ecount_upload(
         self,
         file_content: bytes,
         file_name: str,
