@@ -97,7 +97,7 @@ class BaseFormOrder(Base):
     inv_send_dm: Mapped[str | None] = mapped_column(String(14))  # 송장전송일자
 
     # 처리 상태 및 로그
-    work_status: Mapped[str | None] = mapped_column(String(14))
+    work_status: Mapped[str | None] = mapped_column(String(100))
     error_logs: Mapped[str | None] = mapped_column(JSONB, nullable=True)
     batch_id: Mapped[int | None] = mapped_column(Integer)
 
