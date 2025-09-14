@@ -461,6 +461,119 @@ class DownFormOrderRepository:
             logger.error(f"주문번호 {idx}의 invoice_no 업데이트 실패: {str(e)}")
             raise e
 
+    async def bulk_update_invoice_no_by_excel_data(
+        self, 
+        excel_data: list[dict], 
+        batch_id: Optional[int] = None
+    ) -> list[dict]:
+        """
+        Excel 데이터를 기반으로 invoice_no를 일괄 업데이트합니다.
+        
+        Args:
+            excel_data: Excel에서 읽어온 데이터 리스트
+                - fld_dsp: 도서
+                - order_id: 주문ID  
+                - invoice_no: 운송장번호
+            batch_id: 배치 ID (선택사항)
+            
+        Returns:
+            업데이트된 레코드 정보 리스트
+        """
+        try:
+            updated_records = []
+            process_dt = datetime.now()
+            
+            for data in excel_data:
+                fld_dsp = data.get('fld_dsp')
+                order_id = str(data.get('order_id', ''))  # 문자열로 변환
+                invoice_no = data.get('invoice_no')
+                
+                if not all([fld_dsp, order_id, invoice_no]):
+                    logger.warning(f"필수 데이터 누락: fld_dsp={fld_dsp}, order_id={order_id}, invoice_no={invoice_no}")
+                    continue
+                
+                # 조건에 맞는 레코드 조회 및 업데이트
+                # fld_dsp && order_id && form_name이 gmarket_*, basic_*, kakao_* 중 하나 && work_status == "macro_run"
+                form_name_patterns = ['gmarket_%', 'basic_%', 'kakao_%']
+                
+                # 먼저 조건에 맞는 레코드 조회
+                query = select(BaseDownFormOrder).where(
+                    and_(
+                        BaseDownFormOrder.fld_dsp == fld_dsp,
+                        BaseDownFormOrder.order_id == order_id,
+                        BaseDownFormOrder.work_status == "macro_run",
+                        or_(*[BaseDownFormOrder.form_name.like(pattern) for pattern in form_name_patterns])
+                    )
+                )
+                
+                result = await self.session.execute(query)
+                records = result.scalars().all()
+                
+                if not records:
+                    logger.warning(f"조건에 맞는 레코드를 찾을 수 없음: fld_dsp={fld_dsp}, order_id={order_id}")
+                    updated_records.append({
+                        'idx': '',
+                        'invoice_no': invoice_no,
+                        'fld_dsp': fld_dsp,
+                        'order_id': order_id,
+                        'form_name': '',
+                        'success': False,
+                        'error_message': '조건에 맞는 레코드를 찾을 수 없음'
+                    })
+                    continue
+                
+                # 각 레코드에 대해 업데이트 실행
+                for record in records:
+                    try:
+                        update_values = {
+                            "invoice_no": invoice_no,
+                            "work_status": "invoice_no_inserted"
+                        }
+                        
+                        if batch_id is not None:
+                            update_values["batch_id"] = batch_id
+                        update_values["process_dt"] = process_dt
+                        
+                        stmt = (
+                            update(BaseDownFormOrder)
+                            .where(BaseDownFormOrder.id == record.id)
+                            .values(**update_values)
+                        )
+                        await self.session.execute(stmt)
+                        
+                        updated_records.append({
+                            'idx': record.idx,
+                            'invoice_no': invoice_no,
+                            'fld_dsp': fld_dsp,
+                            'order_id': order_id,
+                            'form_name': record.form_name,
+                            'success': True,
+                            'error_message': None
+                        })
+                        
+                        logger.info(f"주문번호 {record.idx}의 invoice_no를 {invoice_no}로 업데이트 완료")
+                        
+                    except Exception as e:
+                        logger.error(f"주문번호 {record.idx} 업데이트 실패: {str(e)}")
+                        updated_records.append({
+                            'idx': record.idx,
+                            'invoice_no': invoice_no,
+                            'fld_dsp': fld_dsp,
+                            'order_id': order_id,
+                            'form_name': record.form_name,
+                            'success': False,
+                            'error_message': str(e)
+                        })
+            
+            await self.session.commit()
+            logger.info(f"Excel 데이터 기반 invoice_no 일괄 업데이트 완료: {len(updated_records)}건")
+            return updated_records
+            
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Excel 데이터 기반 invoice_no 일괄 업데이트 실패: {str(e)}")
+            raise e
+
     async def get_down_form_orders_by_date_range(
         self, 
         date_from: datetime, 
@@ -727,5 +840,59 @@ class DownFormOrderRepository:
         except Exception as e:
             await self.session.rollback()
             logger.error(f"down_form_orders batch_id 업데이트 실패: {str(e)}")
+            raise e
+
+    async def get_down_form_orders_for_excel_export(
+        self, 
+        reg_date_from: str, 
+        reg_date_to: str, 
+        form_name: str
+    ) -> list[BaseDownFormOrder]:
+        """
+        Excel 다운로드를 위한 down_form_orders 데이터 조회
+        
+        Args:
+            reg_date_from: 수집일자 시작 (YYYYMMDD)
+            reg_date_to: 수집일자 종료 (YYYYMMDD)
+            form_name: 양식코드 (generic_delivery인 경우 kakao_bundle, gmarket_bundle, basic_bundle 모두 조회)
+            
+        Returns:
+            list[BaseDownFormOrder]: 조회된 데이터 목록
+        """
+        try:
+            # form_name이 "generic_delivery"인 경우 여러 bundle 타입들을 조회
+            if form_name == "generic_delivery":
+                form_names = ["kakao_bundle", "gmarket_bundle", "basic_bundle"]
+                query = select(BaseDownFormOrder).where(
+                    and_(
+                        BaseDownFormOrder.reg_date >= reg_date_from,
+                        BaseDownFormOrder.reg_date <= reg_date_to,
+                        BaseDownFormOrder.form_name.in_(form_names),
+                        BaseDownFormOrder.work_status == "macro_run"
+                    )
+                ).order_by(BaseDownFormOrder.id.asc())
+            else:
+                # 특정 form_name으로 조회
+                query = select(BaseDownFormOrder).where(
+                    and_(
+                        BaseDownFormOrder.reg_date >= reg_date_from,
+                        BaseDownFormOrder.reg_date <= reg_date_to,
+                        BaseDownFormOrder.form_name == form_name,
+                        BaseDownFormOrder.work_status == "macro_run"
+                    )
+                ).order_by(BaseDownFormOrder.id.asc())
+            
+            result = await self.session.execute(query)
+            rows = result.scalars().all()
+            
+            if form_name == "generic_delivery":
+                logger.info(f"Excel 다운로드용 down_form_orders 조회 완료: {reg_date_from} ~ {reg_date_to}, form_name: {form_names}, 조회된 레코드 수: {len(rows)}")
+            else:
+                logger.info(f"Excel 다운로드용 down_form_orders 조회 완료: {reg_date_from} ~ {reg_date_to}, form_name: {form_name}, 조회된 레코드 수: {len(rows)}")
+            
+            return rows
+            
+        except Exception as e:
+            logger.error(f"Excel 다운로드용 down_form_orders 조회 실패: {str(e)}")
             raise e
 
