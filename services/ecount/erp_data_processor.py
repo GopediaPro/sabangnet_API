@@ -389,7 +389,7 @@ class ERPDataProcessor:
             okmart_order = OKMartProcessedData(**order.model_dump())
             okmart_order.warehouse = warehouse
             okmart_orders.append(okmart_order)
-            okmart_order.emp_cd = SETTINGS.ECOUNT_USER_ID.lower()
+            okmart_order.emp_cd = (SETTINGS.ECOUNT_USER_ID or SETTINGS.ECOUNT_USER_ID_TEST).lower()
             okmart_order.io_type = "14"  
         
         return okmart_orders
@@ -624,6 +624,8 @@ class ERPDataProcessor:
         ecount_data = []
         
         for order in orders:
+            current_time = datetime.now()
+            
             # 1_판매입력.txt 기준으로 매핑
             ecount_sale = EcountSaleData(
                 io_date=None,
@@ -641,11 +643,11 @@ class ERPDataProcessor:
                 u_txt1=order.receive_addr,
                 u_memo4=None,
                 u_memo5=None,
-                prod_cd=order.erp_product_name,
-                prod_des=order.erp_product_name,
+                prod_cd=order.erp_product_name or "UNKNOWN_PRODUCT",
+                prod_des=order.erp_product_name or "Unknown Product",
                 qty=Decimal(str(order.real_cnt)) if order.real_cnt else Decimal('0'),
                 price=order.price,
-                exchange_cost=None,
+                # exchange_cost=None,
                 supply_amt=order.supply_amt,
                 vat_amt=order.vat_amt,
                 remarks=order.remarks,
@@ -657,9 +659,10 @@ class ERPDataProcessor:
                 p_amt2=int(order.service_fee) if order.service_fee is not None else None,
                 batch_id=batch_id,
                 template_code=form_name.value,
-                work_status="ERP 업로드 전"
+                work_status="ERP 업로드 전",
+                created_at=order.created_at or current_time,
+                updated_at=order.updated_at or current_time
             )
-            
             
             ecount_data.append(ecount_sale)
         
@@ -696,7 +699,7 @@ class ERPDataProcessor:
                 prod_des=order.erp_product_name,
                 qty=Decimal(str(order.real_cnt)) if order.real_cnt else Decimal('0'),
                 price=order.purchase_price if hasattr(order, 'purchase_price') else order.price,
-                exchange_cost=None,
+                # exchange_cost=None,
                 supply_amt=order.purchase_supply_amt if hasattr(order, 'purchase_supply_amt') else order.supply_amt,
                 vat_amt=order.purchase_vat_amt if hasattr(order, 'purchase_vat_amt') else order.vat_amt,
                 remarks=order.remarks,
@@ -736,7 +739,7 @@ class ERPDataProcessor:
                 '품목명': ecount_data.prod_des,  # Q
                 '수량': ecount_data.qty,  # R
                 '단가': ecount_data.price,  # S
-                '외화금액': ecount_data.exchange_cost,  # T
+                '외화금액': None,  # T exchange_cost
                 '공급가액': ecount_data.supply_amt,  # U
                 '부가세': ecount_data.vat_amt,  #V
                 '고객정보(이름/주문번호/연락처/주소/관리코드/장바구니번호)': ecount_data.remarks,  # W
@@ -779,7 +782,7 @@ class ERPDataProcessor:
                 '규격': None,  # P
                 '수량': ecount_data.qty,  # Q
                 '단가': ecount_data.price,  # R
-                '외화금액': ecount_data.exchange_cost,  # S
+                '외화금액': None,  # S exchange_cost
                 '공급가액': ecount_data.supply_amt,  # T
                 '부가세': ecount_data.vat_amt,  # U
                 '적요': ecount_data.remarks,  # V
