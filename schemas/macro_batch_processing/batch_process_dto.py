@@ -47,6 +47,20 @@ class BatchProcessDto(BaseDTO):
         )
 
     @classmethod
+    def build_success_with_status(cls, original_filename, file_url, file_size, request, work_status):
+        file_name = file_url.split("/")[-1] if file_url else None
+        return cls(
+            original_filename=original_filename,
+            file_name=file_name,
+            file_url=file_url,
+            file_size=file_size,
+            date_from=getattr(request, 'filters', None).date_from if getattr(request, 'filters', None) else None,
+            date_to=getattr(request, 'filters', None).date_to if getattr(request, 'filters', None) else None,
+            created_by=getattr(request, 'created_by', None),
+            work_status=work_status
+        )
+
+    @classmethod
     def build_error(cls, original_filename, request, error_message):
         return cls(
             original_filename=original_filename,

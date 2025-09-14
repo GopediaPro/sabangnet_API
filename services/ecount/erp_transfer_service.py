@@ -492,7 +492,7 @@ class ErpTransferService:
                     prod_des=ecount_data.prod_des,
                     qty=ecount_data.qty,
                     price=ecount_data.price,
-                    exchange_cost=ecount_data.exchange_cost,
+                    # exchange_cost=ecount_data.exchange_cost,
                     supply_amt=ecount_data.supply_amt,
                     vat_amt=ecount_data.vat_amt,
                     
@@ -573,7 +573,7 @@ class ErpTransferService:
                     prod_des=order.product_name or "",
                     qty=float(order.sale_cnt) if order.sale_cnt else 0,
                     price=float(order.pay_cost) if order.pay_cost else 0,
-                    exchange_cost=float(order.pay_cost) if order.pay_cost else 0,
+                    # exchange_cost=float(order.pay_cost) if order.pay_cost else 0,
                     supply_amt=float(order.pay_cost) if order.pay_cost else 0,
                     vat_amt=0,  # 부가세 (필요시 계산)
                     

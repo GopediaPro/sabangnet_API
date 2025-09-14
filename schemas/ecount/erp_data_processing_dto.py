@@ -67,6 +67,21 @@ class OKMartProcessedData(ProcessedOrderData):
     
     # VBA Step 15에서 추가
     warehouse: Optional[str] = Field(None, description="창고")
+    
+    # VBA Step 16에서 추가
+    purchase_price: Optional[Decimal] = Field(None, description="구매단가")
+    purchase_supply_amt: Optional[Decimal] = Field(None, description="구매공급가")
+    purchase_vat_amt: Optional[Decimal] = Field(None, description="구매부가세")
+    
+    # VBA Step 17에서 추가
+    site_okmart: Optional[str] = Field(None, description="사이트-오케이마트")
+    site_iyes: Optional[str] = Field(None, description="사이트-아이예스")
+    emp_cd: Optional[str] = Field(None, description="담당자")
+    io_type: Optional[str] = Field(None, description="거래유형")
+    
+    # 타임스탬프
+    created_at: Optional[datetime] = Field(None, description="생성일시")
+    updated_at: Optional[datetime] = Field(None, description="수정일시")
 
 
 class IYESProcessedData(ProcessedOrderData):
@@ -86,6 +101,10 @@ class IYESProcessedData(ProcessedOrderData):
     site_iyes: Optional[str] = Field(None, description="사이트-아이예스")
     emp_cd: Optional[str] = Field(None, description="담당자")
     io_type: Optional[str] = Field(None, description="거래유형")
+    
+    # 타임스탬프
+    created_at: Optional[datetime] = Field(None, description="생성일시")
+    updated_at: Optional[datetime] = Field(None, description="수정일시")
 
 
 class EcountSaleData(BaseModel):
@@ -119,7 +138,7 @@ class EcountSaleData(BaseModel):
     prod_des: Optional[str] = Field(None, description="품목명")
     qty: Optional[Decimal] = Field(None, description="수량")
     price: Optional[Decimal] = Field(None, description="단가")
-    exchange_cost: Optional[Decimal] = Field(None, description="외화금액")
+    # exchange_cost: Optional[Decimal] = Field(None, description="외화금액")
     supply_amt: Optional[Decimal] = Field(None, description="공급가액")
     vat_amt: Optional[Decimal] = Field(None, description="부가세")
     
@@ -138,6 +157,10 @@ class EcountSaleData(BaseModel):
     work_status: str = Field("ERP 업로드 전", description="작업상태")
     batch_id: Optional[str] = Field(None, description="배치ID")
     template_code: Optional[str] = Field(None, description="템플릿코드")
+    
+    # 타임스탬프
+    created_at: Optional[datetime] = Field(None, description="생성일시")
+    updated_at: Optional[datetime] = Field(None, description="수정일시")
 
 
 class EcountPurchaseData(BaseModel):
@@ -169,7 +192,7 @@ class EcountPurchaseData(BaseModel):
     prod_des: Optional[str] = Field(None, description="품목명")
     qty: Optional[Decimal] = Field(None, description="수량")
     price: Optional[Decimal] = Field(None, description="단가")
-    exchange_cost: Optional[Decimal] = Field(None, description="외화금액")
+    # exchange_cost: Optional[Decimal] = Field(None, description="외화금액")
     supply_amt: Optional[Decimal] = Field(None, description="공급가액")
     vat_amt: Optional[Decimal] = Field(None, description="부가세")
     
