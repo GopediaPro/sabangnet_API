@@ -67,9 +67,10 @@ async def create_sale_bulk_from_excel(
         
         # 인증 정보 가져오기
         auth_info = await auth_manager.get_authenticated_info_from_env_with_template_code(is_test, template_code)
-        if not auth_info:
+        if not auth_info or not auth_info.session_id:
+            logger.error(f"인증 실패 또는 세션 ID 없음: auth_info={auth_info}, session_id={auth_info.session_id if auth_info else None}")
             return ResponseHandler.unauthorized(
-                message="환경변수 인증 실패",
+                message="E-Count API 인증 실패: 계정이 접속 차단되었거나 세션 ID를 받을 수 없습니다. E-Count 관리자에게 문의하세요.",
                 metadata=ResponseMetadata(
                     version="v2",
                     request_id=request_obj.metadata.request_id

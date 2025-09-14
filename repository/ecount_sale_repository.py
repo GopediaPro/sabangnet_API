@@ -111,7 +111,7 @@ class EcountSaleRepository:
                 prod_des=sale_data.prod_des,
                 qty=sale_data.qty,
                 price=sale_data.price,
-                exchange_cost=sale_data.exchange_cost,
+                # exchange_cost=sale_data.exchange_cost,
                 supply_amt=sale_data.supply_amt,
                 vat_amt=sale_data.vat_amt,
                 remarks=sale_data.remarks,
@@ -125,7 +125,9 @@ class EcountSaleRepository:
                 is_test=sale_data.is_test,
                 work_status=sale_data.work_status,
                 batch_id=sale_data.batch_id,
-                template_code=sale_data.template_code
+                template_code=sale_data.template_code,
+                created_at=sale_data.created_at,
+                updated_at=sale_data.updated_at
             )
             
             self.session.add(sale)
@@ -162,7 +164,7 @@ class EcountSaleRepository:
                 'prod_des': sale_data.prod_des,
                 'qty': sale_data.qty,
                 'price': sale_data.price,
-                'exchange_cost': sale_data.exchange_cost,
+                # 'exchange_cost': sale_data.exchange_cost,
                 'supply_amt': sale_data.supply_amt,
                 'vat_amt': sale_data.vat_amt,
                 'remarks': sale_data.remarks,
@@ -176,7 +178,8 @@ class EcountSaleRepository:
                 'is_test': sale_data.is_test,
                 'work_status': sale_data.work_status,
                 'batch_id': sale_data.batch_id,
-                'template_code': sale_data.template_code
+                'template_code': sale_data.template_code,
+                'updated_at': sale_data.updated_at
             }
             
             query = update(EcountSale).where(

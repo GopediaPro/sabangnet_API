@@ -23,7 +23,7 @@ class EcountSale(Base):
     cust_des = Column(String(50), comment="거래처명")
     emp_cd = Column(String(30), nullable=False, comment="담당자") # 담당자 코드 ex; okokmart5
     wh_cd = Column(Integer, nullable=False, comment="출하창고")
-    io_type = Column(String(1), nullable=False, comment="거래유형")
+    io_type = Column(String(10), nullable=False, comment="거래유형")
     exchange_type = Column(String(5), nullable=True, comment="통화")
     exchange_rate = Column(Numeric(18, 4), nullable=True, comment="환율")
     u_memo1 = Column(String(100), comment="E-MAIL")
@@ -75,7 +75,7 @@ class EcountPurchase(Base):
     cust = Column(String(30), comment="거래처코드")
     cust_des = Column(String(50), comment="거래처명")
     wh_cd = Column(Integer, nullable=False, comment="입고창고")
-    io_type = Column(String(1), nullable=False, comment="거래유형")
+    io_type = Column(String(10), nullable=False, comment="거래유형")
     exchange_type = Column(String(5), nullable=True, comment="통화")
     exchange_rate = Column(Numeric(18, 4), nullable=True, comment="환율")
     u_memo1 = Column(String(100), comment="E-MAIL")

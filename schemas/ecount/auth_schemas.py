@@ -63,7 +63,7 @@ class LoginResponseDataDetails(BaseModel):
     """로그인 응답 세부 데이터"""
     COM_CODE: Optional[str] = Field(None, max_length=6, description="회사코드")
     USER_ID: Optional[str] = Field(None, max_length=30, description="사용자ID")
-    SESSION_ID: Optional[str] = Field(None, max_length=50, description="세션ID")
+    SESSION_ID: Optional[str] = Field(None, max_length=255, description="세션ID")
 
 
 class LoginResponseData(BaseModel):
