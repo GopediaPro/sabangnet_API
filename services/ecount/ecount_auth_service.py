@@ -79,8 +79,20 @@ class EcountAuthService:
             logger=logger
         )
         if status == 200 and data:
+            logger.info(f"로그인 API 원본 응답: {data}")
             login_response = LoginResponse(**data)
-            logger.info(f"로그인 성공: {auth_info.user_id}")
+            
+            # E-Count API 에러 코드 확인 (Code가 "00" 또는 "0"이면 성공)
+            if login_response.Data and login_response.Data.Code and login_response.Data.Code not in ["0", "00"]:
+                logger.error(f"E-Count API 에러: Code={login_response.Data.Code}, Message={login_response.Data.Message}")
+                return None
+            
+            # SESSION_ID 확인
+            if not login_response.Data or not login_response.Data.Datas or not login_response.Data.Datas.SESSION_ID:
+                logger.error(f"SESSION_ID 없음: Data={login_response.Data}")
+                return None
+                
+            logger.info(f"로그인 성공: {auth_info.user_id}, SESSION_ID={login_response.Data.Datas.SESSION_ID}")
             return login_response
         logger.error(f"로그인 실패: {error or status}")
         return None
@@ -130,9 +142,12 @@ class EcountAuthService:
         domain = SETTINGS.ECOUNT_DOMAIN or ""
         if is_test:
             api_cert_key = SETTINGS.ECOUNT_API_TEST
+            user_id = SETTINGS.ECOUNT_USER_ID_TEST
         else:
             api_cert_key = SETTINGS.ECOUNT_API
         
+        logger.info(f"OKMART 환경변수 인증 시도: com_code={com_code}, user_id={user_id}, zone={zone}, is_test={is_test}")
+
         if not all([com_code, user_id, api_cert_key]):
             logger.error("환경변수에서 이카운트 인증 정보를 찾을 수 없습니다.")
             logger.error(
@@ -155,7 +170,17 @@ class EcountAuthService:
             if not login_response or not login_response.Data:
                 logger.error("환경변수 Zone으로 로그인 실패")
                 return None, None
-            session_id = login_response.Data.Datas.SESSION_ID
+            
+            # 로그인 응답 구조 디버깅
+            logger.info(f"로그인 응답 구조: Data={login_response.Data}")
+            if login_response.Data and login_response.Data.Datas:
+                logger.info(f"Datas 구조: {login_response.Data.Datas}")
+                session_id = login_response.Data.Datas.SESSION_ID
+                logger.info(f"추출된 SESSION_ID: {session_id}")
+            else:
+                logger.error("로그인 응답에서 Datas가 없음")
+                return None, None
+            
             auth_info.session_id = session_id
             logger.info(f"환경변수 인증 완료: {user_id}, Session: {session_id}")
             return session_id, auth_info
@@ -182,7 +207,11 @@ class EcountAuthService:
         if not template_code:
             logger.error("template_code가 없습니다.")
             return None, None
+        
+        logger.info(f"템플릿 코드로 인증 시작: {template_code}, is_test: {is_test}")
+        
         if template_code.startswith("okmart"):
+            logger.info("OKMART 인증 경로 선택")
             return await self.authenticate_with_env(is_test)
         elif template_code.startswith("iyes"):
             com_code = SETTINGS.ECOUNT_COM_CODE_IYES
@@ -196,6 +225,8 @@ class EcountAuthService:
             logger.error("template_code가 올바르지 않습니다.")
             return None, None
         
+        logger.info(f"IYES 환경변수 인증 시도: com_code={com_code}, user_id={user_id}, zone={zone}, is_test={is_test}")
+
         if not all([com_code, user_id, api_cert_key]):
             logger.error("환경변수에서 이카운트 인증 정보를 찾을 수 없습니다.")
             logger.error(
@@ -325,7 +356,7 @@ class EcountAuthManager:
                 del self._auth_cache[cache_key]
         
         # 환경변수로 새로 인증
-        session_id, auth_info = await self.auth_service.authenticate_with_env(is_test)
+        auth_info = await self.auth_service.authenticate_with_env(is_test)
         if auth_info:
             self._auth_cache[cache_key] = auth_info
             return auth_info
