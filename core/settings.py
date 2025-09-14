@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     ECOUNT_USER_ID: Optional[str] = None
     ECOUNT_COM_CODE: Optional[str] = None
     ECOUNT_API_TEST: Optional[str] = None
+    ECOUNT_USER_ID_TEST: Optional[str] = None
     # ecount 이카운트 API 연동관련 (iyes)
     ECOUNT_API_IYES: Optional[str] = None
     ECOUNT_ZONE_IYES: Optional[str] = None
