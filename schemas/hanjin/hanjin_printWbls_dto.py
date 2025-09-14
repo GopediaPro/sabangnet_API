@@ -113,3 +113,52 @@ class CreateAndProcessPrintwblsResponse(BaseModel):
     message: Optional[str] = Field(None, description="처리 결과 메시지")
     error: Optional[str] = Field(None, description="오류 메시지")
     batch_id: Optional[int] = Field(None, description="배치 프로세스 ID")
+
+
+# ============= Excel 다운로드 관련 스키마 =============
+
+class DownloadExcelFormRequest(BaseModel):
+    """Excel 폼 다운로드 요청"""
+    reg_date_from: str = Field(..., description="수집일자 시작 (YYYYMMDD)", example="20250611")
+    reg_date_to: str = Field(..., description="수집일자 종료 (YYYYMMDD)", example="20250930")
+    form_name: str = Field(default="generic_delivery", description="양식코드 (예: gmarket_bundle, basic_bundle, kakao_bundle, generic_delivery)", example="generic_delivery")
+
+class DownloadExcelFormResponse(BaseModel):
+    """Excel 폼 다운로드 응답"""
+    batch_id: int = Field(..., description="배치 프로세스 ID")
+    file_url: str = Field(..., description="파일 다운로드 URL")
+    file_name: str = Field(..., description="파일명")
+    file_size: int = Field(..., description="파일 크기 (bytes)")
+    processed_count: int = Field(..., description="처리된 데이터 건수")
+    message: Optional[str] = Field(None, description="처리 결과 메시지")
+
+
+# ============= Excel 업로드 관련 스키마 =============
+
+class UploadExcelFormRequest(BaseModel):
+    """Excel 폼 업로드 요청"""
+    pass  # 파일 업로드만 필요하므로 빈 스키마
+
+
+class UpdatedRecord(BaseModel):
+    """업데이트된 레코드 정보"""
+    idx: str = Field(..., description="주문번호")
+    invoice_no: str = Field(..., description="운송장번호")
+    fld_dsp: Optional[str] = Field(None, description="도서")
+    order_id: Optional[str] = Field(None, description="주문ID")
+    form_name: Optional[str] = Field(None, description="양식코드")
+    success: bool = Field(..., description="업데이트 성공 여부")
+    error_message: Optional[str] = Field(None, description="에러 메시지")
+
+
+class UploadExcelFormResponse(BaseModel):
+    """Excel 폼 업로드 응답"""
+    batch_id: int = Field(..., description="배치 프로세스 ID")
+    file_url: str = Field(..., description="파일 다운로드 URL")
+    file_name: str = Field(..., description="파일명")
+    file_size: int = Field(..., description="파일 크기 (bytes)")
+    total_processed: int = Field(..., description="총 처리 건수")
+    success_count: int = Field(..., description="성공 건수")
+    failed_count: int = Field(..., description="실패 건수")
+    updated_data: List[UpdatedRecord] = Field(..., description="업데이트된 데이터 목록")
+    message: str = Field(..., description="처리 결과 메시지")
