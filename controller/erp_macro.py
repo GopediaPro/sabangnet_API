@@ -29,7 +29,7 @@ async def test_erp_macro():
         macro_file_path = ""
         if choice == "1":
             # 기타사이트_ERP_자동화
-            from utils.macros.ERP.etc_site_macro import ERPEtcSiteMacro
+            from utils.macros.ERP.v1.etc_site_macro import ERPEtcSiteMacro
 
             macro = ERPEtcSiteMacro(xlsx_file_path)
             macro_file_path = macro.etc_site_macro_run()
@@ -38,7 +38,7 @@ async def test_erp_macro():
 
         elif choice == "2":
             # 지그재그_ERP_자동화
-            from utils.macros.ERP.zigzag_erp_macro import ERPZigzagMacro
+            from utils.macros.ERP.v1.zigzag_erp_macro import ERPZigzagMacro
 
             zigzag_macro = ERPZigzagMacro(xlsx_file_path)
             macro_file_path = zigzag_macro.zigzag_erp_macro_run()
@@ -47,7 +47,7 @@ async def test_erp_macro():
 
         elif choice == "3":
             # 알리_ERP_자동화
-            from utils.macros.ERP.ali_erp_macro import ERPAliMacro
+            from utils.macros.ERP.v1.ali_erp_macro import ERPAliMacro
 
             # 알리 ERP 자동화 전체 프로세스 실행
             ali_macro = ERPAliMacro(xlsx_file_path)
@@ -57,7 +57,7 @@ async def test_erp_macro():
 
         elif choice == "4":
             # 브랜디_ERP_자동화
-            from utils.macros.ERP.brandi_erp_macro import ERPBrandiMacro
+            from utils.macros.ERP.v1.brandi_erp_macro import ERPBrandiMacro
 
             # 브랜디 ERP 자동화 전체 프로세스 실행
             brandi_macro = ERPBrandiMacro(xlsx_file_path)
@@ -68,7 +68,7 @@ async def test_erp_macro():
         elif choice == "5":
             # down_form_order table to excel
 
-            from utils.macros.ERP.g_a_erp_macro import ERPGmaAucMacro
+            from utils.macros.ERP.v1.g_a_erp_macro import ERPGmaAucMacro
             # # G,옥_ERP_자동화
             gmarket_auction_macro = ERPGmaAucMacro(xlsx_file_path)
             macro_file_path = gmarket_auction_macro.gauc_erp_macro_run()

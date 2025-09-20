@@ -36,6 +36,11 @@ http://localhost:8008/docs
 # 실행하고 싶은 엔드포인트 ->  Try it out → Execute (request 값 필요 시 입력)
 ```
 
+# push 전 pytest 통과 확인
+```bash
+python -m pytest tests/ --verbose --tb=short --maxfail=3 --disable-warnings
+```
+
 ### 이 프로그램은 Typer를 사용한 CLI 인터페이스를 제공합니다:
 
 ```bash
@@ -182,6 +187,15 @@ logger.critical(내용)
 
 - FastAPI 서버 실행:
   python app.py start-server
+
+- pytest 테스트 실행:
+  python -m pytest tests/ --verbose --tb=short --maxfail=3 --disable-warnings
+
+- pytest 테스트 실행 (HTML 리포트 포함):
+  python -m pytest tests/ --verbose --tb=short --maxfail=3 --disable-warnings --html=test-report.html --self-contained-html
+
+- pytest 테스트 실행 (커버리지 포함):
+  python -m pytest tests/ --verbose --tb=short --maxfail=3 --disable-warnings --cov=tests --cov-report=html:coverage-report --cov-report=xml:coverage.xml
 
 ```bash
 # .env file

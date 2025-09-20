@@ -51,7 +51,7 @@ class ProductCodeRegistrationService:
             result['no_keyword'] = self._get_keyword_length(product_nm)
             
             # 모델명 (F)
-            result['product_name'] = product_nm
+            result['product_nm'] = product_nm
             
             # 구분 (G)
             result['gubun'] = gubun
@@ -140,7 +140,7 @@ class ProductCodeRegistrationService:
             # 판매가[필수] (AG)    
             result['goods_price'] = self._get_selling_price(product_nm, gubun)
 
-            result['stock_use_yn'] = self.source_data.get('stock_use_yn', '')
+            result['stock_use_yn'] = "N"
             logger.info(f"stock_use_yn 처리 - source_data: {self.source_data.get('stock_use_yn')}, result: {result['stock_use_yn']}")
             
             # TAG가[필수] (AH)
@@ -160,18 +160,18 @@ class ProductCodeRegistrationService:
             
             # 대표이미지[필수] (AM)
             # self._get_representative_image_check(gubun)
-            result['img_path'] = "IMG 없음"
+            result['img_path'] = self._get_representative_image(product_nm, gubun)
             
             # 종합몰(JPG)이미지 (AN)
-            result['img_path1'] = self._get_mall_jpg_image(product_nm, gubun)
+            result['img_path1'] = self._get_mall_jpg_image(product_nm, gubun, 1)
             
             # 부가이미지들 (AO~AW) - 빈 값으로 설정
             for i in range(2, 5):
-                result[f'img_path{i}'] = self._get_mall_jpg_image(product_nm, gubun)
+                result[f'img_path{i}'] = self._get_mall_jpg_image(product_nm, gubun, i)
             for i in range(6, 11):
-                result[f'img_path{i}'] = self._get_additional_image(product_nm)
+                result[f'img_path{i}'] = self._get_mall_jpg_image(product_nm, gubun, i)
 
-            # 추가 상세설명[필수] (AX)
+            # 상품상세설명[필수] (AX)
             result['goods_remarks'] = self._get_product_detail_description(product_nm, gubun)
 
             # TODO 추가상품그룹 관리 - 사방넷 - 상품관리 -> 추가상품그룹 관리 참고 - 자료 없음. 
@@ -190,12 +190,12 @@ class ProductCodeRegistrationService:
             # 식품재료/원산지 (BI)
             # 원가2 (BJ)
             # 부가이미지11 (BK ~ BM)
-            for i in range(11, 14):
-                result[f'img_path{i}'] = self._get_mall_jpg_image(product_nm, gubun)
+            for i in range(12, 15):
+                result[f'img_path{i}'] = self._get_mall_jpg_image(product_nm, gubun, i)
             # 합포시 제외 여부 (BN)
             # 부가이미지14 (BO ~ BW)
             for i in range(14, 23):
-                result[f'img_path{i}'] = self._get_mall_jpg_image(product_nm, gubun)
+                result[f'img_path{i}'] = self._get_mall_jpg_image(product_nm, gubun, i)
             # 관리자메모 (BX)
             # 옵션수정여부 (BY)
             result['opt_type'] = 2
@@ -203,17 +203,19 @@ class ProductCodeRegistrationService:
             # 출력 상품명 (CA)
             # 인증서이미지 (CB)
             # 추가 상품상세설명_1 (CC)
-            result['goods_remarks2'] = self._get_product_detail_description(product_nm, gubun)
+            result['goods_remarks2'] = result['goods_remarks']
             # 추가 상품상세설명_2 (CD)
             # 추가 상품상세설명_3 (CE)
             # 원산지 상세지역 (CF)
             # 수입신고번호 (CG)
             # 수입면장이미지 (CH)
+            # 속성 수정 여부 (CH)
+            result['prop_edit_yn'] = "Y"
             # 속성분류코드[필수] (CI)
             result['prop1_cd'] = "035"
             # 속성값1~8
-            # 속성값들 (기본값 설정)
-            for i in range(1, 39):
+            # 속성값들 (기본값 설정) - ProductRawData 모델에는 prop_val1~33까지만 존재
+            for i in range(1, 34):
                 result[f'prop_val{i}'] = self._get_attr_value(product_nm, i)
             
             # 나머지 필드들은 기본값 또는 빈 값으로 설정
@@ -231,14 +233,11 @@ class ProductCodeRegistrationService:
     
     def _get_representative_image_check(self, gubun: str) -> str:
         """대표이미지확인 로직"""
-        if gubun in ["마스터", "전문몰"]:
-            img_path = self.source_data.get('img_path')
-            return img_path if img_path else "IMG 없음"
-        elif gubun == "1+1":
+        if gubun == "1+1":
             one_plus_one_bn = self.source_data.get('one_plus_one_bn')
             return one_plus_one_bn if one_plus_one_bn else "IMG 없음"
         else:
-            return "IMG 없음"
+            return self.source_data.get('img_path')
     
     def _get_detail_image_check(self, product_nm: str) -> str:
         """상세이미지확인 로직"""
@@ -378,6 +377,7 @@ class ProductCodeRegistrationService:
     
     def _get_tag_price(self, product_nm: str, gubun: str) -> int:
         """TAG가 조회"""
+        # 전반적으로 20% 수정 & 1000단위 반올림
         # =IF(G5="마스터",AG5+(AG5*60%),
         #   IF(G5="전문몰",ROUNDUP((AG5+100+3000)+((AG5+100+3000)*60%),-3),
         #     IF(G5="1+1",ROUNDUP((AG5+(AG5*60%)),-3))))
@@ -385,16 +385,19 @@ class ProductCodeRegistrationService:
         cost_price = self._get_selling_price(product_nm, gubun)
         
         if gubun == "마스터":
-            return int(cost_price + (cost_price * 0.6))
+            total_cost = cost_price + 3000
+            selling_price = total_cost + (total_cost * 0.2)
+            # ROUNDUP to nearest 1000
+            return math.ceil(selling_price / 1000) * 1000
         elif gubun == "전문몰":
             total_cost = cost_price + 100 + 3000
-            selling_price = total_cost + (total_cost * 0.6)
-            # ROUNDUP to nearest 100
-            return math.ceil(selling_price / 100) * 100
+            selling_price = total_cost + (total_cost * 0.2)
+            # ROUNDUP to nearest 1000
+            return math.ceil(selling_price / 1000) * 1000
         elif gubun == "1+1":
-            selling_price = cost_price + (cost_price * 0.6)
-            # ROUNDUP to nearest 100
-            return math.ceil(selling_price / 100) * 100
+            selling_price = cost_price + (cost_price * 0.2)
+            # ROUNDUP to nearest 1000
+            return math.ceil(selling_price / 1000) * 1000
         else:
             return cost_price
     
@@ -411,6 +414,22 @@ class ProductCodeRegistrationService:
         #   IF(G5="전문몰",TEXTJOIN(",",TRUE, ARRAYFORMULA(INDEX(SPLIT(F5,"-"), 2)&"_"&SPLIT(VLOOKUP(F5,importrange("same file","상품등록!$k:$az"),10,0),","))),
         #     IF(G5="1+1",(VLOOKUP(F5,importrange("same file","상품등록!$k:$az"),24,0)))))
         # 10번째 컬럼은 char_1_nm
+        # product_nm 에서 '-' 기준으로 뒤에 있는 값을 가져옴 '-'이 없으면 product_nm 그대로 사용
+        model_nm = product_nm.split('-')[1] if '-' in product_nm else product_nm
+        # model_nm 와 delv_one_plus_one을 가져와서 delv_one_plus_one의 구분자 ','를 기준으로 모든 값들의 앞에 model_nm에 '_'를 붙여서 합치기  
+        delv_one_plus_one = self.source_data.get('delv_one_plus_one', '')
+        if delv_one_plus_one and delv_one_plus_one.strip():
+            # 구분자 ','를 기준으로 값들을 분리
+            values = [val.strip() for val in delv_one_plus_one.split(',') if val.strip()]
+            # 각 값 앞에 model_nm_을 붙여서 합치기
+            delv_one_plus_one_detail = ','.join([f"{model_nm}_{val}" for val in values])
+            logger.info(f"옵션상세명칭(1) 조회 delv_one_plus_one_detail: {delv_one_plus_one_detail}")
+        else:
+            delv_one_plus_one_detail = ''
+        
+        # 옵션상세명칭(1) 조회
+        
+        
         if gubun == "마스터":
             char_1_val = self.source_data.get('char_1_val', '')
             return char_1_val if char_1_val is not None else ''
@@ -424,7 +443,6 @@ class ProductCodeRegistrationService:
             return ''
         elif gubun == "1+1":
             # 24번째 컬럼에 해당하는 값
-            delv_one_plus_one_detail = self.source_data.get('delv_one_plus_one_detail', '')
             return delv_one_plus_one_detail if delv_one_plus_one_detail is not None else ''
     
     def _get_option_title_2(self, product_nm: str, gubun: str) -> str:
@@ -465,23 +483,31 @@ class ProductCodeRegistrationService:
             # 21번째 컬럼으로 대체
             return self.source_data.get('one_plus_one_bn', '') 
     
-    def _get_mall_jpg_image(self, product_nm: str, gubun: str) -> str:
+    def _get_mall_jpg_image(self, product_nm: str, gubun: str, i: int) -> str:
         """종합몰(JPG)이미지 조회"""
         # =IF(G6="마스터",VLOOKUP(F6,importrange("same file","상품등록!$k:$az"),13,0),
         #   IF(G6="전문몰",VLOOKUP(F6,importrange("same file","상품등록!$k:$az"),13,0),
         #     IF(G6="1+1",VLOOKUP(F6,importrange("same file","상품등록!$k:$az"),21,0))))
         # 13번째 컬럼은 img_path
-        if gubun in ["마스터", "전문몰"]:
+        # i = 6 ~ 10까지는 img_path1 ~ img_path5로 대체
+        if i == 6:
+            return self.source_data.get('img_path1', '')
+        elif i == 7:
+            return self.source_data.get('img_path2', '')
+        elif i == 8:
+            return self.source_data.get('img_path3', '')
+        elif i == 9:
+            return self.source_data.get('img_path4', '')
+        elif i == 10:
+            return self.source_data.get('img_path5', '')
+        if i == 21:
+            return self.source_data.get('mobile_bn', '')
+        elif gubun in ["마스터", "전문몰"]:
             return self.source_data.get('img_path', '')
         elif gubun == "1+1":
             # 21번째 컬럼으로 대체
-            return self.source_data.get('one_plus_one_bn', '') 
-        
-    def _get_additional_image(self, product_nm: str) -> str:
-        """부가이미지 조회"""
-        # =VLOOKUP(F5,importrange("same file","상품등록!$k:$az"),14,0)
-        # 14번째 컬럼은 img_mall_jpg
-        return self.source_data.get('img_mall_jpg', '')
+            return self.source_data.get('one_plus_one_bn', '')
+
     
     def _get_product_detail_description(self, product_nm: str, gubun: str) -> str:
         """상품상세설명 조회"""

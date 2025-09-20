@@ -5,12 +5,13 @@ Product Registration Repository
 
 from decimal import Decimal
 from typing import Optional, Tuple
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete, func
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
 from models.product.product_registration_data import ProductRegistrationRawData
-from schemas.product_registration import ProductRegistrationCreateDto
+from schemas.product_registration import ProductRegistrationCreateDto, ProductRegistrationBulkUpdateDto, ProductRegistrationBulkDeleteDto
 from utils.logs.sabangnet_logger import get_logger
 
 logger = get_logger(__name__)
@@ -122,21 +123,21 @@ class ProductRegistrationRepository:
             logger.error(f"데이터 조회 오류: {e}")
             raise
     
-    async def get_all(self, limit: int = None, offset: int = None) -> list[ProductRegistrationRawData]:
+    async def get_products_all(self, skip: int = 0, limit: int = 100) -> list[ProductRegistrationRawData]:
         """
         모든 상품 등록 데이터를 조회합니다.
         
         Args:
+            skip: 조회 시작 위치 (None이면 0)
             limit: 조회할 데이터 수 제한 (None이면 제한 없음)
-            offset: 조회 시작 위치 (None이면 0)
         
         Returns:
             list[ProductRegistrationRawData]: 조회된 데이터 리스트
         """
         try:
             stmt = select(ProductRegistrationRawData).order_by(ProductRegistrationRawData.created_at.desc())
-            if offset is not None:
-                stmt = stmt.offset(offset)
+            if skip is not None:
+                stmt = stmt.offset(skip)
             if limit is not None:
                 stmt = stmt.limit(limit)
             result = await self.session.execute(stmt)
@@ -145,7 +146,24 @@ class ProductRegistrationRepository:
         except SQLAlchemyError as e:
             logger.error(f"데이터 목록 조회 오류: {e}")
             raise
-    
+
+    async def get_products_by_pagenation(self, page: int = 1, page_size: int = 100) -> list[ProductRegistrationRawData]:
+        """
+        페이징 조회 상품 등록 데이터를 조회합니다.
+        """
+        try:
+            stmt = select(ProductRegistrationRawData).order_by(ProductRegistrationRawData.created_at.desc())
+            if page is not None:
+                stmt = stmt.offset((page - 1) * page_size)
+            if page_size is not None:
+                stmt = stmt.limit(page_size)
+            result = await self.session.execute(stmt)
+            return result.scalars().all()
+        
+        except SQLAlchemyError as e:
+            logger.error(f"데이터 목록 조회 오류: {e}")
+            raise
+
     async def update_by_id(self, id: int, data: ProductRegistrationCreateDto) -> Optional[ProductRegistrationRawData]:
         """
         ID로 상품 등록 데이터를 업데이트합니다.
@@ -273,9 +291,88 @@ class ProductRegistrationRepository:
         query = select(ProductRegistrationRawData).where(ProductRegistrationRawData.product_nm == product_nm)
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
-      
-async def get_all_registration_data(session: AsyncSession) -> list[ProductRegistrationRawData]:
-    result = await session.execute(
-        select(ProductRegistrationRawData)
-    )
-    return result.scalars().all()
+    
+
+    async def update_bulk(self, data_list: list[ProductRegistrationBulkUpdateDto]) -> list[int]:
+        """
+        대량 상품 등록 데이터를 업데이트합니다.
+        """
+        try:
+            if not data_list:
+                return []
+            
+            updated_ids = []
+
+            for dto in data_list:
+                values = dto.dict(exclude_unset=True, exclude_none=True)
+                dto_id = values.pop("id", None)
+                if not dto_id:
+                    continue  # id가 없으면 업데이트 불가
+                
+                stmt = (
+                    update(ProductRegistrationRawData)
+                    .where(ProductRegistrationRawData.id == dto_id)
+                    .values(**values)
+                    .returning(ProductRegistrationRawData.id)
+                )
+                result = await self.session.execute(stmt)
+                row = result.fetchone()
+                if row:
+                    updated_ids.append(row[0])
+
+            logger.info(f"대량 상품 등록 데이터 업데이트 완료: {len(updated_ids)}개")
+            return updated_ids
+
+        except SQLAlchemyError as e:
+            logger.error(f"데이터베이스 오류: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"알 수 없는 오류: {e}")
+            raise
+
+    async def delete_bulk(self, ids: list[int]) -> list[int]:
+        """
+        주어진 ID 목록을 삭제하고, 실제 삭제된 ID 리스트를 반환
+        """
+        try:
+            stmt = delete(ProductRegistrationRawData).where(
+                ProductRegistrationRawData.id.in_(ids)
+            ).returning(ProductRegistrationRawData.id)
+
+            result = await self.session.execute(stmt)
+            deleted_ids = [row[0] for row in result.fetchall()]
+
+            logger.info(f"대량 상품 등록 데이터 삭제 완료: {len(deleted_ids)}개")
+            return deleted_ids
+
+        except Exception as e:
+            logger.error(f"알 수 없는 오류: {e}")
+            raise
+
+    async def fetch_products_for_excel(
+        self,
+        sort_order: Optional[str] = None,
+        created_before: Optional[datetime] = None
+    ) -> list[ProductRegistrationRawData]:
+        """
+        Excel 다운로드용 상품 등록 데이터 조회
+        """
+        try:
+            stmt = select(ProductRegistrationRawData)
+
+            # created_before 필터링
+            if created_before:
+                stmt = stmt.where(ProductRegistrationRawData.created_at <= created_before)
+
+            # 정렬
+            if sort_order == "asc":
+                stmt = stmt.order_by(ProductRegistrationRawData.created_at.asc())
+            elif sort_order == "desc":
+                stmt = stmt.order_by(ProductRegistrationRawData.created_at.desc())
+
+            result = await self.session.execute(stmt)
+            return result.scalars().all()
+
+        except SQLAlchemyError as e:
+            logger.error(f"Excel 다운로드 데이터 조회 오류: {e}")
+            raise

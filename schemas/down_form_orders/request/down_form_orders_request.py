@@ -1,8 +1,13 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Optional
 from pydantic import BaseModel, Field, ConfigDict
 from schemas.down_form_orders.down_form_order_dto import DownFormOrderDto
-from schemas.receive_orders.request.receive_orders_request import ReceiveOrdersFillterRequest, BaseDateRangeRequest
+from schemas.receive_orders.request.receive_orders_request import (
+    ReceiveOrdersFillterRequest,
+    BaseDateRangeRequest,
+    ReceiveOrdersFillterRequest,
+    ReceiveOrdersToDownFormOrdersFillterRequst
+)
 
 
 class DownFormOrderCreateJsonRequest(BaseModel):
@@ -56,7 +61,8 @@ class DownFormOrderBulkCreateFilterRequest(BaseModel):
     template_code: Optional[str] = Field(None, description="템플릿 코드")
     source_table: str = "receive_orders"
 
-    filters: Optional[ReceiveOrdersFillterRequest] = Field(None, description="필터 정보")
+    filters: Optional[ReceiveOrdersFillterRequest] = Field(
+        None, description="필터 정보")
 
 
 class DownFormOrderBulkUpdateJsonRequest(BaseModel):
@@ -79,7 +85,8 @@ class DownFormOrdersDateRangeFillterRequest(BaseDateRangeRequest):
 class DownFormOrdersPaginationWithDateRangeRequest(BaseModel):
     page: int = Field(1, ge=1, description="페이지 번호")
     page_size: int = Field(100, ge=1, le=1000, description="페이지 크기")
-    filters: DownFormOrdersDateRangeFillterRequest = Field(..., description="필터 정보")
+    filters: DownFormOrdersDateRangeFillterRequest = Field(
+        ..., description="필터 정보")
     template_code: str = Field(
         ...,
         description="\
@@ -102,3 +109,18 @@ class DownFormOrdersPaginationWithDateRangeRequest(BaseModel):
             ]
         }
     )
+
+
+class DownFormOrdersFromReceiveOrdersFillterRequest(BaseModel):
+    filters: Optional[ReceiveOrdersToDownFormOrdersFillterRequst] = Field(
+        ..., description="필터 정보")
+
+
+class DbToExcelRequest(BaseModel):
+    ord_st_date: datetime = Field(..., description="주문 수집 시작 날짜 및 시간")
+    ord_ed_date: datetime = Field(..., description="주문 수집 종료 날짜 및 시간")
+    form_name: str = Field(None, description="양식 이름")
+
+class ExcelToDbRequest(BaseModel):
+    form_name: str = Field(..., description="양식 이름")
+    work_status: str = Field(None, description="작업 상태")

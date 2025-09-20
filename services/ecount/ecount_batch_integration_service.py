@@ -10,10 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from utils.logs.sabangnet_logger import get_logger
 from utils.mappings.down_form_to_ecount_mapping import DownFormOrderToEcountMapper
-from repository.ecount_sale_repository import EcountSaleRepository, DownFormOrderRepository
+from repository.ecount_sale_repository import EcountSaleRepository
+from repository.down_form_order_repository import DownFormOrderRepository
 from services.ecount.ecount_auth_service import EcountAuthManager
 from services.ecount.ecount_sale_service import EcountSaleService
-from schemas.ecount.sale_schemas import (
+from schemas.ecount.ecount_schemas import (
     EcountBatchProcessRequest, EcountBatchProcessResult, 
     EcountBatchProcessResponse, EcountSaleDto, to_api_dict, from_api_dict
 )
@@ -278,7 +279,7 @@ class EcountBatchIntegrationService:
             
             if api_sale_response.is_success:
                 sale_dto.is_success = True
-                sale_dto.slip_no = api_sale_response.slip_no
+                sale_dto.slip_nos = api_sale_response.slip_nos
                 sale_dto.trace_id = api_sale_response.trace_id
             else:
                 sale_dto.is_success = False

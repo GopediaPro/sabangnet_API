@@ -114,6 +114,8 @@ async def create_tables():
         # hanjin
         from models.hanjin.hanjin_printwbls import HanjinPrintwbls
         from models.hanjin.hanjin_orders import HanjinOrder
+        # vlookup
+        from models.vlookup_datas.vlookup_datas import VlookupDatas
 
         async with async_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)

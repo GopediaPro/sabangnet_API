@@ -11,7 +11,8 @@ from openpyxl.utils import get_column_letter
 from openpyxl.workbook.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 from utils.excels.excel_handler import ExcelHandler
-
+from utils.macros.happojang.utils import process_slash_separated_columns
+import pandas as pd
 
 # 설정 상수
 MALL_NAME = "지그재그"
@@ -61,6 +62,23 @@ class ZIGZAGDataCleanerUtils:
             for r in ws_lookup.iter_rows(min_row=2, max_col=2, values_only=True)
             if r[0] is not None
         }
+    
+    def _add_vlookup(file_path, wb, ws):
+        """
+        VLOOKUP 적용 : sheet1에서 상품번호가 일치하는 행의 배송비를 찾아서 적용
+        """
+        if "Sheet1" in wb.sheetnames:
+            sheet1 = wb.worksheets[1]
+            df = pd.read_excel(file_path, sheet_name=sheet1.title)
+            for row in range(2, ws.max_row + 1):
+                mall_product_id = ws[f"M{row}"].value
+                if mall_product_id is None:
+                    continue
+                matching_rows = df[df['상품번호'] == int(mall_product_id)]
+                if not matching_rows.empty:
+                    ws[f"V{row}"].value = int(
+                        matching_rows['배송비'].values[0])
+            del wb[sheet1.title]
 
 
 def convert_m_column_to_int(ws: Worksheet) -> None:
@@ -110,9 +128,9 @@ class ZIGZAGSheetSplitter:
         site_rows = defaultdict(list)
         for r in range(2, self.last_row + 1):
             text = str(self.ws[f"B{r}"].value or "")
-            if "[오케이마트]" in text:
+            if "오케이마트" in text:
                 site_rows["OK"].append(r)
-            elif "[아이예스]" in text:
+            elif "아이예스" in text:
                 site_rows["IY"].append(r)
         return site_rows
 
@@ -182,12 +200,14 @@ class ZIGZAGSheetSplitter:
                               value=self.ws.cell(row=r, column=c).value)
                 new_ws[f"A{idx}"].value = "=ROW()-1"
 
+   
 
 def zigzag_merge_packaging(input_path: str) -> str:
     """지그재그 주문 합포장 자동화 처리"""
     # Excel 파일 로드
     ex = ExcelHandler.from_file(input_path)
     ws = ex.ws
+    wb = ex.wb
 
     # ========== 자동화 로직 적용 ==========
     # 1. 기본 서식 적용
@@ -197,12 +217,7 @@ def zigzag_merge_packaging(input_path: str) -> str:
     convert_m_column_to_int(ws)
     
     # 3. M열 → V열 VLOOKUP 처리
-    if "Sheet1" in ex.wb.sheetnames:
-        lookup_map = ZIGZAGDataCleanerUtils.build_lookup_map(ex.wb["Sheet1"])
-        for row in range(2, ws.max_row + 1):
-            m_val = str(ws[f"M{row}"].value)
-            ws[f"V{row}"].value = lookup_map.get(m_val, "")
-    
+    ZIGZAGDataCleanerUtils._add_vlookup(input_path, wb, ws)
     
     # 4. 상품정보 처리 (다중수량 강조)
     highlight_multiple_items(ws)
@@ -222,6 +237,9 @@ def zigzag_merge_packaging(input_path: str) -> str:
 
     # 9. D열 금액 계산 설정 (=U+V)
     ex.calculate_d_column_values(first_col='U', second_col='V')
+
+    # sale_cnt (G열) '/' 구분자 합산
+    process_slash_separated_columns(ws, ['G'])
 
     # ========== 자동화 시트 생성 (맨 앞에 위치) ==========
     # 매크로가 적용된 전체 시트를 "자동화" 이름으로 맨 앞에 복사

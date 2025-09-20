@@ -1,7 +1,12 @@
 from datetime import date
 from typing import Optional, TypeVar, Generic
 from pydantic import BaseModel, ConfigDict, Field
-from schemas.down_form_orders.down_form_order_dto import DownFormOrdersBulkDto, DownFormOrderDto, DownFormOrdersInvoiceNoUpdateDto
+from schemas.down_form_orders.down_form_order_dto import (
+    DownFormOrdersBulkDto, 
+    DownFormOrderDto, 
+    DownFormOrdersInvoiceNoUpdateDto,
+    DownFormOrdersFromReceiveOrdersDto
+)
 
 
 # 제네릭 타입 변수 정의
@@ -44,6 +49,19 @@ class DownFormOrderBulkCreateResponse(BaseModel):
         return cls.model_validate(dto.model_dump())
 
 
+class DownFormOrdersFromReceiveOrdersResponse(BaseModel):
+    success: Optional[bool] = Field(None, description="성공 여부")
+    mall_id: Optional[str] = Field(None, description="쇼핑몰 아이디")
+    dpartner_id: Optional[str] = Field(None, description="배송구분(일반배송, 스타배송)")
+    processed_count: Optional[int] = Field(None, description="처리된 데이터 수")
+    saved_count: Optional[int] = Field(None, description="저장된 데이터 수")
+    message: Optional[str] = Field(None, description="메시지")
+
+    @classmethod
+    def from_dto(cls, dto: DownFormOrdersFromReceiveOrdersDto) -> "DownFormOrdersFromReceiveOrdersResponse":
+        return cls.model_validate(dto.model_dump())
+
+
 class DownFormOrderResponse(BaseModel):
     content: Optional[DownFormOrderDto] = None
     status: Optional[str] = None  # row별 상태(success, error 등)
@@ -75,3 +93,16 @@ class DownFormOrderPaginationWithDateRangeResponse(BaseModel):
     date_from: date
     date_to: date
     items: list[DownFormOrderResponse]
+
+
+class DbToExcelResponse(BaseModel):
+    excel_url: str = Field(..., description="Excel 파일 URL")
+    record_count: int = Field(..., description="레코드 수")
+    file_size: int = Field(..., description="파일 크기 (bytes)")
+
+
+class ExcelToDbResponse(BaseModel):
+    processed_count: int = Field(..., description="처리된 레코드 수")
+    inserted_count: int = Field(..., description="삽입된 레코드 수")
+    updated_count: int = Field(..., description="업데이트된 레코드 수")
+    failed_count: int = Field(0, description="실패한 레코드 수")

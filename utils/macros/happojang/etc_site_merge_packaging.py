@@ -10,8 +10,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 from utils.excels.excel_handler import ExcelHandler
-
-import pandas as pd
+from utils.macros.happojang.utils import process_slash_separated_columns
 
 # 설정 상수
 MALL_NAME = "기타사이트"
@@ -50,7 +49,7 @@ class ETCSiteConfig:
         "카카오톡스토어": 10,  
         "위메프": 13,
         "인터파크": 12,
-        "쿠팡": 13,
+        "쿠팡": 14,
         "티몬": 12,
         "하이마트": 12
     }
@@ -126,7 +125,7 @@ def etc_site_merge_packaging(input_path: str) -> str:
     
     # 모든 필수 시트 생성 (데이터 유무와 무관하게 OK, BB, IY 시트 생성)
     for sheet_name in REQUIRED_SHEETS:
-        splitter.copy_to_new_sheet_simple(
+        splitter.copy_to_new_sheet(
             ex.wb,
             sheet_name, 
             rows_by_sheet.get(sheet_name, [])
@@ -279,13 +278,15 @@ class ETCSheetManager:
         
         for r in range(2, current_max_row + 1):
             # B열에서 [계정명] 추출 (VBA ExtractBracketText와 동일)
-            account = ETCOrderUtils.extract_bracket_text(self.ws[f"B{r}"].value)
+            b_value = str(self.ws[f"B{r}"].value or "")
             
-            # 각 시트의 계정 목록과 정확히 비교
+            # 각 시트의 계정 목록과 포함 비교
             for sheet_name, accounts in self.account_mapping.items():
-                if account in accounts:
-                    rows_by_sheet[sheet_name].append(r)
-                    break
+                # B열 값에서 계정명이 포함되어 있는지 확인
+                for target_account in accounts:
+                    if target_account in b_value:
+                        rows_by_sheet[sheet_name].append(r)
+                        break
                     
         return rows_by_sheet
 
@@ -427,6 +428,9 @@ class ETCSheetManager:
         # 9. 문자열→숫자 변환 
         ex.convert_numeric_strings(cols=("F","M", "AA"))
 
+        # sale_cnt (G열) '/' 구분자 합산
+        process_slash_separated_columns(ws, ['G'])
+        
         # 10. 열 정렬
         ex.set_column_alignment()
         # F열 왼쪽정렬 
@@ -434,13 +438,13 @@ class ETCSheetManager:
             ws[f"F{row}"].alignment = Alignment(horizontal='left')
 
         # 11. 배경·테두리 제거, A열 순번 설정
-        self.set_row_number(ws)  # 자체 정의한 메서드 사용
+        ex.set_row_number(ws)  # 자체 정의한 메서드 사용
         ex.clear_fills_from_second_row()
         ex.clear_borders()
 
     def _calculate_d_column_custom(self, ws: Worksheet) -> None:
         """
-        D열 계산: U + V(슬래시 합산) + 제주도 추가비용
+        D열 계산: U + V(슬래시 합산)
         """
         for row in range(2, ws.max_row + 1):
             # C열 이름 확인 (김비비 디버깅용)
@@ -448,7 +452,6 @@ class ETCSheetManager:
             
             u_val = ws[f'U{row}'].value or 0
             v_val = ws[f'V{row}'].value or 0
-            addr = str(ws[f'J{row}'].value or "")  # J열 주소 확인
             
             # V열 처리: "/" 구분자가 있으면 모든 숫자를 합산 (P열과 동일)
             v_num = 0
@@ -465,11 +468,9 @@ class ETCSheetManager:
                 except (ValueError, TypeError):
                     v_num = 0
             
-            # 제주도 추가비용 3000원
-            jeju_fee = 3000 if "제주" in addr else 0
             
             # D열에 계산 결과 설정
-            calculated_d = u_val + v_num + jeju_fee
+            calculated_d = u_val + v_num
             ws[f'D{row}'].value = calculated_d
 
     def _split_slash_values(self, value, expected_count: int) -> List[str]:

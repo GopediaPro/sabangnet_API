@@ -93,6 +93,10 @@ class ProductRawDataDto(BaseModel):
 
     # 상세/인증
     goods_remarks: str = Field(..., description="상품상세설명")
+    goods_remarks2: Optional[str] = Field(None, description="추가 상품상세설명_1")
+    goods_remarks3: Optional[str] = Field(None, description="추가 상품상세설명_2")
+    goods_remarks4: Optional[str] = Field(None, description="추가 상품상세설명_3")
+    
     certno: Optional[str] = Field(None, max_length=100, description="인증번호")
     avlst_dm: Optional[str] = Field(None, min_length=8, max_length=8, description="인증유효 시작일")
     avled_dm: Optional[str] = Field(None, min_length=8, max_length=8, description="인증유효 마지막일")
@@ -108,9 +112,51 @@ class ProductRawDataDto(BaseModel):
     # 옵션·속성 제어
     opt_type: int = Field(default=2, description="옵션수정여부(2·9)")
     prop1_cd: Optional[str] = Field(None, min_length=3, max_length=3, description="속성분류코드")
+    prop_edit_yn: Optional[str] = Field(None, min_length=1, max_length=1, description="속성수정여부")
+
+    # 속성값 1-33
+    prop_val1: Optional[str] = Field(None, max_length=25, description="속성값1")
+    prop_val2: Optional[str] = Field(None, max_length=25, description="속성값2")
+    prop_val3: Optional[str] = Field(None, max_length=25, description="속성값3")
+    prop_val4: Optional[str] = Field(None, max_length=25, description="속성값4")
+    prop_val5: Optional[str] = Field(None, max_length=25, description="속성값5")
+    prop_val6: Optional[str] = Field(None, max_length=25, description="속성값6")
+    prop_val7: Optional[str] = Field(None, max_length=25, description="속성값7")
+    prop_val8: Optional[str] = Field(None, max_length=25, description="속성값8")
+    prop_val9: Optional[str] = Field(None, max_length=25, description="속성값9")
+    prop_val10: Optional[str] = Field(None, max_length=25, description="속성값10")
+    prop_val11: Optional[str] = Field(None, max_length=25, description="속성값11")
+    prop_val12: Optional[str] = Field(None, max_length=25, description="속성값12")
+    prop_val13: Optional[str] = Field(None, max_length=25, description="속성값13")
+    prop_val14: Optional[str] = Field(None, max_length=25, description="속성값14")
+    prop_val15: Optional[str] = Field(None, max_length=25, description="속성값15")
+    prop_val16: Optional[str] = Field(None, max_length=25, description="속성값16")
+    prop_val17: Optional[str] = Field(None, max_length=25, description="속성값17")
+    prop_val18: Optional[str] = Field(None, max_length=25, description="속성값18")
+    prop_val19: Optional[str] = Field(None, max_length=25, description="속성값19")
+    prop_val20: Optional[str] = Field(None, max_length=25, description="속성값20")
+    prop_val21: Optional[str] = Field(None, max_length=25, description="속성값21")
+    prop_val22: Optional[str] = Field(None, max_length=25, description="속성값22")
+    prop_val23: Optional[str] = Field(None, max_length=25, description="속성값23")
+    prop_val24: Optional[str] = Field(None, max_length=25, description="속성값24")
+    prop_val25: Optional[str] = Field(None, max_length=25, description="속성값25")
+    prop_val26: Optional[str] = Field(None, max_length=25, description="속성값26")
+    prop_val27: Optional[str] = Field(None, max_length=25, description="속성값27")
+    prop_val28: Optional[str] = Field(None, max_length=25, description="속성값28")
+    prop_val29: Optional[str] = Field(None, max_length=25, description="속성값29")
+    prop_val30: Optional[str] = Field(None, max_length=25, description="속성값30")
+    prop_val31: Optional[str] = Field(None, max_length=25, description="속성값31")
+    prop_val32: Optional[str] = Field(None, max_length=25, description="속성값32")
+    prop_val33: Optional[str] = Field(None, max_length=25, description="속성값33")
 
     # 기타
     descrition: Optional[str] = Field(None, description="관리자메모")  # 오타 유지
+    
+    # 수입/원산지 관련
+    importno: Optional[str] = Field(None, max_length=100, description="수입신고번호")
+    origin2: Optional[str] = Field(None, max_length=50, description="원산지 상세지역")
+    expire_dm: Optional[str] = Field(None, min_length=8, max_length=8, description="유효일")
+    supply_save_yn: Optional[str] = Field(None, min_length=1, max_length=1, description="합포시 제외 여부")
 
     # 원본 상품명/통계
     product_nm: Optional[str] = Field(None, max_length=60, description="원본상품명")

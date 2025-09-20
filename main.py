@@ -16,7 +16,7 @@ from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.v1.endpoints.macro import router as macro_router
-from api.v1.endpoints.product import router as products_router
+from api.v1.endpoints.product_bulk_tool import router as products_router
 from api.v1.endpoints.ecount.erp import router as ecount_router
 from api.v1.endpoints.receive_order import router as receive_order_router
 from api.v1.endpoints.mall_price import router as mall_price_router
@@ -26,6 +26,15 @@ from api.v1.endpoints.product_registration import router as product_registration
 from api.v1.endpoints.hanjin.delivery import router as hanjin_router
 from api.v1.endpoints.smile.smile_macro import router as smile_macro_router
 from api.v1.endpoints.smile.smile_excel_import import router as smile_excel_import_router
+
+# v2 API imports
+from api.v2.endpoints.hanjin.delivery import router as hanjin_v2_router
+from api.v2.endpoints.down_form_order import router as down_form_order_v2_router
+from api.v2.endpoints.smile.smile_macro import router as smile_macro_v2_router
+from api.v2.endpoints.ecount.erp_excel_import import router as ecount_excel_import_v2_router
+from api.v2.endpoints.ecount.erp_transfer import router as ecount_erp_transfer_v2_router
+from api.v2.endpoints.ecount.erp import router as ecount_erp_v2_router
+
 
 from utils.logs.sabangnet_logger import get_logger, HTTPLoggingMiddleware
 from api.v1.endpoints.mall_certification_handling.mall_certification_handling import router as mall_certification_handling_router
@@ -46,6 +55,12 @@ async def lifespan(app: FastAPI):
 master_router = APIRouter(
     prefix="/api/v1",
     tags=["api"],
+)
+
+# v2 API 라우터
+master_router_v2 = APIRouter(
+    prefix="/api/v2",
+    tags=["api-v2"],
 )
 
 
@@ -73,7 +88,17 @@ master_router.include_router(hanjin_router)
 master_router.include_router(smile_macro_router)
 master_router.include_router(smile_excel_import_router)
 
+# v2 API 라우터 등록
+master_router_v2.include_router(hanjin_v2_router)
+master_router_v2.include_router(down_form_order_v2_router)
+master_router_v2.include_router(smile_macro_v2_router)
+master_router_v2.include_router(ecount_excel_import_v2_router)
+master_router_v2.include_router(ecount_erp_transfer_v2_router)
+master_router_v2.include_router(ecount_erp_v2_router)
+
+
 app.include_router(master_router)
+app.include_router(master_router_v2)
 
 # HTTP 로깅 미들웨어 추가 (CORS보다 먼저)
 app.add_middleware(HTTPLoggingMiddleware)

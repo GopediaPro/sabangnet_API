@@ -8,9 +8,11 @@ from schemas.smile.smile_macro_dto import (
     SmileMacroResponseDto,
     SmileMacroStageRequestDto
 )
+from schemas.macro_batch_processing.request.batch_process_request import BatchProcessRequest
 from core.db import get_async_session
 from utils.decorators import smile_excel_import_handler
 from minio_handler import temp_file_to_object_name, delete_temp_file
+import json
 
 logger = get_logger(__name__)
 router = APIRouter(
@@ -21,6 +23,11 @@ router = APIRouter(
 @router.post("/smile-excel-macro-multiple")
 @smile_excel_import_handler()
 async def smile_excel_macro_multiple_minio(
+    request: str = Form(
+        ...,
+        description=json.dumps(
+            BatchProcessRequest.Config.json_schema_extra['example'], indent=2)
+    ),
     files: List[UploadFile] = File(..., description="처리할 엑셀 파일들"),
     session: AsyncSession = Depends(get_async_session)
 ):
@@ -28,12 +35,16 @@ async def smile_excel_macro_multiple_minio(
     여러 엑셀 파일을 합친 후 스마일배송 매크로 처리하고 MinIO에 업로드
     
     Args:
+        request: 배치 처리 요청 정보
         files: 업로드된 엑셀 파일들
         session: 데이터베이스 세션
         
     Returns:
         Dict: 처리 결과 (MinIO URL 포함, 두 개의 파일 경로 포함)
     """
+    # request 객체 파싱
+    request_obj = BatchProcessRequest(**json.loads(request))
+    
     # 파일들 저장
     temp_file_paths = []
     for file in files:
@@ -47,6 +58,7 @@ async def smile_excel_macro_multiple_minio(
         # 여러 파일을 합쳐서 매크로 처리하고 MinIO에 업로드
         result = await smile_macro_service.merge_and_process_files_with_minio(
             file_paths=temp_file_paths,
+            request_obj=request_obj
         )
         
         if not result["success"]:

@@ -71,9 +71,13 @@ def remove_port_from_url(url):
         host = parsed.netloc.split(':')[0]
     else:
         host = parsed.netloc
+    
+    # HTTP를 HTTPS로 변경
+    scheme = 'https' if parsed.scheme == 'http' else parsed.scheme
+    
     # 다시 URL로 조립
     new_url = urlunparse((
-        parsed.scheme,
+        scheme,
         host,
         parsed.path,
         parsed.params,
@@ -137,6 +141,20 @@ def upload_and_get_url(file_path, template_code, file_name=None):
     delete_temp_file(file_path)
     file_url = get_minio_file_url(object_name)
     return file_url, minio_object_name
+
+def upload_and_get_url_with_count_rev(file_path, template_code, file_name=None, count_rev=None):
+    """
+    1. file_name이 없으면 file_path에서 추출
+    2. count_rev 기반 minio_object_name 생성
+    3. MinIO 업로드
+    4. 임시 파일 삭제
+    5. presigned url과 파일 크기 반환 (쿼리스트링 제거)
+    """
+    minio_object_name = f"excel/{template_code}/{count_rev}_{file_name}"
+    object_name = upload_file_to_minio(file_path, minio_object_name)
+    delete_temp_file(file_path)
+    file_url, file_size = get_minio_file_url_and_size(object_name)
+    return file_url, minio_object_name, file_size
 
 def upload_and_get_url_and_size(file_path, template_code, file_name=None):
     """

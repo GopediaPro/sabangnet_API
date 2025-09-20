@@ -5,13 +5,16 @@ import pandas as pd
 import xlrd
 import tempfile
 import os
-from typing import List
+from typing import List, Dict
+from datetime import datetime
 from openpyxl.utils import get_column_letter
 from openpyxl.workbook.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
-from openpyxl.styles import Font, PatternFill, Alignment, Border
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from utils.logs.sabangnet_logger import get_logger
+from utils.mappings.product_create_field_db_mapping_for_excel import PRODUCT_CREATE_DB_TO_EXCEL_HEADER, db_row_to_excel_row
 
+logger = get_logger(__name__)
 """
 주문관리 Excel 파일 매크로 공통 처리 메소드
 - 기본 서식 설정
@@ -220,7 +223,7 @@ class ExcelHandler:
 
     def set_row_number(self, ws, start_row=2, end_row=None):
         """
-        A열 순번 자동 생성 (=ROW()-1)
+        A열 순번 자동 생성 (row - 1)
         예시:
             set_row_number(ws)
         """
@@ -230,7 +233,7 @@ class ExcelHandler:
             ws = self.ws
         for row in range(start_row, end_row + 1):
             ws[f'A{row}'].number_format = 'General'
-            ws[f"A{row}"].value = "=ROW()-1"
+            ws[f"A{row}"].value = row -1
 
     def convert_formula_to_value(self):
         """
@@ -292,8 +295,12 @@ class ExcelHandler:
             return f"{val[:4]}-{val[4:8]}-{val[8:]}"
 
         # 11자리: 010, 011, 016, 017, 018, 019
-        elif len(val) == 11 and val[:3] in ['010', '011', '016', '017', '018', '019']:
+        elif len(val) == 11 and val[:3] in ['010', '011', '016', '017', '018', '019','050','070']:
             return f"{val[:3]}-{val[3:7]}-{val[7:]}"
+        
+        # 10자리: 011, 016, 017, 018, 019
+        elif len(val) == 10 and val[:3] in ['010','011', '016', '017', '018', '019','050','070']:
+            return f"{val[:3]}-{val[3:6]}-{val[6:]}"
 
         # 10자리: 02(서울), 031~064(지역번호)
         elif len(val) == 10:
@@ -987,7 +994,13 @@ class ExcelHandler:
             match = account_pattern.match(site_value)
             if match:
                 account_name = match.group(1)
-                target_sheet_name = site_to_sheet.get(account_name)
+                
+                # 포함 검색으로 시트 매핑 찾기
+                target_sheet_name = None
+                for site_key, sheet_name in site_to_sheet.items():
+                    if site_key in account_name:
+                        target_sheet_name = sheet_name
+                        break
 
                 # 해당 시트에 즉시 데이터 삽입
                 if target_sheet_name and target_sheet_name in ws_map:
@@ -1037,59 +1050,70 @@ class ExcelHandler:
     def add_island_delivery(self, wb=None):
         """
         도서지역 쇼핑몰별 배송비 추가 
+        B = 사이트명, D = 금액, F = 모델명, V = 배송비, J = 주소
         """
+        def _add_to_cell(cell, value, font=None):
+            """셀에 값을 추가하는 헬퍼 함수"""
+            if cell.value:
+                cell.value += value
+            else:
+                cell.value = value
+            if font:
+                cell.font = font
+        
+        def _add_cost_to_cell(cell, cost):
+            """숫자 셀에 cost를 추가하는 헬퍼 함수"""
+            current_value = int(cell.value) if cell.value else 0
+            cell.value = str(current_value + cost)
+        
         red_font = Font(color="FF0000", bold=True)
         black_font = Font(color="000000", bold=False, size=9)
-        island_dict: list[dict] = [{"site_name": "GSSHOP", "fid_dsp": "GSSHOP", "cost": 3000, "add_dsp": None},
-                                   {'site_name': "텐바이텐", "fid_dsp": "텐바이텐", "cost": 3000,
-                                       "add_dsp": "3000원 연락해야함, 어드민 조회필요(외부몰/자체몰)"},
-                                   {'site_name': "쿠팡", "fid_dsp": "쿠팡",
-                                       "cost": 3000, "add_dsp": None},
-                                   {'site_name': "무신사", "fid_dsp": "무신사",
-                                       "cost": 3000, "add_dsp": None},
-                                   {'site_name': "NS홈쇼핑", "fid_dsp": "NS홈쇼핑",
-                                       "cost": 3000, "add_dsp": None},
-                                   {'site_name': "CJ온스타일", "fid_dsp": "CJ온스타일",
-                                       "cost": 3000, "add_dsp": None},
-                                   {'site_name': "브랜디", "fid_dsp": "브랜디",
-                                       "cost": 3000, "add_dsp": "3000원 연락해야함"},
-                                   {'site_name': "에이블리", "fid_dsp": "에이블리",
-                                       "cost": 3000, "add_dsp": None},
-                                   {'site_name': "보리보리", "fid_dsp": "보리보리",
-                                       "cost": 3000, "add_dsp": "3000원 연락해야함"},
-                                   {'site_name': "지그재그", "fid_dsp": "지그재그",
-                                       "cost": 3000, "add_dsp": None},
-                                   {'site_name': "카카오톡선물하기", "fid_dsp": "카카오선물하기",
-                                       "cost": 3000, "add_dsp": "3000원 연락해야함"},
-                                   {'site_name': "11번가", "fid_dsp": "11번가",
-                                       "cost": 5000, "add_dsp": None},
-                                   {'site_name': "홈&쇼핑", "fid_dsp": "홈&쇼핑",
-                                       "cost": 3000, "add_dsp": "3000원 연락해야함"},
-                                   ]
+        
+        island_dict = [
+            {"site_name": "GSSHOP", "fld_dsp": "GSSHOP", "cost": 3000, "add_dsp": None},
+            {"site_name": "텐바이텐", "fld_dsp": "텐바이텐", "add_dsp": "[3000원 연락해야함, 어드민 조회필요(외부몰/자체몰)]"},
+            {"site_name": "쿠팡", "fld_dsp": "쿠팡", "cost": 3000, "add_dsp": None},
+            {"site_name": "무신사", "fld_dsp": "무신사", "cost": 3000, "add_dsp": None},
+            {"site_name": "NS홈쇼핑", "fld_dsp": "NS홈쇼핑", "cost": 3000, "add_dsp": None},
+            {"site_name": "CJ온스타일", "fld_dsp": "CJ온스타일", "cost": 3000, "add_dsp": None},
+            {"site_name": "오늘의집", "fld_dsp": "오늘의집", "cost": 3000, "add_dsp": None},
+            {"site_name": "브랜디", "fld_dsp": "브랜디", "add_dsp": "[3000원 연락해야함]"},
+            {"site_name": "에이블리", "fld_dsp": "에이블리", "cost": 3000, "add_dsp": None},
+            {"site_name": "보리보리", "fld_dsp": "보리보리", "add_dsp": "[3000원 연락해야함]"},
+            {"site_name": "지그재그", "fld_dsp": "지그재그", "cost": 3000, "add_dsp": None},
+            {"site_name": "카카오톡선물하기", "fld_dsp": "카카오선물하기", "add_dsp": "[3000원 연락해야함]"},
+            {"site_name": "11번가", "fld_dsp": "11번가", "cost": 5000, "add_dsp": None},
+            {"site_name": "홈&쇼핑", "fld_dsp": "홈&쇼핑", "add_dsp": "[3000원 연락해야함]"},
+        ]
+        
         if wb is None:
             wb = self.wb
+            
         for ws in wb:
             for row in range(2, ws.max_row + 1):
-                # 주소에 제주가 포함된 경우
-                if "제주" in ws[f"J{row}"].value:
-                    for island in island_dict:
-                        site_name: str = ws[f"B{row}"].value
-                        # 사이트명이 포함된 경우
-                        if island["fid_dsp"] in site_name:
-                            # 처리 여부 확인
-                            if island["add_dsp"]:
-                                ws[f"F{row}"].value += island["add_dsp"]
-                                ws[f"F{row}"].font = red_font
-                                if "텐바이텐" in site_name:
-                                    ws[f"D{row}"].value = str(
-                                        int(ws[f"D{row}"].value) + island["cost"])
-                                    ws[f"V{row}"].value += island["cost"]
-                                    ws[f"V{row}"].font = black_font
-                            else:
-                                ws[f"D{row}"].value = str(
-                                    int(ws[f"D{row}"].value) + island["cost"])
-                                ws[f"V{row}"].value += island["cost"]
-                                ws[f"V{row}"].font = black_font
+                # 제주 주소가 아니면 건너뛰기
+                if "제주" not in ws[f"J{row}"].value:
+                    continue
+                    
+                site_name = ws[f"B{row}"].value
+                
+                # 매칭되는 사이트 찾기
+                matched_island = next(
+                    (island for island in island_dict if island["fld_dsp"] in site_name), 
+                    None
+                )
+                
+                if not matched_island:
+                    continue
+                
+                # add_dsp 처리
+                if matched_island["add_dsp"]:
+                    _add_to_cell(ws[f"F{row}"], matched_island["add_dsp"], red_font)
+                
+                # cost 처리
+                if "cost" in matched_island and matched_island["cost"]:
+                    _add_cost_to_cell(ws[f"D{row}"], matched_island["cost"])
+                    _add_to_cell(ws[f"V{row}"], matched_island["cost"], black_font)
 
     @staticmethod
     def merge_excel_files(file_paths: List[str], output_path: str = None, sheet_index: int = 0) -> str:
@@ -1276,7 +1300,126 @@ class ExcelHandler:
         else:
             logger.info("OpenPyXL 방식으로 파일 합치기 선택")
             return ExcelHandler.merge_excel_files(file_paths, output_path, sheet_index)
+        
+    def create_excel_file_from_mapping(
+        self,
+        data: List[Dict],
+        sheet_name: str = "상품등록",
+        split_sheets: List[str] = None,
+        template_code: str = None,
+        mapping: Dict[str, str] = PRODUCT_CREATE_DB_TO_EXCEL_HEADER,  # ✅ 통일 지점
+    ):
+        """
+        DTO 데이터를 기반으로 Excel 파일을 생성합니다.
+        - 엑셀 헤더는 PRODUCT_CREATE_DB_TO_EXCEL_HEADER(영문 DB컬럼 -> 한글 헤더)로 통일합니다.
+        - 데이터를 여러 시트로 나눌 수 있습니다.
+        - 각 시트에 템플릿 코드를 추가할 수 있습니다.
 
+        Args:
+            dto_class: (미사용) 기존 시그니처 호환성용
+            data: DB dict 리스트(영문 키)
+            sheet_name: 기본 시트 이름
+            split_sheets: 나눌 시트 이름 리스트 (예: 카테고리 분리용)
+            template_code: 각 시트에 추가할 템플릿 코드
+            mapping: DB영문 -> 한글헤더 매핑(기본: PRODUCT_CREATE_DB_TO_EXCEL_HEADER)
+
+        Returns:
+            file_path: 생성된 엑셀 파일 경로
+        """
+        # 1) 기본 시트 세팅
+        self.ws.title = sheet_name
+
+        # 2) 헤더: 매핑 값(한글) 순서대로 고정
+        headers = list(mapping.values())
+        self.ws.append(headers)
+        self.set_header_style(self.ws)  # 헤더 스타일 적용(기존 메서드)
+
+        # 3) 데이터 작성: 각 DB dict를 엑셀 헤더 dict로 변환한 뒤 헤더 순서대로 기입
+        for row in data:
+            excel_row = db_row_to_excel_row(row, mapping)  # 영문키 dict -> 한글헤더 dict
+            self.ws.append([excel_row.get(h, "") for h in headers])
+
+        # 4) 열/행 스타일링
+        self._adjust_column_widths(self.ws, headers)
+        self._adjust_row_heights(self.ws)
+        self._enable_wrap_text(self.ws)
+
+        # 5) 시트 분리(선택)
+        if split_sheets:
+            ws_map = self.create_split_sheets(headers, split_sheets)
+            for row in data:
+                # 기본 분리 기준 예시: DB 컬럼 'category' (필요 시 변경)
+                category = (row.get("category") or "기본")
+                target_ws = ws_map.get(category, self.ws)
+                excel_row = db_row_to_excel_row(row, mapping)
+                target_ws.append([excel_row.get(h, "") for h in headers])
+
+            # 각 시트에 템플릿 코드 추가(선택)
+            if template_code:
+                for ws in ws_map.values():
+                    self.create_template_code_in_excel(template_code, ws)
+
+        # 6) 파일 저장
+        file_path = f"/tmp/{sheet_name}.xlsx"
+        self.wb.save(file_path)
+        return file_path
+
+    def _adjust_column_widths(self, ws, headers):
+        """
+        워크시트의 열 너비를 데이터와 헤더 길이에 따라 자동으로 조정합니다.
+        Args:
+            ws: openpyxl 워크시트 객체
+            headers: 헤더 리스트
+        """
+        for col_idx, col in enumerate(ws.columns, start=1):
+            max_length = len(headers[col_idx - 1])  # 헤더 길이 기준
+            for cell in col:
+                try:
+                    if cell.value:
+                        max_length = max(max_length, len(str(cell.value)))
+                except:
+                    pass
+            # 열 너비를 헤더 길이에 맞게 충분히 설정 (최대 너비 50)
+            adjusted_width = min(max_length + 5, 50)  # 헤더 길이에 여유 공간 추가
+            ws.column_dimensions[col[0].column_letter].width = adjusted_width
+
+    def _adjust_row_heights(self, ws):
+        """
+        워크시트의 행 높이를 데이터 길이에 따라 자동으로 조정합니다.
+        """
+        for row in ws.iter_rows():
+            max_height = 15  # 기본 높이
+            for cell in row:
+                if cell.value and isinstance(cell.value, str):
+                    lines = cell.value.count("\n") + 1
+                    max_height = max(max_height, lines * 15)  # 줄바꿈 개수에 따라 높이 조정
+            ws.row_dimensions[row[0].row].height = max_height
+                
+    def _enable_wrap_text(self, ws):
+        """
+        워크시트의 모든 셀에 텍스트 줄바꿈을 활성화합니다.
+        Args:
+            ws: openpyxl 워크시트 객체
+        """
+        for row in ws.iter_rows():
+            for cell in row:
+                cell.alignment = Alignment(wrap_text=True)
+    
+    def set_header_style(self, ws):
+        """
+        지정한 워크시트의 헤더 행에 배경색, 폰트, 정렬을 일괄 적용
+        Args:
+            ws: openpyxl worksheet
+        """
+        white_font = Font(name='맑은 고딕', size=11, color="FFFFFF", bold=True)
+        center_alignment = Alignment(horizontal='center', wrap_text=False)  # 텍스트 줄바꿈 비활성화
+        green_fill = PatternFill(start_color="008000", end_color="008000", fill_type="solid")
+        for cell in ws[1]:
+            cell.fill = green_fill
+            cell.font = white_font
+            cell.alignment = center_alignment
+            cell.border = Border()
+        ws.row_dimensions[1].height = 20  # 헤더 행 높이 설정
 
 class ReverseComparableString:
     def __init__(self, s):

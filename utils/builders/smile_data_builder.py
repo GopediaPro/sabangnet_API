@@ -286,6 +286,133 @@ class SmileDataBuilder:
         self.skipped_count += 1
 
 
+class SmileMacroDataBuilder:
+    """스마일배송 매크로 데이터 빌더"""
+    
+    @staticmethod
+    def get_column_mapping() -> Dict[str, str]:
+        """
+        스마일배송 매크로 엑셀 컬럼 매핑 정보 반환
+        
+        Returns:
+            Dict[str, str]: 컬럼 매핑 딕셔너리 (엑셀 컬럼 -> DB 필드)
+        """
+        return {
+            'A': 'fld_dsp',           # 아이디*
+            'B': 'expected_payout',   # 정산예정금
+            'C': 'service_fee',       # 서비스 이용료
+            'D': 'mall_order_id',     # 장바구니번호(결제번호)
+            'E': 'pay_cost',          # 금액[배송비미포함]
+            'F': 'delv_cost',         # 배송비 금액
+            'G': None,                # 구매결정일자 - source_field 없음
+            'H': 'mall_product_id',   # 상품번호*
+            'I': 'order_id',          # 주문번호*
+            'J': 'sku_value',            # 주문옵션
+            'K': 'product_name',      # 상품명
+            'L': 'item_name',         # 제품명
+            'M': 'sale_cnt',          # 수량
+            'N': None,                # 추가구성 - source_field 없음
+            'O': None,                # 사은품 - source_field 없음
+            'P': 'sale_cost',         # 판매금액
+            'Q': 'mall_user_id',      # 구매자ID
+            'R': 'user_name',         # 구매자명
+            'S': 'receive_name',      # 수령인명
+            'T': 'delivery_method_str', # 배송비
+            'U': 'receive_cel',       # 수령인 휴대폰
+            'V': 'receive_tel',       # 수령인 전화번호
+            'W': 'receive_addr',      # 주소
+            'X': 'receive_zipcode',   # 우편번호
+            'Y': 'delv_msg',          # 배송시 요구사항
+            'Z': None,                # (옥션)복수구매할인 - source_field 없음
+            'AA': None,               # (옥션)우수회원할인 - source_field 없음
+            'AB': 'sku1_no',          # SKU1번호
+            'AC': 'sku1_cnt',         # SKU1수량
+            'AD': 'sku2_no',          # SKU2번호
+            'AE': 'sku2_cnt',         # SKU2수량
+            'AF': 'sku_no',           # SKU번호 및 수량
+            'AG': 'pay_dt',           # 결제완료일
+            'AH': 'user_tel',         # 구매자 전화번호
+            'AI': 'user_cel',         # 구매자 휴대폰
+            'AJ': 'buy_coupon',       # 구매쿠폰적용금액
+            'AK': None,               # 발송예정일 - source_field 없음
+            'AL': None,               # 발송일자 - source_field 없음
+            'AM': None,               # 배송구분 - source_field 없음
+            'AN': 'invoice_no',       # 배송번호
+            'AO': 'delv_status',      # 배송상태
+            'AP': None,               # 배송완료일자 - source_field 없음
+            'AQ': None,               # 배송지연사유 - source_field 없음
+            'AR': None,               # 배송점포 - source_field 없음
+            'AS': None,               # 상품미수령상세사유 - source_field 없음
+            'AT': None,               # 상품미수령신고사유 - source_field 없음
+            'AU': None,               # 상품미수령신고일자 - source_field 없음
+            'AV': None,               # 상품미수령이의제기일자 - source_field 없음
+            'AW': None,               # 상품미수령철회요청일자 - source_field 없음
+            'AX': None,               # 송장번호(방문수령인증키) - source_field 없음
+            'AY': None,               # 일시불할인 - source_field 없음
+            'AZ': None,               # 재배송일 - source_field 없음
+            'BA': None,               # 재배송지 우편번호 - source_field 없음
+            'BB': None,               # 재배송지 운송장번호 - source_field 없음
+            'BC': None,               # 재배송지 주소 - source_field 없음
+            'BD': None,               # 재배송택배사명 - source_field 없음
+            'BE': None,               # 정산완료일 - source_field 없음
+            'BF': 'order_dt',         # 주문일자(결제확인전)
+            'BG': 'order_method',     # 주문종류
+            'BH': None,               # 주문확인일자 - source_field 없음
+            'BI': 'delv_method_id',   # 택배사명(발송방법)
+            'BJ': None,               # 판매단가 - source_field 없음 (sale_cost와 중복)
+            'BK': 'sale_method',      # 판매방식
+            'BL': 'order_etc_7',      # 판매자 관리코드
+            'BM': None,               # 판매자 상세관리코드 - source_field 없음
+            'BN': None,               # 판매자북캐시적립 - source_field 없음
+            'BO': 'sale_coupon',      # 판매자쿠폰할인
+            'BP': None,               # 판매자포인트적립 - source_field 없음
+        }
+    
+    @staticmethod
+    def get_integer_fields() -> set:
+        """숫자형 필드 목록 반환"""
+        return {'expected_payout', 'service_fee', 'pay_cost', 'delv_cost', 'sale_cost', 'buy_coupon', 'sale_coupon', 'sale_cnt'}
+    
+    @staticmethod
+    def get_date_fields() -> set:
+        """날짜형 필드 목록 반환"""
+        return {'pay_dt', 'order_dt'}
+    
+    @staticmethod
+    def get_down_form_order_field_types() -> Dict[str, str]:
+        """
+        down_form_order 필드별 타입 매핑 반환
+        
+        Returns:
+            Dict[str, str]: 필드명 -> 타입 매핑
+        """
+        return {
+            'fld_dsp': 'str',
+            'receive_name': 'str',
+            'pay_cost': 'integer',
+            'order_id': 'str',
+            'item_name': 'str',
+            'sale_cnt': 'str',  # String(25) 타입
+            'receive_cel': 'str',
+            'receive_tel': 'str',
+            'receive_addr': 'str',
+            'receive_zipcode': 'str',
+            'delivery_method_str': 'str',
+            'mall_product_id': 'str',
+            'delv_msg': 'str',
+            'expected_payout': 'integer',
+            'service_fee': 'integer',
+            'mall_order_id': 'str',
+            'order_etc_7': 'str',
+            'sku_no': 'str',
+            'product_name': 'str',
+            'delv_cost': 'integer',
+            'process_dt': 'datetime',
+            'product_id': 'str',
+            'invoice_no': 'str'
+        }
+
+
 class SmileDataProcessor:
     """스마일배송 데이터 프로세서"""
     

@@ -1,11 +1,13 @@
 from utils.excels.excel_handler import ExcelHandler
 from utils.excels.excel_column_handler import ExcelColumnHandler
+from utils.macros.ERP.utils import average_duplicate_order_address_amounts
 
 
 class ERPBrandiMacro:
-    def __init__(self, file_path):
+    def __init__(self, file_path, is_star: bool = False):
         self.ex = ExcelHandler.from_file(file_path)
         self.file_path = file_path
+        self.is_star = is_star
         self.ws = self.ex.ws
 
     def brandi_erp_macro_run(self):
@@ -28,21 +30,14 @@ class ERPBrandiMacro:
             col_h.h_i_column(ws[f"H{row}"])
             col_h.h_i_column(ws[f"I{row}"])
             col_h.a_formula_column(ws[f"A{row}"])
-            self._jeju_address_column(ws, row, ws[f"J{row}"])  # 확인필요
             col_h.e_column(ws[f"E{row}"])
             col_h.convert_int_column(ws[f"P{row}"])
         print(f'[{ws.title}] 서식 적용 완료')
 
+        # 장바구니번호와 수취인주소 조합으로 그룹화 후 평균 금액 적용 (스타배송 모드에서만)
+        if self.is_star:
+            average_duplicate_order_address_amounts(self.ws)
+
         output_path = self.ex.save_file(self.file_path)
         print(f"브랜디 ERP 자동화 완료!\n처리된 파일: {output_path}")
         return output_path
-
-    def _jeju_address_column(self, ws, row, cell):
-        """
-        제주 주소 포맷
-        args:
-            cell: 대상 셀 (J)
-        """
-        if cell.value and "제주" in str(cell.value):
-            self.ex.process_jeju_address(
-                ws, row, f_col='F', j_col='J')

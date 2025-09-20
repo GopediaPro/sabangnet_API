@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.down_form_orders.down_form_order import BaseDownFormOrder
@@ -83,3 +83,27 @@ class DownFormOrderReadService:
         if not orders_without_invoice:
             raise DownFormOrderReadServiceException("invoice_no가 없는 주문 데이터가 없습니다.")
         return [DownFormOrderDto.model_validate(order) for order in orders_without_invoice]
+    
+    async def get_down_form_orders_by_date_range(
+        self, 
+        date_from: datetime, 
+        date_to: datetime,
+        form_name: str = None,
+        skip: int = None,   
+        limit: int = None
+    ) -> list[BaseDownFormOrder]:
+        """
+        날짜 범위로 down_form_orders 조회
+        
+        Args:
+            date_from: 시작 날짜
+            date_to: 종료 날짜
+            skip: 건너뛸 건수 
+            limit: 조회할 건수
+            
+        Returns:
+            조회된 주문 데이터 리스트
+        """
+        return await self.down_form_order_repository.get_down_form_orders_by_date_range(
+            date_from, date_to, form_name, skip, limit
+        )

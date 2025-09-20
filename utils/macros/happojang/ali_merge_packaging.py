@@ -12,7 +12,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.workbook.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 from utils.excels.excel_handler import ExcelHandler
-
+from utils.macros.happojang.utils import process_slash_separated_columns
 
 # 설정 상수
 MALL_NAME = "알리익스프레스"
@@ -200,8 +200,11 @@ def ali_merge_packaging(input_path: str) -> str:
     # 19. 제주도 주문 처리
     process_jeju_orders(ex)
     
-    # E, M, P, Q, W 열 String숫자 to 숫자 변환
-    ex.convert_numeric_strings(cols=("E", "M", "P", "Q", "W"))
+    # P, Q, W 열 String숫자 to 숫자 변환
+    ex.convert_numeric_strings(cols=("P", "Q", "W"))
+
+    # sale_cnt (G열) '/' 구분자 합산
+    process_slash_separated_columns(ws, ['G'])
     
     # 21. S열 VLOOKUP 처리 (Sheet1이 있는 경우)
     if "Sheet1" in ex.wb.sheetnames:

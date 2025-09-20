@@ -1,4 +1,4 @@
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.macro_batch_processing.batch_process import BatchProcess
 from schemas.macro_batch_processing.batch_process_dto import BatchProcessDto
@@ -37,6 +37,42 @@ class BatchInfoRepository:
         await self.session.commit()
         await self.session.refresh(batch_obj)
         return batch_obj
+    
+    async def update_batch_info(self, batch_dto: BatchProcessDto) -> bool:
+        """
+        배치 프로세스 정보를 업데이트하는 함수
+        :param batch_dto: BatchProcessDto 객체 (batch_id 필수)
+        :return: 업데이트 성공 여부
+        """
+        try:
+            if not batch_dto.batch_id:
+                raise ValueError("batch_id is required for update")
+            
+            # 업데이트할 필드들만 추출
+            update_data = {}
+            if batch_dto.file_url is not None:
+                update_data['file_url'] = batch_dto.file_url
+            if batch_dto.file_size is not None:
+                update_data['file_size'] = batch_dto.file_size
+            if batch_dto.file_name is not None:
+                update_data['file_name'] = batch_dto.file_name
+            if batch_dto.original_filename is not None:
+                update_data['original_filename'] = batch_dto.original_filename
+            
+            if not update_data:
+                return True  # 업데이트할 데이터가 없으면 성공으로 처리
+            
+            stmt = (
+                update(BatchProcess)
+                .where(BatchProcess.batch_id == batch_dto.batch_id)
+                .values(**update_data)
+            )
+            await self.session.execute(stmt)
+            await self.session.commit()
+            return True
+        except Exception as e:
+            await self.session.rollback()
+            raise e
     
     async def get_batch_info_latest(self, page: int, page_size: int):
         """
