@@ -410,23 +410,13 @@ class ProductCodeRegistrationService:
     
     def _get_option_detail_1(self, product_nm: str, gubun: str) -> str:
         """옵션상세명칭(1) 조회"""
-        # =IF(G5="마스터",VLOOKUP(F5,importrange("same file","상품등록!$k:$az"),10,0),
+        # =IF(G5="마스터",VLOOKUP(F5,importrange("same file","상품등록!$k:$az"),10,0), 옵션상세1
         #   IF(G5="전문몰",TEXTJOIN(",",TRUE, ARRAYFORMULA(INDEX(SPLIT(F5,"-"), 2)&"_"&SPLIT(VLOOKUP(F5,importrange("same file","상품등록!$k:$az"),10,0),","))),
-        #     IF(G5="1+1",(VLOOKUP(F5,importrange("same file","상품등록!$k:$az"),24,0)))))
+        #     IF(G5="1+1",(VLOOKUP(F5,importrange("same file","상품등록!$k:$az"),24,0))))) AH열
         # 10번째 컬럼은 char_1_nm
         # product_nm 에서 '-' 기준으로 뒤에 있는 값을 가져옴 '-'이 없으면 product_nm 그대로 사용
         model_nm = product_nm.split('-')[1] if '-' in product_nm else product_nm
         # model_nm 와 delv_one_plus_one을 가져와서 delv_one_plus_one의 구분자 ','를 기준으로 모든 값들의 앞에 model_nm에 '_'를 붙여서 합치기  
-        delv_one_plus_one = self.source_data.get('delv_one_plus_one', '')
-        if delv_one_plus_one and delv_one_plus_one.strip():
-            # 구분자 ','를 기준으로 값들을 분리
-            values = [val.strip() for val in delv_one_plus_one.split(',') if val.strip()]
-            # 각 값 앞에 model_nm_을 붙여서 합치기
-            delv_one_plus_one_detail = ','.join([f"{model_nm}_{val}" for val in values])
-            logger.info(f"옵션상세명칭(1) 조회 delv_one_plus_one_detail: {delv_one_plus_one_detail}")
-        else:
-            delv_one_plus_one_detail = ''
-        
         # 옵션상세명칭(1) 조회
         
         
@@ -437,13 +427,16 @@ class ProductCodeRegistrationService:
             # TEXTJOIN 로직 구현 필요
             char_1_val = self.source_data.get('char_1_val', '')
             if char_1_val and char_1_val is not None:
-                model_suffix = product_nm.split('-')[1] if '-' in product_nm else ''
-                values = char_1_val.split(',')
-                return ','.join([f"{model_suffix}_{val.strip()}" for val in values])
+                values = [val.strip() for val in char_1_val.split(',') if val.strip()]
+                return ','.join([f"{model_nm}_{val}" for val in values])
             return ''
         elif gubun == "1+1":
             # 24번째 컬럼에 해당하는 값
-            return delv_one_plus_one_detail if delv_one_plus_one_detail is not None else ''
+            char_1_val = self.source_data.get('char_1_val_one_plus', '')
+            if char_1_val and char_1_val is not None:
+                values = [val.strip() for val in char_1_val.split(',') if val.strip()]
+                return ','.join([f"{model_nm}_{val}" for val in values])
+            return ''
     
     def _get_option_title_2(self, product_nm: str, gubun: str) -> str:
         """옵션제목(2) 조회"""
@@ -451,11 +444,7 @@ class ProductCodeRegistrationService:
         #   IF(G6="전문몰",VLOOKUP(F6,importrange("same file","상품등록!$k:$az"),11,0),
         #     IF(G6="1+1",VLOOKUP(F6,importrange("same file","상품등록!$k:$az"),9,0))))
         # 11번째 컬럼은 char_2_nm
-        if gubun in ["마스터", "전문몰"]:
-            return self.source_data.get('char_2_nm', '')
-        elif gubun == "1+1":
-            # 9번째 컬럼으로 대체
-            return self.source_data.get('char_1_nm', '')
+        return self.source_data.get('char_2_nm', '')
     
     def _get_option_detail_2(self, product_nm: str, gubun: str) -> str:
         """옵션상세명칭(2) 조회"""
@@ -463,13 +452,16 @@ class ProductCodeRegistrationService:
         #   IF(G6="전문몰",VLOOKUP(F6,importrange("same file","상품등록!$k:$az"),12,0),
         #     IF(G6="1+1",VLOOKUP(F6,importrange("same file","상품등록!$k:$az"),23,0))))
         # 12번째 컬럼은 char_2_val
+        # product_nm 에서 '-' 기준으로 뒤에 있는 값을 가져옴 '-'이 없으면 product_nm 그대로 사용
+        model_nm = product_nm.split('-')[1] if '-' in product_nm else product_nm
+        
         if gubun in ["마스터", "전문몰"]:
             char_2_val = self.source_data.get('char_2_val', '')
             return char_2_val if char_2_val is not None else ''
         elif gubun == "1+1":
             # 23번째 컬럼으로 대체 (추정)
-            delv_one_plus_one = self.source_data.get('delv_one_plus_one', '')
-            return delv_one_plus_one if delv_one_plus_one is not None else '' 
+            char_2_val = self.source_data.get('char_2_val_one_plus', '')
+            return char_2_val if char_2_val is not None else ''
     
     def _get_representative_image(self, product_nm: str, gubun: str) -> str:
         """대표이미지 조회"""
