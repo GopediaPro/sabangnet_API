@@ -24,7 +24,8 @@ class ProductRegistrationExcelProcessor:
             'char_1_nm', 'char_1_val', 'char_2_nm', 'char_2_val',
             'img_path', 'img_path1', 'img_path2', 'img_path3',
             'img_path4', 'img_path5', 'goods_remarks', 'mobile_bn',
-            'one_plus_one_bn', 'goods_remarks_url', 'delv_one_plus_one'
+            'one_plus_one_bn', 'goods_remarks_url', 'char_1_val_one_plus',
+            'char_2_val_one_plus'
         ]
     
     def read_excel_k_to_az_columns(self, file_path: str, sheet_name: str = "Sheet1") -> List[Dict]:
@@ -160,7 +161,8 @@ class ProductRegistrationExcelProcessor:
             '모바일배너': 'mobile_bn',
             '1+1배너': 'one_plus_one_bn',
             '상세설명url': 'goods_remarks_url',
-            '1+1옵션': 'delv_one_plus_one'
+            '1+1옵션(1단)': 'char_1_val_one_plus',
+            '1+1옵션(22단)': 'char_2_val_one_plus'
         }
     
     def _get_ordered_column_mapping(self) -> Dict[str, str]:

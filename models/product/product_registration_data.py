@@ -68,7 +68,12 @@ class ProductRegistrationRawData(Base):
     char_2_val: Mapped[Optional[str]] = mapped_column(
         Text, comment="옵션상세2"
     )
-
+    char_1_val_one_plus: Mapped[Optional[str]] = mapped_column(
+        Text, comment="1+1옵션(1단)"
+    )
+    char_2_val_one_plus: Mapped[Optional[str]] = mapped_column(
+        Text, comment="1+1옵션(22단)"
+    )
     # 이미지 정보
     img_path: Mapped[Optional[str]] = mapped_column(
         Text, comment="대표이미지"
@@ -143,6 +148,8 @@ class ProductRegistrationRawData(Base):
             'char_1_val': self.char_1_val,
             'char_2_nm': self.char_2_nm,
             'char_2_val': self.char_2_val,
+            'char_1_val_one_plus': self.char_1_val_one_plus,
+            'char_2_val_one_plus': self.char_2_val_one_plus,
             'img_path': self.img_path,
             'img_path1': self.img_path1,
             'img_path2': self.img_path2,
