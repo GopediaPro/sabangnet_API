@@ -39,6 +39,8 @@ class ProductRegistrationDto(BaseModel):
     char_1_val: Optional[str] = Field(None, description="옵션상세1")
     char_2_nm: Optional[str] = Field(None, description="옵션명2")
     char_2_val: Optional[str] = Field(None, description="옵션상세2")
+    char_1_val_one_plus: Optional[str] = Field(None, description="옵션상세1(1+1)")
+    char_2_val_one_plus: Optional[str] = Field(None, description="옵션상세2(1+1)")
 
     # 이미지 정보
     img_path: Optional[str] = Field(None, description="대표이미지")
@@ -105,6 +107,8 @@ class ProductRegistrationCreateDto(BaseModel):
     char_1_val: Optional[str] = Field(None, description="옵션상세1")
     char_2_nm: Optional[str] = Field(None, description="옵션명2")
     char_2_val: Optional[str] = Field(None, description="옵션상세2")
+    char_1_val_one_plus: Optional[str] = Field(None, description="옵션상세1(1+1)")
+    char_2_val_one_plus: Optional[str] = Field(None, description="옵션상세2(1+1)")
     
     # 이미지 정보
     img_path: Optional[str] = Field(None, description="대표이미지")
@@ -159,6 +163,8 @@ class ProductRegistrationResponseDto(BaseModel):
     char_1_val: Optional[str] = Field(None, description="옵션상세1")
     char_2_nm: Optional[str] = Field(None, description="옵션명2")
     char_2_val: Optional[str] = Field(None, description="옵션상세2")
+    char_1_val_one_plus: Optional[str] = Field(None, description="1+1옵션(1단)")
+    char_2_val_one_plus: Optional[str] = Field(None, description="1+1옵션(22단)")
     
     # 이미지 정보
     img_path: Optional[str] = Field(None, description="대표이미지")

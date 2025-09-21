@@ -52,8 +52,8 @@ PRODUCT_CREATE_DB_TO_EXCEL_HEADER: Dict[str, str] = {
     "mobile_bn":            "모바일배너",
     "one_plus_one_bn":      "1+1배너",
     "goods_remarks_url":    "상세설명url",
-    "delv_one_plus_one":    "1+1옵션",
-    "delv_one_plus_one_detail":    "",
+    "char_1_val_one_plus":    "1+1옵션(1단)",
+    "char_2_val_one_plus":    "1+1옵션(22단)",
 }
 
 
