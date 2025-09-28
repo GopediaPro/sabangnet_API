@@ -70,6 +70,9 @@ class ProductMallValue(Base):
     shop0319: Mapped[int] = mapped_column(Integer, nullable=True)
     shop0365: Mapped[int] = mapped_column(Integer, nullable=True)
     shop0387: Mapped[int] = mapped_column(Integer, nullable=True)
+    
+    # 떠리몰 (기본판매가 + 3000 또는 기본판매가)
+    shop0666: Mapped[int] = mapped_column(Integer, nullable=True)
 
     @classmethod
     def builder(cls, product_raw_data_id: int, standard_price: int, product_nm: str, 
@@ -123,6 +126,7 @@ class ProductMallValue(Base):
         shop0583 = int(standard_price + 3000)
         shop0587 = int(standard_price + 3000)
         shop0661 = int(standard_price + 3000)
+        shop0666 = int(standard_price + 3000)
 
         shop0055 = int(standard_price + 100)
         shop0067 = int(standard_price + 100)
@@ -140,7 +144,7 @@ class ProductMallValue(Base):
             shop0007, shop0042, shop0087, shop0094, shop0121, shop0129, shop0154, shop0650,
             shop0029, shop0189, shop0322, shop0444, shop0100, shop0298, shop0372,
             shop0381, shop0416, shop0449, shop0498, shop0583, shop0587, shop0661,
-            shop0055, shop0067, shop0068, shop0273, shop0464, shop0075, shop0319, shop0365, shop0387,
+            shop0055, shop0067, shop0068, shop0273, shop0464, shop0075, shop0319, shop0365, shop0387, shop0666,
             **kwargs
         )
 
@@ -174,6 +178,7 @@ class ProductMallValue(Base):
         shop0583 = int(standard_price)  # 토스쇼핑
         shop0587 = int(standard_price)  # AliExpress    
         shop0661 = int(standard_price)  # 떠리몰
+        shop0666 = int(standard_price)  # 떠리몰
 
         shop0055 = int(standard_price + 100)  # 기본+100 // 스마트스토어
         shop0067 = int(standard_price + 100)  # ESM옥션
@@ -185,13 +190,14 @@ class ProductMallValue(Base):
         shop0319 = int(standard_price)  # 도매꾹
         shop0365 = int(standard_price)  # Grip
         shop0387 = int(standard_price)  # 하프클럽
+        
 
         return cls._create_instance(
             product_raw_data_id, standard_price, product_nm, compayny_goods_cd, gubun,
             shop0007, shop0042, shop0087, shop0094, shop0121, shop0129, shop0154, shop0650,
             shop0029, shop0189, shop0322, shop0444, shop0100, shop0298, shop0372,
             shop0381, shop0416, shop0449, shop0498, shop0583, shop0587, shop0661,
-            shop0055, shop0067, shop0068, shop0273, shop0464, shop0075, shop0319, shop0365, shop0387,
+            shop0055, shop0067, shop0068, shop0273, shop0464, shop0075, shop0319, shop0365, shop0387, shop0666,
             **kwargs
         )
 
@@ -216,7 +222,7 @@ class ProductMallValue(Base):
                         shop0007, shop0042, shop0087, shop0094, shop0121, shop0129, shop0154, shop0650,
                         shop0029, shop0189, shop0322, shop0444, shop0100, shop0298, shop0372,
                         shop0381, shop0416, shop0449, shop0498, shop0583, shop0587, shop0661,
-                        shop0055, shop0067, shop0068, shop0273, shop0464, shop0075, shop0319, shop0365, shop0387,
+                        shop0055, shop0067, shop0068, shop0273, shop0464, shop0075, shop0319, shop0365, shop0387, shop0666,
                         **kwargs) -> "ProductMallValue":
         """인스턴스 생성"""
         return cls(
@@ -256,6 +262,7 @@ class ProductMallValue(Base):
             shop0319=shop0319,
             shop0365=shop0365,
             shop0387=shop0387,
+            shop0666=shop0666,
             **kwargs
         )
     
