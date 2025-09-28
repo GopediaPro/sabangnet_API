@@ -98,15 +98,24 @@ class ProductMallValueRegistrationXml(SabangnetXml):
                                                count_rev: int, file_name=None):
         """ProductMallValue 등록용 XML 생성"""
         
-        raw_name = f"{product_mall_value_dto.compayny_goods_cd}_product_mall_value_registration_{datetime.now().strftime('%Y%m%d')}_{count_rev}.xml"
+        from utils.logs.sabangnet_logger import get_logger
+        logger = get_logger(__name__)
+        
+        # 파일명에서 공백과 특수문자 제거
+        safe_company_goods_cd = product_mall_value_dto.compayny_goods_cd.replace(' ', '_').replace('+', 'plus').replace('-', '_')
+        raw_name = f"{safe_company_goods_cd}_product_mall_value_registration_{datetime.now().strftime('%Y%m%d')}_{count_rev}.xml"
         file_name = f"{self._PATH}/" + sanitize_filename(raw_name)
+
+        logger.info(f"XML 생성 시작 - 상품코드: {product_mall_value_dto.compayny_goods_cd}, 파일명: {file_name}")
 
         root = ET.Element("SABANGNET_GOODS_REGI")
         self._create_product_header(root=root)
         
+        processed_shops = 0
         for shop_code in self.SHOP_CODE:
             price = getattr(product_mall_value_dto, shop_code, None)
             if price is not None:
+                logger.debug(f"상점 {shop_code} 처리 - 가격: {price}")
                 self.create_body(
                     root=root,
                     shop_code=shop_code,
@@ -123,6 +132,9 @@ class ProductMallValueRegistrationXml(SabangnetXml):
                     cert_agency=product_mall_value_dto.cert_agency,
                     certfield=product_mall_value_dto.certfield,
                 )
+                processed_shops += 1
+        
+        logger.info(f"XML 생성 완료 - 처리된 상점 수: {processed_shops}")
         
         tree = ET.ElementTree(root)
         ET.indent(tree, space="\t", level=0)
