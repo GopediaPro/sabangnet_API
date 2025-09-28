@@ -197,6 +197,11 @@ class ProductRepository:
         query = select(ProductRawData).where(ProductRawData.compayny_goods_cd == company_goods_cd)
         result = await self.session.execute(query)
         return result.scalars().first()
+    
+    async def find_product_raw_data_by_company_goods_cd_gubun(self, company_goods_cd: str, gubun: str) -> ProductRawData:
+        query = select(ProductRawData).where(ProductRawData.compayny_goods_cd == company_goods_cd, ProductRawData.gubun == gubun)
+        result = await self.session.execute(query)
+        return result.scalars().first()
 
     async def get_product_raw_data_by_company_goods_cds(self, company_goods_cds: List[str]) -> List[ProductRawData]:
         """

@@ -42,6 +42,9 @@ class ProductReadService:
 
     async def get_product_by_compayny_goods_cd(self, compayny_goods_cd: str) -> ProductRawData:
         return await self.product_repository.find_product_raw_data_by_company_goods_cd(compayny_goods_cd)
+
+    async def get_product_by_compayny_goods_cd_gubun(self, compayny_goods_cd: str, gubun: str) -> ProductRawDataDto:
+        return await self.product_repository.find_product_raw_data_by_company_goods_cd_gubun(compayny_goods_cd, gubun)
     
     async def get_product_by_product_nm_and_gubun(self, product_nm: str, gubun: str) -> ProductRawDataDto:
         res = await self.product_repository.find_product_raw_data_by_product_nm_and_gubun(product_nm, gubun)
