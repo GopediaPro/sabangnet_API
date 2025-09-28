@@ -18,14 +18,26 @@ class MallPriceRequestService:
             payload = {
                 'xml_url': xml_url
             }
+            
+            logger.info(f"사방넷 API 요청 시작: {api_url}")
+            logger.info(f"XML URL: {xml_url}")
+            
             response = requests.post(
                 api_url,
                 data=payload,
                 timeout=30
             )
-            response.raise_for_status()
+            
+            logger.info(f"사방넷 API 응답 상태 코드: {response.status_code}")
+            logger.info(f"사방넷 API 응답 내용: {response.text[:500]}...")  # 처음 500자만 로그
+            
+            if response.status_code != 200:
+                logger.error(f"사방넷 API 오류 - 상태 코드: {response.status_code}")
+                logger.error(f"사방넷 API 오류 - 응답 내용: {response.text}")
+                raise Exception(f"사방넷 API 오류 ({response.status_code}): {response.text}")
+            
             # response.text 파싱
             return response.text
         except Exception as e:
-            logger.error(f"응답 파싱 중 오류: {e}")
+            logger.error(f"사방넷 API 요청 중 오류: {e}")
             raise
