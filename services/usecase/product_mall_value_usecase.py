@@ -68,16 +68,24 @@ class ProductMallValueUsecase:
             product_mall_value_create_db_count = await self.count_executing_service.get_and_increment(
                 CountExecuting, "product_mall_value_create_db"
             )
+            
+            logger.info(f"ProductMallValue DTO 정보: {product_mall_value_dto.model_dump()}")
+            logger.info(f"XML 생성 시작 - count_rev: {product_mall_value_create_db_count}")
+            
             xml_file_path = self.product_mall_value_registration_xml.make_product_mall_value_registration_xml(
                 product_mall_value_dto=product_mall_value_dto,
                 count_rev=product_mall_value_create_db_count
             )
             
+            logger.info(f"XML 파일 생성 완료: {xml_file_path}")
+            
             # MinIO 업로드 (upload_and_get_url_with_count_rev 사용)
+            # 파일명에서 공백과 특수문자 제거 (XML 생성과 동일하게)
+            safe_company_goods_cd = compayny_goods_cd.replace(' ', '_').replace('+', 'plus').replace('-', '_')
             xml_url, minio_object_name, file_size = upload_and_get_url_with_count_rev(
                 file_path=xml_file_path,
                 template_code="product_mall_value",
-                file_name=f"{compayny_goods_cd}_product_mall_value_registration.xml",
+                file_name=f"{safe_company_goods_cd}_product_mall_value_registration.xml",
                 count_rev=product_mall_value_create_db_count
             )
             
@@ -100,7 +108,7 @@ class ProductMallValueUsecase:
             excel_url, excel_object_name, excel_file_size = upload_and_get_url_with_count_rev(
                 file_path=excel_file_path,
                 template_code="product_mall_value_logs",
-                file_name=f"product_mall_value_log_{batch_id}.xlsx",
+                file_name=f"product_mall_value_log_{safe_company_goods_cd}_{batch_id}.xlsx",
                 count_rev=product_mall_value_create_db_count
             )
             
