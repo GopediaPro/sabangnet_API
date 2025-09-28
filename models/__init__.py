@@ -27,3 +27,4 @@ from models.vlookup_datas.vlookup_datas import VlookupDatas
 from models.ecount.erp_partner_code import EcountErpPartnerCode
 from models.ecount.iyes_cost import EcountIyesCost
 from models.ecount.ecount_models import EcountSale, EcountPurchase, EcountAuthSession, EcountApiLog, EcountConfig
+from models.mall_price.product_mall_value import ProductMallValue
