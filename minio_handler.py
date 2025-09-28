@@ -154,7 +154,7 @@ def upload_and_get_url_with_count_rev(file_path, template_code, file_name=None, 
     object_name = upload_file_to_minio(file_path, minio_object_name)
     delete_temp_file(file_path)
     file_url, file_size = get_minio_file_url_and_size(object_name)
-    return file_url, minio_object_name, file_size
+    return url_arrange(file_url), minio_object_name, file_size
 
 def upload_and_get_url_and_size(file_path, template_code, file_name=None):
     """
