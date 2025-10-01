@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, insert
+from sqlalchemy import select, insert, update
 from models.macro_batch_processing.batch_process import BatchProcess
 from utils.logs.sabangnet_logger import get_logger
 
@@ -36,4 +36,36 @@ class BatchProcessRepository:
             return result.scalar_one_or_none()
         except Exception as e:
             logger.error(f"BatchProcess 조회 중 오류: {e}")
+            raise
+
+    async def update_batch_process_info(self, batch_id: int, xml_url: str, excel_url: str, 
+                                      file_size: int, excel_file_size: int,
+                                      total_records: int, success_records: int, fail_records: int) -> bool:
+        """BatchProcess의 모든 정보 업데이트"""
+        try:
+            query = update(BatchProcess).where(
+                BatchProcess.batch_id == batch_id
+            ).values(
+                file_url=xml_url,  # XML URL을 file_url에 저장
+                file_size=file_size,  # XML 파일 크기
+                work_status="COMPLETED",  # 완료 상태로 변경
+                total_records=total_records,
+                success_records=success_records,
+                fail_records=fail_records,
+                skip_records=0
+            )
+            
+            result = await self.session.execute(query)
+            await self.session.commit()
+            
+            if result.rowcount > 0:
+                logger.info(f"BatchProcess 정보 업데이트 완료: batch_id={batch_id}")
+                return True
+            else:
+                logger.warning(f"BatchProcess를 찾을 수 없음: batch_id={batch_id}")
+                return False
+                
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"BatchProcess 정보 업데이트 중 오류: {e}")
             raise

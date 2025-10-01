@@ -1,7 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, and_
+from sqlalchemy import select, update, and_, func, Integer
 from models.mall_price.product_mall_value import ProductMallValue
 from utils.logs.sabangnet_logger import get_logger
+from typing import Optional, Dict, Any
 
 logger = get_logger(__name__)
 
@@ -81,4 +82,85 @@ class ProductMallValueRepository:
                 
         except Exception as e:
             logger.error(f"ProductMallValue upsert 중 오류: {e}")
+            raise
+
+    async def get_shop_mall_price(self, product_mall_value_id: int, shop_code: str) -> Optional[int]:
+        """특정 shop의 mall_price 조회"""
+        try:
+            query = select(
+                func.json_extract_path_text(ProductMallValue.shops, shop_code, 'mall_price').cast(Integer)
+            ).where(ProductMallValue.id == product_mall_value_id)
+            
+            result = await self.session.execute(query)
+            price = result.scalar_one_or_none()
+            return int(price) if price is not None else None
+        except Exception as e:
+            logger.error(f"Shop {shop_code} mall_price 조회 중 오류: {e}")
+            raise
+
+    async def get_shop_product_nm(self, product_mall_value_id: int, shop_code: str) -> Optional[str]:
+        """특정 shop의 product_nm 조회"""
+        try:
+            query = select(
+                func.json_extract_path_text(ProductMallValue.shops, shop_code, 'product_nm')
+            ).where(ProductMallValue.id == product_mall_value_id)
+            
+            result = await self.session.execute(query)
+            return result.scalar_one_or_none()
+        except Exception as e:
+            logger.error(f"Shop {shop_code} product_nm 조회 중 오류: {e}")
+            raise
+
+    async def update_shop_info(self, product_mall_value_id: int, shop_code: str, 
+                             mall_price: int, product_nm: str) -> bool:
+        """특정 shop 정보만 업데이트"""
+        try:
+            # JSONB 경로를 사용하여 특정 shop 정보 업데이트
+            query = update(ProductMallValue).where(
+                ProductMallValue.id == product_mall_value_id
+            ).values(
+                shops=func.jsonb_set(
+                    func.coalesce(ProductMallValue.shops, '{}'),
+                    f'{{{shop_code}}}',
+                    func.jsonb_build_object('mall_price', mall_price, 'product_nm', product_nm)
+                )
+            )
+            
+            result = await self.session.execute(query)
+            await self.session.commit()
+            
+            if result.rowcount > 0:
+                logger.info(f"Shop {shop_code} 정보 업데이트 완료")
+                return True
+            else:
+                logger.warning(f"ProductMallValue ID {product_mall_value_id}를 찾을 수 없음")
+                return False
+                
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Shop {shop_code} 정보 업데이트 중 오류: {e}")
+            raise
+
+    async def get_all_shops_info(self, product_mall_value_id: int) -> Optional[Dict[str, Dict[str, Any]]]:
+        """모든 shop 정보 조회"""
+        try:
+            query = select(ProductMallValue.shops).where(ProductMallValue.id == product_mall_value_id)
+            result = await self.session.execute(query)
+            shops_data = result.scalar_one_or_none()
+            return shops_data if shops_data else {}
+        except Exception as e:
+            logger.error(f"모든 shop 정보 조회 중 오류: {e}")
+            raise
+
+    async def find_by_shop_code_and_price_range(self, shop_code: str, min_price: int, max_price: int) -> list[ProductMallValue]:
+        """특정 shop의 가격 범위로 ProductMallValue 조회"""
+        try:
+            query = select(ProductMallValue).where(
+                func.json_extract_path_text(ProductMallValue.shops, shop_code, 'mall_price').cast(Integer).between(min_price, max_price)
+            )
+            
+            result = await self.session.execute(query)
+            return result.scalars().all()
+        except Exception as e:
+            logger.error(f"Shop {shop_code} 가격 범위 조회 중 오류: {e}")
             raise
