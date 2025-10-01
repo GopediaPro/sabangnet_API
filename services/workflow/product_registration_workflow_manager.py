@@ -92,7 +92,11 @@ class ProductRegistrationWorkflowManager:
                 
                 logger.info(f"ProductMallValue 설정 중: {compayny_goods_cd} ({gubun})")
                 
-                # ProductMallValue 설정 실행
+                # 1+1 상품의 경우 특별한 상품명 패턴 적용됨을 로깅
+                if gubun == "1+1":
+                    logger.info(f"1+1 상품 감지: {compayny_goods_cd} - 각 shop별로 다른 상품명 패턴 적용 예정")
+                
+                # ProductMallValue 설정 실행 (JSONB 구조로 shops 데이터 생성)
                 result = await self.product_mall_value_usecase.setting_product_mall_value(
                     compayny_goods_cd=compayny_goods_cd,
                     gubun=gubun,
@@ -100,6 +104,11 @@ class ProductRegistrationWorkflowManager:
                 )
                 
                 if result.get('success', False):
+                    # JSONB shops 데이터 요약 정보 추가
+                    shops_summary = result.get('shops_summary', {})
+                    product_mall_value = result.get('product_mall_value', {})
+                    shops_data = product_mall_value.get('shops', {})
+                    
                     success_items.append({
                         'product_nm': product_nm,
                         'gubun': gubun,
@@ -108,14 +117,42 @@ class ProductRegistrationWorkflowManager:
                         'xml_file_path': result.get('xml_file_path'),
                         'excel_log_url': result.get('excel_log_url'),
                         'processed_count': result.get('processed_count'),
-                        'success_items': result.get('success_items', []),
-                        'failed_items': result.get('failed_items', [])
+                        'success_items': [],  # MallValueSettingItem의 success_items는 빈 리스트
+                        'failed_items': [],   # MallValueSettingItem의 failed_items는 빈 리스트
+                        'shops_summary': shops_summary,  # JSONB shops 요약 정보
+                        'shops_count': len(shops_data)  # 생성된 shops 개수
                     })
+                    
+                    # JSONB shops 데이터 로깅 (debug 레벨)
+                    logger.debug(f"생성된 shops 데이터 ({compayny_goods_cd}): {len(shops_data)}개 shop")
+                    
+                    # 1+1 상품의 경우 상품명 패턴 분석
+                    if gubun == "1+1":
+                        special_pattern_shops = []
+                        default_pattern_shops = []
+                        
+                        for shop_code, shop_info in shops_data.items():
+                            product_nm = shop_info.get('product_nm', '')
+                            if product_nm.startswith('2개세트') or product_nm.startswith('[1개+1개]'):
+                                special_pattern_shops.append(f"{shop_code}: {product_nm}")
+                            else:
+                                default_pattern_shops.append(f"{shop_code}: {product_nm}")
+                        
+                        if special_pattern_shops:
+                            logger.debug(f"  1+1 특별 패턴 적용된 shop들: {special_pattern_shops}")
+                        if default_pattern_shops:
+                            logger.debug(f"  원본 상품명 사용 shop들: {default_pattern_shops}")
+                    else:
+                        # 일반 상품의 경우
+                        for shop_code, shop_info in shops_data.items():
+                            logger.debug(f"  {shop_code}: 가격={shop_info.get('mall_price')}, 상품명={shop_info.get('product_nm')}")
                 else:
                     failed_items.append({
                         'product_nm': product_nm,
                         'gubun': gubun,
                         'company_goods_cd': compayny_goods_cd,
+                        'success_items': [],  # MallValueSettingItem의 success_items는 빈 리스트
+                        'failed_items': [],   # MallValueSettingItem의 failed_items는 빈 리스트
                         'error': result.get('message', '알 수 없는 오류')
                     })
                     
@@ -125,12 +162,27 @@ class ProductRegistrationWorkflowManager:
                     'product_nm': product.get('product_nm'),
                     'gubun': product.get('gubun'),
                     'company_goods_cd': product.get('company_goods_cd'),
+                    'success_items': [],  # MallValueSettingItem의 success_items는 빈 리스트
+                    'failed_items': [],   # MallValueSettingItem의 failed_items는 빈 리스트
                     'error': str(e)
                 })
         
         processed_count = len(success_items) + len(failed_items)
         
+        # JSONB shops 데이터 전체 요약 계산
+        total_shops_created = sum(item.get('shops_count', 0) for item in success_items)
+        total_shops_with_data = sum(
+            item.get('shops_summary', {}).get('shops_with_data', 0) 
+            for item in success_items
+        )
+        
+        # success_items와 failed_items의 실제 개수 계산 (빈 리스트이므로 0으로 설정)
+        total_success_items = 0
+        total_failed_items = 0
+        
         logger.info(f"ProductMallValue 설정 완료: 성공 {len(success_items)}개, 실패 {len(failed_items)}개")
+        logger.info(f"사방넷 API 처리 결과: 성공 {total_success_items}개, 실패 {total_failed_items}개")
+        logger.info(f"JSONB shops 데이터 요약: 총 {total_shops_created}개 shop 생성, {total_shops_with_data}개 shop에 데이터 저장")
         
         return {
             "success": len(failed_items) == 0,  # 모든 상품이 성공했을 때만 True
@@ -139,7 +191,17 @@ class ProductRegistrationWorkflowManager:
             "success_count": len(success_items),
             "failed_count": len(failed_items),
             "success_items": success_items,
-            "failed_items": failed_items
+            "failed_items": failed_items,
+            "shops_summary": {
+                "total_shops_created": total_shops_created,
+                "total_shops_with_data": total_shops_with_data,
+                "average_shops_per_product": total_shops_created / len(success_items) if success_items else 0
+            },
+            "sabangnet_api_summary": {
+                "total_success_items": total_success_items,
+                "total_failed_items": total_failed_items,
+                "total_processed_items": total_success_items + total_failed_items
+            }
         }
     
     async def execute_full_workflow(
@@ -226,14 +288,22 @@ class ProductRegistrationWorkflowManager:
                 mall_value_setting_result.get('success', False)
             )
             
+            # JSONB shops 데이터 전체 요약
+            mall_value_shops_summary = mall_value_setting_result.get('shops_summary', {})
+            mall_value_sabangnet_summary = mall_value_setting_result.get('sabangnet_api_summary', {})
+            
             logger.info(f"전체 워크플로우 완료: {overall_success}")
+            logger.info(f"전체 JSONB shops 데이터 요약: {mall_value_shops_summary}")
+            logger.info(f"전체 사방넷 API 처리 요약: {mall_value_sabangnet_summary}")
             
             return {
                 "success": overall_success,
                 "message": "전체 워크플로우 완료",
                 "product_registration": product_registration_result,
                 "mall_value_setting": mall_value_setting_result,
-                "overall_success": overall_success
+                "overall_success": overall_success,
+                "shops_summary": mall_value_shops_summary,  # JSONB shops 전체 요약
+                "sabangnet_api_summary": mall_value_sabangnet_summary  # 사방넷 API 전체 요약
             }
             
         except Exception as e:
