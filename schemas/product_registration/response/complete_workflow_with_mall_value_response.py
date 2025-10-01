@@ -11,8 +11,8 @@ class MallValueSettingItem(BaseModel):
     xml_file_path: Optional[str] = Field(None, description="XML 파일 경로")
     excel_log_url: Optional[str] = Field(None, description="Excel 로그 URL")
     processed_count: Optional[int] = Field(None, description="처리된 개수")
-    success_items: Optional[List[Any]] = Field(None, description="성공 항목들")
-    failed_items: Optional[List[Any]] = Field(None, description="실패 항목들")
+    success_items: Optional[List[Any]] = Field(default=[], description="성공 항목들")
+    failed_items: Optional[List[Any]] = Field(default=[], description="실패 항목들")
     error: Optional[str] = Field(None, description="오류 메시지")
 
 
