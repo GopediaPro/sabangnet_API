@@ -69,7 +69,13 @@ class ProductMallValueUsecase:
                 CountExecuting, "product_mall_value_create_db"
             )
             
-            logger.info(f"ProductMallValue DTO 정보: {product_mall_value_dto.model_dump()}")
+            # JSONB shops 데이터 로깅
+            shops_data = product_mall_value_dto.shops or {}
+            logger.info(f"ProductMallValue DTO 정보 - 상품코드: {compayny_goods_cd}, 구분: {gubun}")
+            logger.info(f"생성된 shops 데이터 개수: {len(shops_data)}")
+            for shop_code, shop_info in shops_data.items():
+                logger.debug(f"  {shop_code}: 가격={shop_info.get('mall_price')}, 상품명={shop_info.get('product_nm')}")
+            
             logger.info(f"XML 생성 시작 - count_rev: {product_mall_value_create_db_count}")
             
             xml_file_path = self.product_mall_value_registration_xml.make_product_mall_value_registration_xml(
@@ -95,38 +101,43 @@ class ProductMallValueUsecase:
             success_items, failed_items = parse_sabangnet_response(response_text)
             processed_count = len(success_items) + len(failed_items)
             
-            # Excel 로그 생성
+            # BatchProcess DB에 배치 정보 저장 (먼저 저장하여 실제 batch_id 획득)
+            batch_process = await self.batch_process_write_service.create_product_mall_value_batch(
+                compayny_goods_cd=compayny_goods_cd,
+                gubun=gubun,
+                created_by=request_id or "system"
+            )
+            
+            # Excel 로그 생성 (실제 BatchProcess batch_id 사용)
             excel_file_path = self.log_excel.create_log_excel(
-                batch_id=batch_id,
-                success_items=success_items,
-                failed_items=failed_items,
+                batch_id=batch_process.batch_id,  # 실제 BatchProcess batch_id 사용
+                success_items=success_items,  # 실제 사방넷 API 응답 데이터
+                failed_items=failed_items,    # 실제 사방넷 API 응답 데이터
                 processed_count=processed_count,
-                xml_url=xml_url
+                xml_url=xml_url,
+                product_mall_value_dto=product_mall_value_dto.model_dump()  # ProductMallValue DTO 정보 추가
             )
             
             # Excel 파일도 MinIO에 업로드
             excel_url, excel_object_name, excel_file_size = upload_and_get_url_with_count_rev(
                 file_path=excel_file_path,
                 template_code="product_mall_value_logs",
-                file_name=f"product_mall_value_log_{safe_company_goods_cd}_{batch_id}.xlsx",
+                file_name=f"product_mall_value_log_{safe_company_goods_cd}_{batch_process.batch_id}.xlsx",
                 count_rev=product_mall_value_create_db_count
             )
             
             logger.info(f"MinIO에 업로드된 Excel 로그 파일: {excel_object_name}, URL: {excel_url}, 크기: {excel_file_size}")
             
-            # BatchProcess DB에 배치 정보 저장
-            batch_process = await self.batch_process_write_service.create_product_mall_value_batch(
-                batch_id=batch_id,
-                compayny_goods_cd=compayny_goods_cd,
-                gubun=gubun,
+            # BatchProcess의 모든 정보 업데이트
+            await self.batch_process_write_service.update_batch_process_info(
+                batch_id=batch_process.batch_id,
                 xml_url=xml_url,
                 excel_url=excel_url,
                 file_size=file_size,
                 excel_file_size=excel_file_size,
                 total_records=processed_count,
                 success_records=len(success_items),
-                fail_records=len(failed_items),
-                created_by=request_id or "system"
+                fail_records=len(failed_items)
             )
             
             logger.info(f"BatchProcess 저장 완료: batch_id={batch_process.batch_id}")
@@ -134,13 +145,17 @@ class ProductMallValueUsecase:
             return {
                 "success": True,
                 "message": "ProductMallValue 설정 및 처리 완료",
-                "batch_id": batch_process.batch_id,
+                "batch_id": batch_process.batch_id,  # BatchProcess 모델의 실제 batch_id 사용
                 "xml_file_path": xml_url,
                 "excel_log_url": excel_url,
                 "processed_count": processed_count,
-                "success_items": success_items,
-                "failed_items": failed_items,
-                "product_mall_value": product_mall_value_dto.model_dump()
+                "success_items": [],
+                "failed_items": [],
+                "product_mall_value": product_mall_value_dto.model_dump(),
+                "shops_summary": {
+                    "total_shops": len(shops_data),
+                    "shops_with_data": len([shop for shop in shops_data.values() if shop.get('mall_price') is not None])
+                }
             }
             
         except Exception as e:

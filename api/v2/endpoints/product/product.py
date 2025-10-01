@@ -132,7 +132,7 @@ async def process_complete_product_registration_workflow_with_mall_value_v2(
     4. 등록된 모든 상품에 대해 ProductMallValue 설정
     
     -- Examples:
-    {"data": { "sheet_name": "상품등록", "enable_mall_value_setting": True }, "metadata": { "request_id": "lyckabc" }}
+    {"data": { "sheet_name": "상품등록", "enable_mall_value_setting": true }, "metadata": { "request_id": "lyckabc" }}
     """
     try:
         import json

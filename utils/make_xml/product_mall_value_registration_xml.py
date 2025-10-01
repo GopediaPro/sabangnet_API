@@ -34,7 +34,7 @@ class ProductMallValueRegistrationXml(SabangnetXml):
     }
 
     def create_body(self, root, shop_code: str, compayny_goods_cd: str, price: int, 
-                   mall_stock_rate: str = None, mall_prod_name: str = None, 
+                   product_nm: str = None, mall_stock_rate: str = None, mall_prod_name: str = None, 
                    mall_prop1_cd: str = None, certno: str = None, 
                    issuedate: str = None, certdate: str = None,
                    avlst_dm: str = None, avled_dm: str = None,
@@ -56,9 +56,11 @@ class ProductMallValueRegistrationXml(SabangnetXml):
             mall_stock_rate_element.text = mall_stock_rate
 
         # 새로 추가된 필드들
-        if mall_prod_name:
+        # product_nm이 있으면 우선 사용, 없으면 mall_prod_name 사용
+        final_product_name = product_nm if product_nm else mall_prod_name
+        if final_product_name:
             mall_prod_name_element = ET.SubElement(data, "MALL_PROD_NAME")
-            mall_prod_name_element.text = mall_prod_name
+            mall_prod_name_element.text = final_product_name
 
         if mall_prop1_cd:
             mall_prop1_cd_element = ET.SubElement(data, "MALL_PROP1_CD")
@@ -112,15 +114,23 @@ class ProductMallValueRegistrationXml(SabangnetXml):
         self._create_product_header(root=root)
         
         processed_shops = 0
+        
+        # JSONB shops 데이터에서 shop 정보 추출
+        shops_data = product_mall_value_dto.shops or {}
+        
         for shop_code in self.SHOP_CODE:
-            price = getattr(product_mall_value_dto, shop_code, None)
-            if price is not None:
-                logger.debug(f"상점 {shop_code} 처리 - 가격: {price}")
+            shop_info = shops_data.get(shop_code)
+            if shop_info and 'mall_price' in shop_info:
+                price = shop_info['mall_price']
+                product_nm = shop_info.get('product_nm')
+                
+                logger.debug(f"상점 {shop_code} 처리 - 가격: {price}, 상품명: {product_nm}")
                 self.create_body(
                     root=root,
                     shop_code=shop_code,
                     compayny_goods_cd=product_mall_value_dto.compayny_goods_cd,
                     price=price,
+                    product_nm=product_nm,
                     mall_stock_rate=product_mall_value_dto.mall_stock_rate,
                     mall_prod_name=product_mall_value_dto.mall_prod_name,
                     mall_prop1_cd=product_mall_value_dto.mall_prop1_cd,
