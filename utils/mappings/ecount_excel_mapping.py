@@ -6,6 +6,7 @@ Excel 컬럼을 EcountSaleDto 필드로 매핑하는 기능
 import pandas as pd
 from typing import Dict, Any, Optional
 from utils.logs.sabangnet_logger import get_logger
+from utils.calculations.ecount_tax_calculator import EcountTaxCalculator
 
 logger = get_logger(__name__)
 
@@ -103,6 +104,9 @@ class EcountExcelMapper:
                     # 데이터 타입 변환
                     sale_data[dto_field] = cls._convert_value(value, dto_field)
         
+        # 부가세 계산 로직 적용
+        sale_data = EcountTaxCalculator.calculate_for_ecount_sale_dto(sale_data)
+        
         return sale_data
     
     @classmethod
@@ -135,6 +139,9 @@ class EcountExcelMapper:
                 else:
                     # 데이터 타입 변환
                     purchase_data[dto_field] = cls._convert_value(value, dto_field)
+        
+        # 부가세 계산 로직 적용 (구매 데이터도 동일한 로직 사용)
+        purchase_data = EcountTaxCalculator.calculate_for_ecount_sale_dto(purchase_data)
         
         return purchase_data
     
