@@ -708,43 +708,57 @@ class DataProcessingUsecase:
             dict: {"filename": str, "saved_count": int, "template_code": str, "batch_id": str, "file_url": str}
         """
         original_filename = file.filename
-        logger.info(f"original_filename={original_filename}")
+        logger.info(f"[START] _process_file_with_batch | original_filename={original_filename}")
+        template_code = None
+        
         try:
             # 1. 파일 이름에서 템플릿 코드 조회
+            logger.info(f"[STEP 1] Finding template code for filename: {original_filename}")
             template_code = await self.find_template_code_by_filename(original_filename)
-            logger.info(f"template_code: {template_code}")
+            logger.info(f"[STEP 1] Found template_code: {template_code}")
             if not template_code:
                 raise ValueError(
                     f"Template code not found for filename: {original_filename}")
 
             # 2. 파일명 파싱하여 sub_site 정보 추출
+            logger.info(f"[STEP 2] Parsing filename: {original_filename}")
             parsed = self.parse_filename(original_filename)
             sub_site = parsed.get('sub_site')
             is_star = parsed.get('is_star')
-            logger.info(f"sub_site: {sub_site} | is_star: {is_star}")
+            logger.info(f"[STEP 2] Parsed result: {parsed} | sub_site: {sub_site} | is_star: {is_star}")
 
             # 3. 임시 파일 생성 및 매크로 실행
+            logger.info(f"[STEP 3] Starting macro processing with template_code: {template_code}")
             file_name, file_path = await self.process_macro_with_tempfile(template_code, file, sub_site, is_star)
-            logger.info(
-                f"temporary file path: {file_path} | file name: {file_name}")
+            logger.info(f"[STEP 3] Macro processing completed | temporary file path: {file_path} | file name: {file_name}")
+            
+            logger.info(f"[STEP 4] Creating ExcelHandler from file: {file_path}")
             ex = ExcelHandler.from_file(file_path, sheet_index=0)
+            
             # 4. 도서지역 배송비 추가
+            logger.info(f"[STEP 5] Adding island delivery")
             ex.add_island_delivery(ex.wb)
 
             # 5. 템플릿 코드 추가
+            logger.info(f"[STEP 6] Creating template code in excel")
             ex.create_template_code_in_excel(template_code)
             new_file_path = ex.save_file(file_path)
+            logger.info(f"[STEP 7] Converting to dataframe")
             dataframe = ex.to_dataframe()
 
             # 6. down_form_order 테이블에 저장
+            logger.info(f"[STEP 8] Processing excel to down_form_orders | dataframe shape: {dataframe.shape}")
             saved_count = await self.process_excel_to_down_form_orders(dataframe, template_code, work_status="macro_run")
-            logger.info(f"saved_count: {saved_count}")
+            logger.info(f"[STEP 8] Saved to down_form_orders | saved_count: {saved_count}")
 
-            # 6. 파일 업로드 및 batch 저장
+            # 7. 파일 업로드 및 batch 저장
+            logger.info(f"[STEP 9] Uploading file to MinIO")
             file_url, minio_object_name, file_size = upload_and_get_url_and_size(
                 new_file_path, template_code, file_name)
             file_url = url_arrange(file_url)
+            logger.info(f"[STEP 9] MinIO upload completed | file_url: {file_url} | file_size: {file_size}")
 
+            logger.info(f"[STEP 10] Creating batch info")
             batch_id = await self.batch_info_create_service.build_and_save_batch(
                 BatchProcessDto.build_success,
                 original_filename,
@@ -752,7 +766,9 @@ class DataProcessingUsecase:
                 file_size,
                 request_obj
             )
-            return {
+            logger.info(f"[STEP 10] Batch info created | batch_id: {batch_id}")
+            
+            result = {
                 "filename": original_filename,
                 "saved_count": saved_count,
                 "template_code": template_code,
@@ -760,19 +776,25 @@ class DataProcessingUsecase:
                 "file_url": file_url,
                 "minio_object_name": minio_object_name
             }
+            logger.info(f"[SUCCESS] _process_file_with_batch completed | result: {result}")
+            return result
+            
         except Exception as e:
+            logger.error(f"[ERROR] _process_file_with_batch failed | filename: {original_filename} | error: {str(e)}", exc_info=True)
             batch_id = await self.batch_info_create_service.build_and_save_batch(
                 BatchProcessDto.build_error,
                 file.filename,
                 request_obj,
                 str(e)
             )
-            return {
+            result = {
                 "filename": original_filename,
                 "template_code": template_code,
                 "batch_id": batch_id,
                 "error_message": str(e)
             }
+            logger.error(f"[ERROR] _process_file_with_batch error result: {result}")
+            return result
 
     async def bulk_save_down_form_orders_from_macro_run_excel(
         self,
@@ -825,23 +847,39 @@ class DataProcessingUsecase:
         """
         logger.info(
             f"[START] bulk_get_excel_run_macro_minio_url_and_save_db | file_count={len(files)}")
+        
+        # 파일명 목록 로깅
+        file_names = [file.filename for file in files]
+        logger.info(f"[START] Processing files: {file_names}")
 
         successful_results: list[dict[str, Any]] = []
         failed_results: list[dict[str, Any]] = []
         total_saved_count: int = 0
 
-        for file in files:
-            result: dict[str, Any] = await self._process_file_with_batch(file, request_obj)
-            saved_count = result.get('saved_count')
-            if saved_count:
-                successful_results.append(result)
-                total_saved_count += saved_count
-            else:
-                failed_results.append(result)
-            logger.info(f"result: {result}")
+        for i, file in enumerate(files):
+            logger.info(f"[FILE {i+1}/{len(files)}] Starting processing: {file.filename}")
+            try:
+                result: dict[str, Any] = await self._process_file_with_batch(file, request_obj)
+                saved_count = result.get('saved_count')
+                if saved_count:
+                    successful_results.append(result)
+                    total_saved_count += saved_count
+                    logger.info(f"[FILE {i+1}/{len(files)}] SUCCESS: {file.filename} | saved_count: {saved_count}")
+                else:
+                    failed_results.append(result)
+                    logger.warning(f"[FILE {i+1}/{len(files)}] FAILED: {file.filename} | error: {result.get('error_message', 'Unknown error')}")
+                logger.info(f"[FILE {i+1}/{len(files)}] Result: {result}")
+            except Exception as e:
+                logger.error(f"[FILE {i+1}/{len(files)}] EXCEPTION during processing: {file.filename} | error: {str(e)}", exc_info=True)
+                failed_results.append({
+                    "filename": file.filename,
+                    "error_message": str(e)
+                })
 
         logger.info(
-            f"[END] bulk_get_excel_run_macro_minio_url_and_save_db | successful_results={successful_results} | failed_results={failed_results} | total_saved_count={total_saved_count}")
+            f"[END] bulk_get_excel_run_macro_minio_url_and_save_db | successful_results={len(successful_results)} | failed_results={len(failed_results)} | total_saved_count={total_saved_count}")
+        logger.info(f"[END] Successful files: {[r.get('filename') for r in successful_results]}")
+        logger.info(f"[END] Failed files: {[r.get('filename') for r in failed_results]}")
         return successful_results, failed_results, total_saved_count
 
     async def find_template_code_by_filename(self, file_name: str) -> str:
@@ -852,26 +890,34 @@ class DataProcessingUsecase:
         returns:
             template_code: 템플릿 코드
         """
+        logger.info(f"[TEMPLATE_SEARCH] Starting template search for filename: {file_name}")
+        
         # 파일명 파싱
         parsed = self.parse_filename(file_name)
-        logger.info(f"Parsed filename: {parsed}")
+        logger.info(f"[TEMPLATE_SEARCH] Parsed filename: {parsed}")
 
         # site_type, usage_type, is_star를 기반으로 DB에서 직접 조회
         site_type = parsed.get('site_type')
         usage_type = parsed.get('usage_type')
         is_star = parsed.get('is_star')
+        
+        logger.info(f"[TEMPLATE_SEARCH] Extracted values - site_type: '{site_type}', usage_type: '{usage_type}', is_star: {is_star}")
 
         if site_type and usage_type:
+            logger.info(f"[TEMPLATE_SEARCH] Searching in database with site_type='{site_type}', usage_type='{usage_type}', is_star={is_star}")
             template_code = await self.export_templates_read_service.find_template_code_by_site_usage_star(
                 site_type, usage_type, is_star
             )
 
             if template_code:
-                logger.info(
-                    f"Found template_code: {template_code} for filename: {file_name}")
+                logger.info(f"[TEMPLATE_SEARCH] SUCCESS: Found template_code: {template_code} for filename: {file_name}")
                 return template_code
+            else:
+                logger.warning(f"[TEMPLATE_SEARCH] FAILED: No template found in database for site_type='{site_type}', usage_type='{usage_type}', is_star={is_star}")
+        else:
+            logger.warning(f"[TEMPLATE_SEARCH] FAILED: Missing required fields - site_type: '{site_type}', usage_type: '{usage_type}'")
 
-        logger.warning(f"No template found for filename: {file_name}")
+        logger.warning(f"[TEMPLATE_SEARCH] No template found for filename: {file_name}")
         return None
 
     def _match_template_by_parsed_info(self, template_name: str, parsed: dict[str, Any]) -> bool:
