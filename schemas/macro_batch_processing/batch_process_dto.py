@@ -22,6 +22,8 @@ class BatchProcessDto(BaseModel):
     success_records: Optional[int] = Field(None, description="성공 레코드 수")
     fail_records: Optional[int] = Field(None, description="실패 레코드 수")
     skip_records: Optional[int] = Field(None, description="건너뛴 레코드 수")
+    created_at: Optional[datetime] = Field(None, description="배치 프로세스 생성 일자")
+    updated_at: Optional[datetime] = Field(None, description="배치 프로세스 수정 일자")
 
     class Config:
         from_attributes = True
