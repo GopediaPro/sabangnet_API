@@ -3,7 +3,13 @@ from typing import Optional, List
 from datetime import datetime
 
 
-class BatchProcessDto(BaseModel):
+# BaseDTO 정의 (없으면 추가)
+class BaseDTO(BaseModel):
+    def to_orm(self, orm_class):
+        return orm_class(**self.model_dump())
+
+
+class BatchProcessDto(BaseDTO):
     batch_id: Optional[int] = Field(None, description="배치 프로세스 고유 ID")
     original_filename: Optional[str] = Field(None, description="원본 파일 이름")
     file_name: Optional[str] = Field(None, description="배치 파일 이름")
@@ -35,9 +41,11 @@ class BatchProcessDto(BaseModel):
         """
         return cls(
             original_filename=original_filename,
+            file_name=f"macro_success_{original_filename}",
             file_url=file_url,
             file_size=file_size,
             work_status="success",
+            batch_name=f"macro-batch-processing_{original_filename}",
             created_by=getattr(request_obj, 'created_by', 'system'),
             date_from=getattr(request_obj.filters, 'date_from', None) if hasattr(request_obj, 'filters') and request_obj.filters else None,
             date_to=getattr(request_obj.filters, 'date_to', None) if hasattr(request_obj, 'filters') and request_obj.filters else None
@@ -50,8 +58,10 @@ class BatchProcessDto(BaseModel):
         """
         return cls(
             original_filename=original_filename,
+            file_name=f"macro_error_{original_filename}",
             error_message=error_message,
             work_status="error",
+            batch_name=f"macro-batch-processing_{original_filename}",
             created_by=getattr(request_obj, 'created_by', 'system'),
             date_from=getattr(request_obj.filters, 'date_from', None) if hasattr(request_obj, 'filters') and request_obj.filters else None,
             date_to=getattr(request_obj.filters, 'date_to', None) if hasattr(request_obj, 'filters') and request_obj.filters else None
@@ -62,11 +72,21 @@ class BatchProcessDto(BaseModel):
         """
         특정 작업 상태로 성공적인 배치 처리를 위한 DTO 생성
         """
+        # work_status에 따라 batch_name 결정
+        if "hanjin" in work_status.lower():
+            batch_name = "hanjin-download-service"
+        elif "smile" in work_status.lower():
+            batch_name = "smile-macro-service"
+        else:
+            batch_name = "excel-run-macro-bulk"
+            
         return cls(
             original_filename=original_filename,
+            file_name=f"excel_macro_success_{original_filename}" if original_filename else f"excel_macro_success_{work_status}",
             file_url=file_url,
             file_size=file_size,
             work_status=work_status,
+            batch_name=batch_name,
             created_by=getattr(request_obj, 'created_by', 'system'),
             date_from=getattr(request_obj.filters, 'date_from', None) if hasattr(request_obj, 'filters') and request_obj.filters else None,
             date_to=getattr(request_obj.filters, 'date_to', None) if hasattr(request_obj, 'filters') and request_obj.filters else None
