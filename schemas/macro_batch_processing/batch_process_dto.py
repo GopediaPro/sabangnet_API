@@ -25,3 +25,47 @@ class BatchProcessDto(BaseModel):
 
     class Config:
         from_attributes = True
+
+    @classmethod
+    def build_success(cls, original_filename: str, file_url: str, file_size: int, request_obj) -> 'BatchProcessDto':
+        """
+        성공적인 배치 처리를 위한 DTO 생성
+        """
+        return cls(
+            original_filename=original_filename,
+            file_url=file_url,
+            file_size=file_size,
+            work_status="success",
+            created_by=getattr(request_obj, 'created_by', 'system'),
+            date_from=getattr(request_obj.filters, 'date_from', None) if hasattr(request_obj, 'filters') and request_obj.filters else None,
+            date_to=getattr(request_obj.filters, 'date_to', None) if hasattr(request_obj, 'filters') and request_obj.filters else None
+        )
+
+    @classmethod
+    def build_error(cls, original_filename: str, request_obj, error_message: str) -> 'BatchProcessDto':
+        """
+        에러가 발생한 배치 처리를 위한 DTO 생성
+        """
+        return cls(
+            original_filename=original_filename,
+            error_message=error_message,
+            work_status="error",
+            created_by=getattr(request_obj, 'created_by', 'system'),
+            date_from=getattr(request_obj.filters, 'date_from', None) if hasattr(request_obj, 'filters') and request_obj.filters else None,
+            date_to=getattr(request_obj.filters, 'date_to', None) if hasattr(request_obj, 'filters') and request_obj.filters else None
+        )
+
+    @classmethod
+    def build_success_with_status(cls, original_filename: str, file_url: str, file_size: int, request_obj, work_status: str) -> 'BatchProcessDto':
+        """
+        특정 작업 상태로 성공적인 배치 처리를 위한 DTO 생성
+        """
+        return cls(
+            original_filename=original_filename,
+            file_url=file_url,
+            file_size=file_size,
+            work_status=work_status,
+            created_by=getattr(request_obj, 'created_by', 'system'),
+            date_from=getattr(request_obj.filters, 'date_from', None) if hasattr(request_obj, 'filters') and request_obj.filters else None,
+            date_to=getattr(request_obj.filters, 'date_to', None) if hasattr(request_obj, 'filters') and request_obj.filters else None
+        )
