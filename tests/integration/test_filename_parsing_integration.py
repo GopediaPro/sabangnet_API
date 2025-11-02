@@ -126,8 +126,7 @@ class TestFilenameParsingIntegration:
         upload_file.file = open(sample_excel_file, 'rb')
         return upload_file
     
-    @pytest.mark.asyncio
-    async def test_parse_filename_gmarket_erp(self, data_processing_usecase):
+    def test_parse_filename_gmarket_erp(self, data_processing_usecase):
         """G마켓,옥션 ERP용 파일명 파싱 테스트"""
         filename = "20250724주문서확인처리[G마켓,옥션]-ERP용.xlsx"
         
@@ -138,8 +137,7 @@ class TestFilenameParsingIntegration:
         assert result["sub_site"] is None
         assert result["is_star"] is False
     
-    @pytest.mark.asyncio
-    async def test_parse_filename_basic_erp_기타사이트(self, data_processing_usecase):
+    def test_parse_filename_basic_erp_기타사이트(self, data_processing_usecase):
         """기본양식 ERP용 기타사이트 파일명 파싱 테스트"""
         filename = "20250724주문서확인처리[기본양식]-ERP용-기타사이트.xlsx"
         
@@ -150,8 +148,7 @@ class TestFilenameParsingIntegration:
         assert result["sub_site"] == "기타사이트"
         assert result["is_star"] is False
     
-    @pytest.mark.asyncio
-    async def test_parse_filename_basic_erp_지그재그(self, data_processing_usecase):
+    def test_parse_filename_basic_erp_지그재그(self, data_processing_usecase):
         """기본양식 ERP용 지그재그 파일명 파싱 테스트"""
         filename = "20250724주문서확인처리[기본양식]-ERP용-지그재그.xlsx"
         
@@ -162,8 +159,7 @@ class TestFilenameParsingIntegration:
         assert result["sub_site"] == "지그재그"
         assert result["is_star"] is False
     
-    @pytest.mark.asyncio
-    async def test_parse_filename_brandi_erp(self, data_processing_usecase):
+    def test_parse_filename_brandi_erp(self, data_processing_usecase):
         """브랜디 ERP용 파일명 파싱 테스트"""
         filename = "20250724주문서확인처리[브랜디]-ERP용.xlsx"
         
@@ -174,8 +170,7 @@ class TestFilenameParsingIntegration:
         assert result["sub_site"] is None
         assert result["is_star"] is False
     
-    @pytest.mark.asyncio
-    async def test_parse_filename_gmarket_bundle(self, data_processing_usecase):
+    def test_parse_filename_gmarket_bundle(self, data_processing_usecase):
         """G마켓,옥션 합포장용 파일명 파싱 테스트"""
         filename = "20250724주문서확인처리[G마켓,옥션]-합포장용.xlsx"
         
@@ -186,8 +181,7 @@ class TestFilenameParsingIntegration:
         assert result["sub_site"] is None
         assert result["is_star"] is False
     
-    @pytest.mark.asyncio
-    async def test_parse_filename_basic_bundle_기타사이트(self, data_processing_usecase):
+    def test_parse_filename_basic_bundle_기타사이트(self, data_processing_usecase):
         """기본양식 합포장용 기타사이트 파일명 파싱 테스트"""
         filename = "20250724주문서확인처리[기본양식]-합포장용-기타사이트.xlsx"
         
@@ -198,8 +192,7 @@ class TestFilenameParsingIntegration:
         assert result["sub_site"] == "기타사이트"
         assert result["is_star"] is False
     
-    @pytest.mark.asyncio
-    async def test_parse_filename_basic_bundle_지그재그(self, data_processing_usecase):
+    def test_parse_filename_basic_bundle_지그재그(self, data_processing_usecase):
         """기본양식 합포장용 지그재그 파일명 파싱 테스트"""
         filename = "20250724주문서확인처리[기본양식]-합포장용-지그재그.xlsx"
         
@@ -379,4 +372,140 @@ class TestFilenameParsingIntegration:
         
         template_code = await data_processing_usecase.find_template_code_by_filename(filename)
         
-        assert template_code is None 
+        assert template_code is None
+    
+    # ==========================================
+    # 새로운 파일명 형식 테스트 (YYYYMMDD_${site_type}_${usage_type}.xlsx)
+    # ==========================================
+    
+    def test_parse_filename_new_format_지옥_erp(self, data_processing_usecase):
+        """새 형식: 지,옥 ERP 파일명 파싱 테스트"""
+        filename = "20251015_지,옥_ERP.xlsx"
+        
+        result = data_processing_usecase.parse_filename(filename)
+        
+        assert result["site_type"] == "G마켓,옥션"
+        assert result["usage_type"] == "ERP용"
+        assert result["sub_site"] is None
+        assert result["is_star"] is False
+    
+    def test_parse_filename_new_format_지옥_합포장(self, data_processing_usecase):
+        """새 형식: 지,옥 합포장 파일명 파싱 테스트"""
+        filename = "20251015_지,옥_합포장.xlsx"
+        
+        result = data_processing_usecase.parse_filename(filename)
+        
+        assert result["site_type"] == "G마켓,옥션"
+        assert result["usage_type"] == "합포장용"
+        assert result["sub_site"] is None
+        assert result["is_star"] is False
+    
+    def test_parse_filename_new_format_기타사이트_erp(self, data_processing_usecase):
+        """새 형식: 기타사이트 ERP 파일명 파싱 테스트"""
+        filename = "20251015_기타사이트_ERP.xlsx"
+        
+        result = data_processing_usecase.parse_filename(filename)
+        
+        assert result["site_type"] == "기본양식"
+        assert result["usage_type"] == "ERP용"
+        assert result["sub_site"] == "기타사이트"
+        assert result["is_star"] is False
+    
+    def test_parse_filename_new_format_기타사이트_합포장(self, data_processing_usecase):
+        """새 형식: 기타사이트 합포장 파일명 파싱 테스트"""
+        filename = "20251015_기타사이트_합포장.xlsx"
+        
+        result = data_processing_usecase.parse_filename(filename)
+        
+        assert result["site_type"] == "기본양식"
+        assert result["usage_type"] == "합포장용"
+        assert result["sub_site"] == "기타사이트"
+        assert result["is_star"] is False
+    
+    def test_parse_filename_new_format_스타배송_지옥_erp(self, data_processing_usecase):
+        """새 형식: 스타배송 지,옥 ERP 파일명 파싱 테스트"""
+        filename = "20251015_스타배송_지,옥_ERP.xlsx"
+        
+        result = data_processing_usecase.parse_filename(filename)
+        
+        assert result["site_type"] == "G마켓,옥션"
+        assert result["usage_type"] == "ERP용"
+        assert result["sub_site"] is None
+        assert result["is_star"] is True
+    
+    def test_parse_filename_new_format_스타배송_지옥_합포장(self, data_processing_usecase):
+        """새 형식: 스타배송 지,옥 합포장 파일명 파싱 테스트"""
+        filename = "20251015_스타배송_지,옥_합포장.xlsx"
+        
+        result = data_processing_usecase.parse_filename(filename)
+        
+        assert result["site_type"] == "G마켓,옥션"
+        assert result["usage_type"] == "합포장용"
+        assert result["sub_site"] is None
+        assert result["is_star"] is True
+    
+    def test_parse_filename_new_format_스타배송_기타사이트_erp(self, data_processing_usecase):
+        """새 형식: 스타배송 기타사이트 ERP 파일명 파싱 테스트"""
+        filename = "20251015_스타배송_기타사이트_ERP.xlsx"
+        
+        result = data_processing_usecase.parse_filename(filename)
+        
+        assert result["site_type"] == "기본양식"
+        assert result["usage_type"] == "ERP용"
+        assert result["sub_site"] == "기타사이트"
+        assert result["is_star"] is True
+    
+    def test_parse_filename_new_format_스타배송_기타사이트_합포장(self, data_processing_usecase):
+        """새 형식: 스타배송 기타사이트 합포장 파일명 파싱 테스트"""
+        filename = "20251015_스타배송_기타사이트_합포장.xlsx"
+        
+        result = data_processing_usecase.parse_filename(filename)
+        
+        assert result["site_type"] == "기본양식"
+        assert result["usage_type"] == "합포장용"
+        assert result["sub_site"] == "기타사이트"
+        assert result["is_star"] is True
+    
+    def test_parse_filename_new_format_invalid(self, data_processing_usecase):
+        """새 형식: 잘못된 파일명 형식 테스트"""
+        filename = "invalid_format.xlsx"
+        
+        result = data_processing_usecase.parse_filename(filename)
+        
+        assert result["site_type"] is None
+        assert result["usage_type"] is None
+        assert result["sub_site"] is None
+        assert result["is_star"] is False
+    
+    def test_parse_filename_new_format_wrong_date_format(self, data_processing_usecase):
+        """새 형식: 잘못된 날짜 형식 테스트"""
+        filename = "20251_지,옥_ERP.xlsx"  # 날짜 형식이 잘못됨
+        
+        result = data_processing_usecase.parse_filename(filename)
+        
+        assert result["site_type"] is None
+        assert result["usage_type"] is None
+        assert result["sub_site"] is None
+        assert result["is_star"] is False
+    
+    def test_parse_filename_new_format_no_extension(self, data_processing_usecase):
+        """새 형식: 확장자 없는 파일명 테스트"""
+        filename = "20251015_지,옥_ERP"
+        
+        result = data_processing_usecase.parse_filename(filename)
+        
+        assert result["site_type"] is None
+        assert result["usage_type"] is None
+        assert result["sub_site"] is None
+        assert result["is_star"] is False
+    
+    def test_parse_filename_new_format_different_date(self, data_processing_usecase):
+        """새 형식: 다른 날짜로 테스트"""
+        filename = "20241225_지,옥_ERP.xlsx"
+        
+        result = data_processing_usecase.parse_filename(filename)
+        
+        assert result["site_type"] == "G마켓,옥션"
+        assert result["usage_type"] == "ERP용"
+        assert result["sub_site"] is None
+        assert result["is_star"] is False 
