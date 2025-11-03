@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # model
 from models.receive_orders.receive_orders import ReceiveOrders
 from models.down_form_orders.down_form_order import BaseDownFormOrder
+from models.count_executing_data.count_executing_data import CountExecuting
 # schema
 from schemas.receive_orders.response.receive_orders_response import ReceiveOrdersBulkCreateResponse
 from schemas.receive_orders.receive_orders_dto import ReceiveOrdersDto
@@ -36,8 +37,11 @@ from services.export_templates.export_templates_read_service import ExportTempla
 from services.macro_batch_processing.batch_info_create_service import BatchInfoCreateService
 from services.vlookup_datas.vlookup_datas_read_service import VlookupDatasReadService
 from services.vlookup_datas.vlookup_datas_create_service import VlookupDatasCreateService
+# repository
+from repository.count_executing_repository import CountExecutingRepository
 # file
-from minio_handler import temp_file_to_object_name, delete_temp_file, upload_and_get_url_and_size, url_arrange
+from minio_handler import temp_file_to_object_name, delete_temp_file, upload_and_get_url_and_size, url_arrange, upload_and_get_url_with_count_rev
+
 
 
 logger = get_logger(__name__)
@@ -58,6 +62,7 @@ class DataProcessingUsecase:
         self.order_create_service = ReceiveOrderCreateService(session)
         self.vlookup_datas_read_service = VlookupDatasReadService(session)
         self.vlookup_datas_create_service = VlookupDatasCreateService(session)
+        self.count_executing_repository = CountExecutingRepository(session)
 
     def parse_filename(self, filename: str) -> dict[str, Any]:
         """
@@ -771,10 +776,11 @@ class DataProcessingUsecase:
             logger.info(f"[STEP 8] Saved to down_form_orders | saved_count: {saved_count}")
 
             # 7. 파일 업로드 및 batch 저장
+            count_rev = await self.count_executing_repository.get_and_increment(CountExecuting, "excel_run_macro_bulk")
+            logger.info(f"[STEP 9] count_rev: {count_rev}")
             logger.info(f"[STEP 9] Uploading file to MinIO")
-            file_url, minio_object_name, file_size = upload_and_get_url_and_size(
-                new_file_path, template_code, file_name)
-            file_url = url_arrange(file_url)
+            file_url, minio_object_name, file_size = upload_and_get_url_with_count_rev(
+                new_file_path, template_code, file_name, count_rev)
             logger.info(f"[STEP 9] MinIO upload completed | file_url: {file_url} | file_size: {file_size}")
 
             logger.info(f"[STEP 10] Creating batch info")
@@ -791,6 +797,8 @@ class DataProcessingUsecase:
                 "filename": original_filename,
                 "saved_count": saved_count,
                 "template_code": template_code,
+                "sub_site": sub_site,
+                "is_star": is_star,
                 "batch_id": batch_id,
                 "file_url": file_url,
                 "minio_object_name": minio_object_name
