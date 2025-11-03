@@ -62,6 +62,9 @@ class DataProcessingUsecase:
     def parse_filename(self, filename: str) -> dict[str, Any]:
         """
         파일명에서 사이트타입, 용도타입, 세부사이트 추출
+        파일명 형식: YYYYMMDD_${site_type}_${usage_type}.xlsx
+        또는: YYYYMMDD_스타배송_${site_type}_${usage_type}.xlsx
+        
         args:
             filename: 파일명
         returns:
@@ -74,39 +77,55 @@ class DataProcessingUsecase:
         """
         from utils.unicode_utils import normalize_for_comparison
 
-        # 유니코드 정규화 후 "스타배송" 포함 여부로만 판단
+        # 유니코드 정규화
         normalized_filename = normalize_for_comparison(filename)
-        is_star = '스타배송' in normalized_filename
-
-        # [사이트타입] 또는 (사이트타입)-용도타입-세부사이트 추출 (구분자: - 또는 _)
-        match = re.search(
-            r'[\[\(]([^\]\)]+)[\]\)]-([^-_]+?)(?:[-_]([^.]+?))?(?:\.xlsx)?$', normalized_filename)
-
+        
         result = {
             'site_type': None,
             'usage_type': None,
             'sub_site': None,
-            'is_star': is_star
+            'is_star': False
         }
+        
+        # 스타배송 여부 확인
+        is_star = '스타배송' in normalized_filename
+        result['is_star'] = is_star
+        
+        # 정규식 패턴: YYYYMMDD_스타배송_${site_type}_${usage_type}.xlsx (스타배송 있을 경우)
+        # 또는: YYYYMMDD_${site_type}_${usage_type}.xlsx (스타배송 없을 경우)
+        if is_star:
+            match = re.search(r'^(\d{8})_스타배송_(.+?)_(ERP|합포장)\.xlsx$', normalized_filename)
+        else:
+            match = re.search(r'^(\d{8})_(.+?)_(ERP|합포장)\.xlsx$', normalized_filename)
+        
         if not match:
             return result
         
-        TYPE_MATCH_MAPPING: dict[str, set[str]] = {
-            'site_type': {'G마켓,옥션', '기본양식', '브랜디'},
-            'usage_type': {'ERP용', '합포장용'},
-            'sub_site': {'기타사이트', '지그재그', '알리'}
+        # match.groups(): (날짜, site_type_raw, usage_type_raw)
+        date_part, site_type_raw, usage_type_raw = match.groups()
+        
+        # usage_type 매핑: "ERP" -> "ERP용", "합포장" -> "합포장용"
+        usage_type_mapping = {
+            'ERP': 'ERP용',
+            '합포장': '합포장용'
         }
-        # match group tuple로 반환
-        groups = match.groups()
- 
-        for group in groups:
-            # group 비어있으면 패스
-            if not group:
-                continue
-            # group이 TYPE_MATCH_MAPPING에 있는 값과 일치하면 result에 추가
-            for key, values in TYPE_MATCH_MAPPING.items():
-                if group in values:
-                    result[key] = group
+        result['usage_type'] = usage_type_mapping.get(usage_type_raw)
+        
+        # site_type 매핑
+        site_type_mapping = {
+            '지,옥': 'G마켓,옥션',
+            '기타사이트': '기본양식'
+        }
+        
+        # site_type_raw가 매핑에 있으면 site_type 설정
+        if site_type_raw in site_type_mapping:
+            result['site_type'] = site_type_mapping[site_type_raw]
+            # 기타사이트인 경우 sub_site도 설정
+            if site_type_raw == '기타사이트':
+                result['sub_site'] = '기타사이트'
+        else:
+            # 매핑되지 않은 경우 그대로 사용 (다른 사이트타입 대비)
+            result['site_type'] = site_type_raw
 
         return result
 
