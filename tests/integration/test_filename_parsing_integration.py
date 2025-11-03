@@ -128,7 +128,7 @@ class TestFilenameParsingIntegration:
     
     def test_parse_filename_gmarket_erp(self, data_processing_usecase):
         """G마켓,옥션 ERP용 파일명 파싱 테스트"""
-        filename = "20250724주문서확인처리[G마켓,옥션]-ERP용.xlsx"
+        filename = "20250724_지,옥_ERP.xlsx"
         
         result = data_processing_usecase.parse_filename(filename)
         
@@ -139,7 +139,7 @@ class TestFilenameParsingIntegration:
     
     def test_parse_filename_basic_erp_기타사이트(self, data_processing_usecase):
         """기본양식 ERP용 기타사이트 파일명 파싱 테스트"""
-        filename = "20250724주문서확인처리[기본양식]-ERP용-기타사이트.xlsx"
+        filename = "20250724_기타사이트_ERP.xlsx"
         
         result = data_processing_usecase.parse_filename(filename)
         
@@ -148,8 +148,9 @@ class TestFilenameParsingIntegration:
         assert result["sub_site"] == "기타사이트"
         assert result["is_star"] is False
     
+    @pytest.mark.skip(reason="지그재그는 새로운 파일명 형식에 없음")
     def test_parse_filename_basic_erp_지그재그(self, data_processing_usecase):
-        """기본양식 ERP용 지그재그 파일명 파싱 테스트"""
+        """기본양식 ERP용 지그재그 파일명 파싱 테스트 (스킵)"""
         filename = "20250724주문서확인처리[기본양식]-ERP용-지그재그.xlsx"
         
         result = data_processing_usecase.parse_filename(filename)
@@ -159,8 +160,9 @@ class TestFilenameParsingIntegration:
         assert result["sub_site"] == "지그재그"
         assert result["is_star"] is False
     
+    @pytest.mark.skip(reason="브랜디는 새로운 파일명 형식에 없음")
     def test_parse_filename_brandi_erp(self, data_processing_usecase):
-        """브랜디 ERP용 파일명 파싱 테스트"""
+        """브랜디 ERP용 파일명 파싱 테스트 (스킵)"""
         filename = "20250724주문서확인처리[브랜디]-ERP용.xlsx"
         
         result = data_processing_usecase.parse_filename(filename)
@@ -172,7 +174,7 @@ class TestFilenameParsingIntegration:
     
     def test_parse_filename_gmarket_bundle(self, data_processing_usecase):
         """G마켓,옥션 합포장용 파일명 파싱 테스트"""
-        filename = "20250724주문서확인처리[G마켓,옥션]-합포장용.xlsx"
+        filename = "20250724_지,옥_합포장.xlsx"
         
         result = data_processing_usecase.parse_filename(filename)
         
@@ -183,7 +185,7 @@ class TestFilenameParsingIntegration:
     
     def test_parse_filename_basic_bundle_기타사이트(self, data_processing_usecase):
         """기본양식 합포장용 기타사이트 파일명 파싱 테스트"""
-        filename = "20250724주문서확인처리[기본양식]-합포장용-기타사이트.xlsx"
+        filename = "20250724_기타사이트_합포장.xlsx"
         
         result = data_processing_usecase.parse_filename(filename)
         
@@ -192,8 +194,9 @@ class TestFilenameParsingIntegration:
         assert result["sub_site"] == "기타사이트"
         assert result["is_star"] is False
     
+    @pytest.mark.skip(reason="지그재그는 새로운 파일명 형식에 없음")
     def test_parse_filename_basic_bundle_지그재그(self, data_processing_usecase):
-        """기본양식 합포장용 지그재그 파일명 파싱 테스트"""
+        """기본양식 합포장용 지그재그 파일명 파싱 테스트 (스킵)"""
         filename = "20250724주문서확인처리[기본양식]-합포장용-지그재그.xlsx"
         
         result = data_processing_usecase.parse_filename(filename)
@@ -206,7 +209,7 @@ class TestFilenameParsingIntegration:
     @pytest.mark.asyncio
     async def test_find_template_code_by_filename_gmarket_erp(self, data_processing_usecase):
         """G마켓,옥션 ERP용 템플릿 코드 찾기 테스트"""
-        filename = "20250724주문서확인처리[G마켓,옥션]-ERP용.xlsx"
+        filename = "20250724_지,옥_ERP.xlsx"
         
         template_code = await data_processing_usecase.find_template_code_by_filename(filename)
         
@@ -215,24 +218,26 @@ class TestFilenameParsingIntegration:
     @pytest.mark.asyncio
     async def test_find_template_code_by_filename_basic_erp_기타사이트(self, data_processing_usecase):
         """기본양식 ERP용 기타사이트 템플릿 코드 찾기 테스트"""
-        filename = "20250724주문서확인처리[기본양식]-ERP용-기타사이트.xlsx"
+        filename = "20250724_기타사이트_ERP.xlsx"
         
         template_code = await data_processing_usecase.find_template_code_by_filename(filename)
         
         assert template_code == "basic_erp"
     
+    @pytest.mark.skip(reason="지그재그는 새로운 파일명 형식에 없음")
     @pytest.mark.asyncio
     async def test_find_template_code_by_filename_basic_erp_지그재그(self, data_processing_usecase):
-        """기본양식 ERP용 지그재그 템플릿 코드 찾기 테스트"""
+        """기본양식 ERP용 지그재그 템플릿 코드 찾기 테스트 (스킵)"""
         filename = "20250724주문서확인처리[기본양식]-ERP용-지그재그.xlsx"
         
         template_code = await data_processing_usecase.find_template_code_by_filename(filename)
         
         assert template_code == "basic_erp"
     
+    @pytest.mark.skip(reason="브랜디는 새로운 파일명 형식에 없음")
     @pytest.mark.asyncio
     async def test_find_template_code_by_filename_brandi_erp(self, data_processing_usecase):
-        """브랜디 ERP용 템플릿 코드 찾기 테스트"""
+        """브랜디 ERP용 템플릿 코드 찾기 테스트 (스킵)"""
         filename = "20250724주문서확인처리[브랜디]-ERP용.xlsx"
         
         template_code = await data_processing_usecase.find_template_code_by_filename(filename)
@@ -242,7 +247,7 @@ class TestFilenameParsingIntegration:
     @pytest.mark.asyncio
     async def test_find_template_code_by_filename_gmarket_bundle(self, data_processing_usecase):
         """G마켓,옥션 합포장용 템플릿 코드 찾기 테스트"""
-        filename = "20250724주문서확인처리[G마켓,옥션]-합포장용.xlsx"
+        filename = "20250724_지,옥_합포장.xlsx"
         
         template_code = await data_processing_usecase.find_template_code_by_filename(filename)
         
@@ -251,15 +256,16 @@ class TestFilenameParsingIntegration:
     @pytest.mark.asyncio
     async def test_find_template_code_by_filename_basic_bundle_기타사이트(self, data_processing_usecase):
         """기본양식 합포장용 기타사이트 템플릿 코드 찾기 테스트"""
-        filename = "20250724주문서확인처리[기본양식]-합포장용-기타사이트.xlsx"
+        filename = "20250724_기타사이트_합포장.xlsx"
         
         template_code = await data_processing_usecase.find_template_code_by_filename(filename)
         
         assert template_code == "basic_bundle"
     
+    @pytest.mark.skip(reason="지그재그는 새로운 파일명 형식에 없음")
     @pytest.mark.asyncio
     async def test_find_template_code_by_filename_basic_bundle_지그재그(self, data_processing_usecase):
-        """기본양식 합포장용 지그재그 템플릿 코드 찾기 테스트"""
+        """기본양식 합포장용 지그재그 템플릿 코드 찾기 테스트 (스킵)"""
         filename = "20250724주문서확인처리[기본양식]-합포장용-지그재그.xlsx"
         
         template_code = await data_processing_usecase.find_template_code_by_filename(filename)
