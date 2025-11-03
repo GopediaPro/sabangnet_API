@@ -6,7 +6,7 @@ from utils.logs.sabangnet_logger import get_logger
 from core.settings import SETTINGS
 import shutil
 from datetime import datetime
-
+import uuid
 logger = get_logger(__name__)
 
 
@@ -150,7 +150,10 @@ def upload_and_get_url_with_count_rev(file_path, template_code, file_name=None, 
     4. 임시 파일 삭제
     5. presigned url과 파일 크기 반환 (쿼리스트링 제거)
     """
-    minio_object_name = f"excel/{template_code}/{count_rev}_{file_name}"
+    year = datetime.now().strftime("%Y")
+    month = datetime.now().strftime("%m")
+    day = datetime.now().strftime("%d")
+    minio_object_name = f"excel/{year}/{month}/{day}/{template_code}/{count_rev}_{file_name}"
     object_name = upload_file_to_minio(file_path, minio_object_name)
     delete_temp_file(file_path)
     file_url, file_size = get_minio_file_url_and_size(object_name)
@@ -165,7 +168,11 @@ def upload_and_get_url_and_size(file_path, template_code, file_name=None):
     5. presigned url 반환 (쿼리스트링 제거)
     """
     date_now = datetime.now().strftime("%Y%m%d%H%M%S")
-    minio_object_name = f"excel/{template_code}/{date_now}_{file_name}"
+    year = datetime.now().strftime("%Y")
+    month = datetime.now().strftime("%m")
+    day = datetime.now().strftime("%d")
+    random_id = str(uuid.uuid4())[:8]
+    minio_object_name = f"excel/{year}/{month}/{day}/{template_code}/{random_id}_{file_name}"
     object_name = upload_file_to_minio(file_path, minio_object_name)
     delete_temp_file(file_path)
     file_url, file_size = get_minio_file_url_and_size(object_name)
